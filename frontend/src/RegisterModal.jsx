@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './RegisterModal.css';
+import { useAuth } from './contexts/AuthContext';
 
 const API = 'http://localhost:8000';
 
@@ -73,6 +74,8 @@ export default function RegisterModal({ onClose, onSuccess }) {
   useEffect(() => { stepIdxRef.current = stepIdx; }, [stepIdx]);
   useEffect(() => { nameRef.current    = name;    }, [name]);
 
+  const { authHeaders } = useAuth();
+
   const currentStep   = STEPS[stepIdx];
   const isCorrectPose = faceStatus.face_found && faceStatus.pose === currentStep?.id;
 
@@ -89,7 +92,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
     try {
       const res = await fetch(
         `${API}/register/capture?name=${encodeURIComponent(currentName)}&step=${step.id}`,
-        { method: 'POST' },
+        { method: 'POST', headers: authHeaders() },
       );
       if (res.ok) {
         setFlashSuccess(true);
@@ -124,7 +127,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
     if (phase !== 'capture') return;
     pollingRef.current = setInterval(async () => {
       try {
-        const res  = await fetch(`${API}/register/face_status`);
+        const res  = await fetch(`${API}/register/face_status`, { headers: authHeaders() });
         const data = await res.json();
         setFaceStatus(data);
       } catch {

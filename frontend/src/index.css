@@ -193,6 +193,35 @@ button { background: none; border: none; cursor: pointer; color: inherit; }
 }
 .register-btn:hover { background: linear-gradient(135deg, rgba(59,158,255,0.22), rgba(99,102,241,0.22)); transform: translateY(-1px); }
 
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #4a5a70;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 6px;
+}
+.logout-btn:hover { background: rgba(248,113,113,0.08); color: #f87171; border-color: rgba(248,113,113,0.2); }
+
+.badge--user {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #7a879e;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
 .status-pill {
   display: flex;
   align-items: center;

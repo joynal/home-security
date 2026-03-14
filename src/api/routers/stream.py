@@ -9,10 +9,11 @@ Public endpoints:
 import time
 
 import cv2
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 import src.api.state as state
+from src.api.auth import get_current_user, verify_token_param
 from src.config import ACTIVE_CAMERAS
 
 router = APIRouter()
@@ -30,7 +31,7 @@ def _frame_generator():
 
 
 @router.get("/cameras")
-def list_cameras():
+def list_cameras(_: str = Depends(get_current_user)):
     """Return the list of configured cameras for the React sidebar."""
     return {
         "cameras": [
@@ -45,8 +46,9 @@ def list_cameras():
 
 
 @router.get("/video_feed")
-def video_feed():
-    """Serve the infinite MJPEG stream."""
+def video_feed(token: str = Query(...)):
+    """MJPEG stream. Accepts token as query param (browsers can't set headers on img src)."""
+    verify_token_param(token)   # raises 401 if invalid
     return StreamingResponse(
         _frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",

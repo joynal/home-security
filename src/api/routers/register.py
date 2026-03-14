@@ -12,23 +12,24 @@ from datetime import datetime
 from pathlib import Path
 
 import cv2
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 import src.api.state as state
+from src.api.auth import get_current_user
 from src.config import KNOWN_FACES_DIR
 
 router = APIRouter(prefix="/register")
 
 
 @router.get("/face_status")
-def face_status():
+def face_status(_: str = Depends(get_current_user)):
     """Return current face detection + pose (polled every ~350 ms by the UI)."""
     with state.face_status_lock:
         return dict(state.latest_face_status)
 
 
 @router.get("/face_debug")
-def face_debug():
+def face_debug(_: str = Depends(get_current_user)):
     """Extended status with a calibration note — open in browser to tune thresholds."""
     with state.face_status_lock:
         return {
@@ -38,7 +39,7 @@ def face_debug():
 
 
 @router.post("/capture")
-def capture_face(name: str, step: str):
+def capture_face(name: str, step: str, _: str = Depends(get_current_user)):
     """
     Snapshot the current raw frame for *name* at pose *step*.
     The frame is saved to disk and queued for incremental embedding (no restart needed).

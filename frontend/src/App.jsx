@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import './index.css';
+import { useAuth } from './contexts/AuthContext';
 import RegisterModal from './RegisterModal';
 
 const API = 'http://localhost:8000';
 
 function CameraCard({ camera, isActive, onClick }) {
   const icons = { macbook: '💻', tapo: '📷', default: '🎥' };
-  const icon = icons[camera.type] || icons.default;
-
+  const icon  = icons[camera.type] || icons.default;
   return (
     <button
       className={`camera-card ${isActive ? 'camera-card--active' : ''}`}
@@ -24,12 +24,14 @@ function CameraCard({ camera, isActive, onClick }) {
 }
 
 export default function App() {
-  const [cameras, setCameras] = useState([]);
+  const { token, username, logout, authHeaders } = useAuth();
+  const [cameras,      setCameras]      = useState([]);
   const [activeCamera, setActiveCamera] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/cameras`)
+    if (!token) return;
+    fetch(`${API}/cameras`, { headers: authHeaders() })
       .then(r => r.json())
       .then(data => {
         setCameras(data.cameras);
@@ -40,7 +42,10 @@ export default function App() {
         setCameras(demo);
         setActiveCamera(demo[0]);
       });
-  }, []);
+  }, [token, authHeaders]);
+
+  // Video feed URL includes token as query param (browsers can't add headers to img src)
+  const videoUrl = activeCamera ? `${API}/video_feed?token=${encodeURIComponent(token)}` : null;
 
   return (
     <>
@@ -66,39 +71,37 @@ export default function App() {
           </div>
 
           <div className="sidebar__footer">
-            <button
-              className="register-btn"
-              onClick={() => setShowRegister(true)}
-            >
+            <button className="register-btn" onClick={() => setShowRegister(true)}>
               <span>＋</span> Register Person
             </button>
             <div className="status-pill">
               <span className="status-pill__pulse" />
               System Armed
             </div>
+            {/* Logout */}
+            <button className="logout-btn" onClick={logout} title={`Signed in as ${username}`}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              Sign out
+            </button>
           </div>
         </aside>
 
-        {/* ── Main Content ── */}
+        {/* ── Main ── */}
         <main className="content">
           <header className="topbar">
-            <div className="topbar__title">
-              {activeCamera ? activeCamera.name : 'Select a Camera'}
-            </div>
+            <div className="topbar__title">{activeCamera ? activeCamera.name : 'Select a Camera'}</div>
             <div className="topbar__badges">
               <span className="badge badge--live">● LIVE</span>
               <span className="badge badge--ai">AI: ArcFace + RetinaFace</span>
+              <span className="badge badge--user">👤 {username}</span>
             </div>
           </header>
 
           <div className="video-wrapper">
-            {activeCamera ? (
-              <img
-                key={activeCamera.id}
-                src={`${API}/video_feed`}
-                alt={`${activeCamera.name} live feed`}
-                className="video-feed"
-              />
+            {videoUrl ? (
+              <img key={activeCamera.id} src={videoUrl} alt={`${activeCamera.name} live`} className="video-feed" />
             ) : (
               <div className="video-placeholder">
                 <span>🎥</span>
@@ -109,27 +112,14 @@ export default function App() {
           </div>
 
           <div className="stats-strip">
-            <div className="stat">
-              <span className="stat__label">AI Model</span>
-              <span className="stat__value">InsightFace buffalo_l</span>
-            </div>
-            <div className="stat">
-              <span className="stat__label">Detection</span>
-              <span className="stat__value">RetinaFace 3D</span>
-            </div>
-            <div className="stat">
-              <span className="stat__label">Recognition</span>
-              <span className="stat__value">ArcFace 512-d</span>
-            </div>
-            <div className="stat">
-              <span className="stat__label">Cameras</span>
-              <span className="stat__value">{cameras.length} active</span>
-            </div>
+            <div className="stat"><span className="stat__label">AI Model</span><span className="stat__value">InsightFace buffalo_l</span></div>
+            <div className="stat"><span className="stat__label">Detection</span><span className="stat__value">RetinaFace 3D</span></div>
+            <div className="stat"><span className="stat__label">Recognition</span><span className="stat__value">ArcFace 512-d</span></div>
+            <div className="stat"><span className="stat__label">Cameras</span><span className="stat__value">{cameras.length} active</span></div>
           </div>
         </main>
       </div>
 
-      {/* ── Register Modal (portal-like overlay) ── */}
       {showRegister && (
         <RegisterModal
           onClose={() => setShowRegister(false)}
