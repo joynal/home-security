@@ -82,6 +82,26 @@ class FaceRecognizer:
         else:
             print("No known faces found to encode.")
 
+    def add_face_embedding(self, name: str, image_frame) -> bool:
+        """
+        Incrementally add a single new embedding without rescanning all images.
+        Runs InsightFace on the provided BGR frame and appends the result.
+        Returns True if a face was found and added, False otherwise.
+        """
+        faces = self.app.get(image_frame)
+        if not faces:
+            print(f"[add_face_embedding] No face detected in frame for '{name}'.")
+            return False
+
+        embedding = faces[0].embedding
+        self.known_embeddings.append(embedding)
+        self.known_names.append(name)
+        self.is_trained = True
+        print(
+            f"[add_face_embedding] Added embedding for '{name}'. Total: {len(self.known_embeddings)}."
+        )
+        return True
+
     def compute_sim(self, feat1, feat2):
         from numpy.linalg import norm
 
