@@ -42,6 +42,31 @@ The system abstracts the **Camera Source** and the **Alerting Mechanism**. This 
 
 ---
 
+## Authentication
+
+The system includes a secure JWT-based authentication mechanism for accessing the API. Authentication credentials and settings are managed as follows:
+
+### Environment Configuration
+
+The system requires a `SECRET_KEY` environment variable for signing JWT tokens. This key must be set before running the application.
+
+### Password Management
+
+Before starting the application, you must create the credentials file and set your password.
+
+⚠️ **Required**: Run the password script before starting the application:
+```bash
+uv run scripts/set_password.py
+```
+
+The script validates password strength (minimum 8 characters, with uppercase, lowercase, and digits).
+
+### Default Credentials
+
+If you forget your password, you can manually edit `data/credentials.json` and update the `hashed_password` field with a new bcrypt hash, or delete the file and run the set_password script to create new credentials.
+
+---
+
 ## Setup & Installation
 
 This project uses `uv` for fast, reproducible Python environment management.
@@ -59,7 +84,7 @@ This project uses `uv` for fast, reproducible Python environment management.
    ```
 
 2. **Sync the environment**
-   This will automatically create a virtual environment (`.venv`) and install `opencv-contrib-python` and `numpy`.
+   This will automatically create a virtual environment (`.venv`) and install all dependencies.
    ```bash
    uv sync
    ```

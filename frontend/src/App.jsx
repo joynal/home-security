@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import './index.css';
 import { useAuth } from './contexts/AuthContext';
 import RegisterModal from './RegisterModal';
+import ManageFacesPage from './ManageFacesPage';
 
 const API = 'http://localhost:8000';
 
@@ -23,8 +25,9 @@ function CameraCard({ camera, isActive, onClick }) {
   );
 }
 
-export default function App() {
+function Dashboard() {
   const { token, username, logout, authHeaders } = useAuth();
+  const navigate = useNavigate();
   const [cameras,      setCameras]      = useState([]);
   const [activeCamera, setActiveCamera] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
@@ -71,6 +74,9 @@ export default function App() {
           </div>
 
           <div className="sidebar__footer">
+            <button className="register-btn manage-faces-btn" onClick={() => navigate('/manage-faces')}>
+              <span>👥</span> Manage Faces
+            </button>
             <button className="register-btn" onClick={() => setShowRegister(true)}>
               <span>＋</span> Register Person
             </button>
@@ -127,5 +133,14 @@ export default function App() {
         />
       )}
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/manage-faces" element={<ManageFacesPage />} />
+    </Routes>
   );
 }

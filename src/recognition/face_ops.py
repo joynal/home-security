@@ -102,6 +102,30 @@ class FaceRecognizer:
         )
         return True
 
+    def remove_person(self, name: str) -> bool:
+        """
+        Remove a person's embeddings and name from live memory without restarting.
+        Use this when a person is deleted or updated.
+        """
+        if name not in self.known_names:
+            return False
+
+        # Find all embedding indices for this user
+        indices_to_remove = [i for i, n in enumerate(self.known_names) if n == name]
+
+        # Remove from highest index to lowest to avoid shifting issues
+        for i in reversed(indices_to_remove):
+            self.known_names.pop(i)
+            self.known_embeddings.pop(i)
+
+        print(f"[FaceRecognizer] Removed '{name}' ({len(indices_to_remove)} embeddings) from active model.")
+
+        # If we deleted the last person, mark trained=False
+        if len(self.known_embeddings) == 0:
+            self.is_trained = False
+
+        return True
+
     def compute_sim(self, feat1, feat2):
         from numpy.linalg import norm
 

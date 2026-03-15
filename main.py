@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import src.api.state as state
 from src.api.inference import inference_loop
-from src.api.routers import register, stream
+from src.api.routers import faces, register, stream
 from src.api.routers.auth_router import router as auth_router
 
 
@@ -41,6 +41,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(faces.router)
 app.include_router(stream.router)
 app.include_router(register.router)
 
