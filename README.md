@@ -48,7 +48,18 @@ The system includes a secure JWT-based authentication mechanism for accessing th
 
 ### Environment Configuration
 
-The system requires a `SECRET_KEY` environment variable for signing JWT tokens. This key must be set before running the application.
+The system relies on a few critical environment variables. These can be set in your terminal or via a `.env` file in the project root:
+
+```env
+# Required for JWT authentication signing
+SECRET_KEY="your-super-secret-key"
+
+# Required for Telegram Alerts (Optional)
+TELEGRAM_BOT_TOKEN="123456789:ABCdefg..."
+TELEGRAM_CHAT_ID="-100123456789"
+```
+
+This key must be set before running the application.
 
 ### Password Management
 
@@ -144,8 +155,9 @@ When you are ready to transition from a MacBook testing environment to a real ho
    * Go to your Camera Settings > Advanced Settings > Camera Account and set a username/password.
    * Modify `main.py` to instantiate `TapoCamera(username="...", password="...", ip_address="...")`.
    * Change `ACTIVE_CAMERA = "tapo"` in `src/config.py`.
-2. **Enable Telegram Alerts**:
-   * Talk to `@BotFather` on Telegram to create a Bot and get an API Token.
-   * Get your chat/group ID.
-   * Implement the HTTP POST request inside `src/alerts/telegram.py`.
-   * Change `ACTIVE_ALERT = "telegram"` in `src/config.py`.
+### 2. Enable Telegram Alerts (Implemented)
+   The system can instantly send a JPEG snapshot to a Telegram group chat when an unknown face is detected (throttled to 1 alert per 30 seconds per camera).
+   * Open Telegram and message `@BotFather` to create a Bot and get your `TELEGRAM_BOT_TOKEN`.
+   * Add the bot to your Family Group and use `https://api.telegram.org/bot<TOKEN>/getUpdates` to find the `TELEGRAM_CHAT_ID` (usually starts with `-100`).
+   * Add both of these to your `.env` file.
+   * Open `src/config.py` and change line 33 to read: `ACTIVE_ALERT = "telegram"`.

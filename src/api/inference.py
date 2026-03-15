@@ -17,7 +17,7 @@ from src.api.pose import compute_pose
 from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
 from src.camera.webcam import MacbookWebcam
-from src.config import ACTIVE_ALERT, ACTIVE_CAMERAS
+from src.config import ACTIVE_ALERT, ACTIVE_CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from src.recognition.face_ops import FaceRecognizer
 
 # ──────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ def build_alert():
     if ACTIVE_ALERT == "console":
         return ConsoleAlert(cooldown_seconds=10)
     if ACTIVE_ALERT == "telegram":
-        return TelegramAlert(bot_token="YOUR_BOT_TOKEN", chat_id="YOUR_CHAT_ID")
+        return TelegramAlert(bot_token=TELEGRAM_BOT_TOKEN, chat_id=TELEGRAM_CHAT_ID)
     raise ValueError(f"Unknown alert: {ACTIVE_ALERT}")
 
 

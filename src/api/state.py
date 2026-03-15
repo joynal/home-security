@@ -40,3 +40,8 @@ pending_lock = threading.Lock()
 # ── Shared objects (set once, by the inference loop) ────────
 recognizer: FaceRecognizer | None = None
 active_streams: list[CameraStreamWrapper] = []
+
+# Main FastAPI event loop, used to schedule async background tasks
+# from synchronous threads (like the inference thread).
+import asyncio
+main_loop: asyncio.AbstractEventLoop | None = None

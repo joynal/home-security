@@ -30,4 +30,6 @@ SECRET_KEY: str = _secret_key
 # Example: [{"name": "Porch", "type": "macbook"}, {"name": "Driveway", "type": "tapo", "ip": "192.168.1.10", "user": "admin", "pass": "secret"}]
 ACTIVE_CAMERAS = [{"name": "MacBook_Webcam", "type": "macbook"}]
 
-ACTIVE_ALERT = "console"  # Options: 'console', 'telegram'
+ACTIVE_ALERT = "telegram"  # Options: 'console', 'telegram'
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

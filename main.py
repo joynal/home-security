@@ -20,6 +20,10 @@ from src.api.routers.auth_router import router as auth_router
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    import asyncio
+    # Capture the main FastAPI event loop so background threads can schedule async tasks safely
+    state.main_loop = asyncio.get_running_loop()
+    
     # Start the AI inference loop in a background daemon thread
     thread = threading.Thread(target=inference_loop, daemon=True, name="inference")
     thread.start()
