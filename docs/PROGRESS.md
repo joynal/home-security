@@ -63,8 +63,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| 2.1 | FFmpeg recording manager | 1.1, 1.2, (1.8) | ⬜ | — | ffmpeg missing — unit-test with mocked Popen + temp files |
-| 2.2 | Retention strategy (disk-space controlled) | 2.1, 2.3 | ⬜ | — | ordered before 2.3 in plan but needs it — do 2.3 first |
+| 2.1 | FFmpeg recording manager | 1.1, 1.2, (1.8) | ✅ | — | ⚠️ ffmpeg missing — unit-tested with mocks; live recording deferred |
+| 2.2 | Retention strategy (disk-space controlled) | 2.1, 2.3 | ✅ | — | retention ships inside 2.1's cleanup; full matrix unit-tested |
 | 2.3 | SQLite event database | 1.3 | ✅ | — | done before 2.1/2.2 per ordering note |
 | 2.4 | Events API endpoints | 2.3 | ⬜ | — | |
 | 2.5 | Recordings API endpoints | 2.1 | ⬜ | — | |
@@ -144,6 +144,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run pytest tests/` → 15 passed (11 DB tests incl. thread-safety 4×50 concurrent inserts, disk-aware delete, thumbnail cascade + 4 inference-wiring tests incl. cooldown flood prevention). Live: `data/events.db` created on app startup. Real-face event insertion is a ⚠️ user manual check (synthetic clips have no detectable faces).
 - **Deviations**: (1) single persistent SQLite connection instead of per-call connects — plan's code broke `:memory:` tests (each connect() = separate empty DB) and contradicted its own "single connection with a lock" docstring. (2) Added 30s per-camera event cooldown — plan's snippet inserted an event per frame (~30/s) which would flood the DB. (3) ruff UP017 auto-migrated `timezone.utc` → `datetime.UTC` per project lint config.
+
+### Task 2.1 + 2.2 — FFmpeg recorder + disk-aware retention
+- **Status**: ✅ (live recording deferred — no ffmpeg binary)
+- **Commit**: (this commit)
+- **Verified**: `uv run pytest tests/` → 23 passed. Retention matrix covered: kept-when-space-available (60-day file preserved), oldest-purged-first under quota, free-space-threshold stop (dynamic disk mock), strict age mode, `source_url` override, ffmpeg cmd shape, disabled cameras skipped, graceful no-ffmpeg start. Live startup: `[RecordingManager] Started 0 recorders` (dev cameras have recording disabled) with no errors.
+- **Deviations**: **fixed a plan bug found by testing** — the purge break condition used `AND` (free-space restored AND quota satisfied); with a genuinely tight volume a camera would delete its entire history even after returning under its quota. Changed to independent stops (`OR` semantics): volume threshold or per-camera cap each halt the purge. `RecordingManager`/`CameraRecorder` accept `recordings_dir` for testability.
 
 ---
 

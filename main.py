@@ -22,7 +22,9 @@ from src.api.routers.auth_router import router as auth_router
 async def lifespan(_app: FastAPI):
     import asyncio
 
+    from src.config import CAMERAS
     from src.go2rtc import start_go2rtc, stop_go2rtc
+    from src.recording.recorder import RecordingManager
 
     # Capture the main FastAPI event loop so background threads can schedule async tasks safely
     state.main_loop = asyncio.get_running_loop()
@@ -30,12 +32,19 @@ async def lifespan(_app: FastAPI):
     # go2rtc stream proxy — required for RTSP cameras (single connection per camera)
     go2rtc_proc = start_go2rtc()
 
+    # Recording manager — FFmpeg per camera, retention piggybacked on rotation
+    recording_manager = RecordingManager(CAMERAS)
+    recording_manager.cleanup_all()  # startup sweep for stragglers from downtime
+    recording_manager.start_all()
+    state.recording_manager = recording_manager
+
     # Start the AI inference loop in a background daemon thread
     thread = threading.Thread(target=inference_loop, daemon=True, name="inference")
     thread.start()
     yield
     # Graceful shutdown
     print("\nShutting down cameras…")
+    recording_manager.stop_all()
     for s in state.active_streams.values():
         s.stop()
     stop_go2rtc(go2rtc_proc)

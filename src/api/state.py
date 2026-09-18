@@ -13,6 +13,7 @@ import numpy as np
 from src.camera.stream import CameraStreamWrapper
 from src.events.database import EventDatabase
 from src.recognition.face_ops import FaceRecognizer
+from src.recording.recorder import RecordingManager
 
 # ── Video stream ────────────────────────────────────────────
 # Annotated grid JPEG-ready frame served to web clients
@@ -50,6 +51,7 @@ pending_lock = threading.Lock()
 recognizer: FaceRecognizer | None = None
 active_streams: dict[str, CameraStreamWrapper] = {}  # camera_id → stream
 event_db: EventDatabase | None = None
+recording_manager: RecordingManager | None = None  # set by lifespan
 
 # Per-camera health: camera_id → {online, fps, last_frame_at, error}
 camera_status: dict[str, dict] = {}
