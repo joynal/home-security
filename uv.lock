@@ -449,6 +449,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "python-jose", extra = ["cryptography"] },
     { name = "python-telegram-bot" },
+    { name = "pyyaml" },
     { name = "uvicorn" },
 ]
 
@@ -470,6 +471,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-telegram-bot", specifier = ">=22.6" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "uvicorn", specifier = ">=0.41.0" },
 ]
 

@@ -21,8 +21,14 @@ from src.api.routers.auth_router import router as auth_router
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     import asyncio
+
+    from src.go2rtc import start_go2rtc, stop_go2rtc
+
     # Capture the main FastAPI event loop so background threads can schedule async tasks safely
     state.main_loop = asyncio.get_running_loop()
+
+    # go2rtc stream proxy — required for RTSP cameras (single connection per camera)
+    go2rtc_proc = start_go2rtc()
 
     # Start the AI inference loop in a background daemon thread
     thread = threading.Thread(target=inference_loop, daemon=True, name="inference")
@@ -32,6 +38,7 @@ async def lifespan(_app: FastAPI):
     print("\nShutting down cameras…")
     for s in state.active_streams.values():
         s.stop()
+    stop_go2rtc(go2rtc_proc)
 
 
 app = FastAPI(title="Aegis Vision AI", lifespan=lifespan)

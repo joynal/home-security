@@ -1,0 +1,21 @@
+# go2rtc configuration — auto-generated from cameras.json by src/go2rtc.py
+# Install: https://github.com/AlexxIT/go2rtc  (brew install go2rtc)
+# Run:     go2rtc -config go2rtc.yaml
+#
+# This file is an EXAMPLE — the real go2rtc.yaml is generated at startup and
+# contains camera credentials, so it is gitignored.
+
+streams:
+  front_door:
+    - rtsp://admin:password@192.168.1.100:554/stream1
+  backyard:
+    - rtsp://admin:password@192.168.1.101:554/stream1
+
+rtsp:
+  listen: "127.0.0.1:8554"   # recorder + detection read rtsp://localhost:8554/{camera_id}
+
+webrtc:
+  listen: "127.0.0.1:8555"   # localhost only — proxy via FastAPI for auth
+
+api:
+  listen: "127.0.0.1:1984"   # localhost only — prevents unauthenticated LAN access

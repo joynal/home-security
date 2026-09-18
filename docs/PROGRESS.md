@@ -57,7 +57,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | 1.5 | Per-camera video feed endpoints | 1.3 | ✅ | — | jpeg-bytes cache implemented |
 | 1.6 | Frontend multi-camera grid view | 1.5 | ✅ | — | ⚠️ visual check deferred to user |
 | 1.7 | Frontend sidebar camera status (polling) | 1.4, 1.6 | ✅ | — | ⚠️ visual check deferred to user |
-| 1.8 | go2rtc integration (required for Phase 2) | 1.1 | ⬜ | — | binary not installed — implement + graceful fallback, mark verify deferred |
+| 1.8 | go2rtc integration (required for Phase 2) | 1.1 | ✅ | — | ⚠️ binary not installed — fallback verified; live proxy check deferred |
 
 ### Phase 2 — Recording & Playback
 
@@ -132,6 +132,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `npm run build` passes (30 modules). New files lint-clean. Camera payload consumed by `CameraTile` matches the live `/cameras` response shape; feed URL pattern `/video_feed/{id}?token=` already curl-verified in Task 1.5. Polling every 10s per plan.
 - **Deviations**: `npm run lint` has 6 **pre-existing** errors/warnings in `RegisterModal.jsx`, `AuthContext.jsx`, `main.jsx` (React Compiler strictness; untouched files) — the plan's "passes npm run lint" prerequisite did not hold. Left as-is: fixing requires restructuring registration logic, risky without browser testing. Flagged for user.
+
+### Task 1.8 — go2rtc integration
+- **Status**: ✅ (live proxy verification deferred — binary not installed)
+- **Commit**: (this commit)
+- **Verified**: config generation unit-checked (empty streams in dev, localhost binds for rtsp/webrtc/api); `go2rtc.yaml` gitignored (contains credentials); live app start shows `[WARN] go2rtc not found …` and continues cleanly; shutdown path terminates proc if present. `pyyaml` added.
+- **Deviations**: `start_go2rtc()` skips launch when no RTSP cameras are configured (dev has none) — avoids a useless process. Added explicit `rtsp: listen 127.0.0.1:8554` to the generated config (plan's example omitted it; recorder depends on that port). Note for Task 4.7: Docker compose backend container can't reach go2rtc's `127.0.0.1` unless both use host networking — fix compose there.
 
 ---
 

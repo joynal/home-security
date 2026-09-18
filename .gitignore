@@ -12,3 +12,6 @@ data
 
 # Environment files
 .env
+
+# go2rtc generated config (contains camera credentials)
+go2rtc.yaml
