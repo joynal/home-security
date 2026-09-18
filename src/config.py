@@ -46,6 +46,7 @@ ACTIVE_CAMERAS = [{"name": "MacBook_Webcam", "type": "macbook"}]
 ACTIVE_ALERT = "telegram"  # Options: 'console', 'telegram', 'ntfy'
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "")  # e.g., "aegis-vision-alerts"
 
 
 def load_cameras() -> list[CameraConfig]:

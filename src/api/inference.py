@@ -56,6 +56,13 @@ def build_alert():
         return ConsoleAlert(cooldown_seconds=10)
     if ACTIVE_ALERT == "telegram":
         return TelegramAlert(bot_token=TELEGRAM_BOT_TOKEN, chat_id=TELEGRAM_CHAT_ID)
+    if ACTIVE_ALERT == "ntfy":
+        from src.alerts.ntfy import NtfyAlert
+        from src.config import NTFY_TOPIC
+
+        if not NTFY_TOPIC:
+            raise ValueError("ACTIVE_ALERT=ntfy requires NTFY_TOPIC in .env")
+        return NtfyAlert(topic=NTFY_TOPIC)
     raise ValueError(f"Unknown alert: {ACTIVE_ALERT}")
 
 
@@ -113,34 +120,56 @@ class _FpsCounter:
 # window, not one per frame (~30/s would flood the DB).
 EVENT_COOLDOWN_SECONDS = 30.0
 
+# Event/thumbnail retention sweep cadence (disk-aware — only prunes when low).
+EVENT_RETENTION_SWEEP_SECONDS = 900.0
 
-def _log_unknown_face_event(
-    camera_id: str,
-    frame: np.ndarray,
-    last_event_at: dict[str, float],
-    track_id: int | None = None,
-) -> None:
-    """Persist an unknown-face detection event with a thumbnail (throttled)."""
-    if state.event_db is None:
-        return
-    now = time.time()
-    if now - last_event_at.get(camera_id, 0.0) < EVENT_COOLDOWN_SECONDS:
-        return
-    last_event_at[camera_id] = now
+THUMBNAIL_PAD_PX = 20
+
+
+def _save_thumbnail(camera_id: str, frame: np.ndarray, bbox: list[int] | None) -> str:
+    """Save a (optionally bbox-cropped, padded) JPEG thumbnail. Returns its path."""
+    if bbox is not None:
+        x, y, w, h = bbox
+        y1 = max(0, y - THUMBNAIL_PAD_PX)
+        y2 = min(frame.shape[0], y + h + THUMBNAIL_PAD_PX)
+        x1 = max(0, x - THUMBNAIL_PAD_PX)
+        x2 = min(frame.shape[1], x + w + THUMBNAIL_PAD_PX)
+        frame = frame[y1:y2, x1:x2]
 
     # THUMBNAILS_DIR is env-overridable — never hardcode DATA_DIR / "thumbnails"
     # (the /events/{id}/thumbnail endpoint validates paths against it)
     thumb_dir = THUMBNAILS_DIR / camera_id
     thumb_dir.mkdir(parents=True, exist_ok=True)
     thumb_path = thumb_dir / f"{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}.jpg"
-    cv2.imwrite(str(thumb_path), frame)
+    cv2.imwrite(str(thumb_path), frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    return str(thumb_path)
+
+
+def _log_detection_event(
+    camera_id: str,
+    frame: np.ndarray,
+    last_event_at: dict[str, float],
+    event_type: str,
+    track_id: int | None = None,
+    bbox: list[int] | None = None,
+    throttle_key: str | None = None,
+    cooldown: float = EVENT_COOLDOWN_SECONDS,
+) -> None:
+    """Persist a detection event with a thumbnail (throttled per key)."""
+    if state.event_db is None:
+        return
+    key = throttle_key or f"{event_type}:{camera_id}"
+    now = time.time()
+    if now - last_event_at.get(key, 0.0) < cooldown:
+        return
+    last_event_at[key] = now
 
     metadata = json.dumps({"track_id": track_id}) if track_id is not None else ""
     state.event_db.insert(
         DetectionEvent(
             camera_id=camera_id,
-            event_type="unknown_face",
-            thumbnail_path=str(thumb_path),
+            event_type=event_type,
+            thumbnail_path=_save_thumbnail(camera_id, frame, bbox),
             metadata=metadata,
         )
     )
@@ -215,7 +244,18 @@ def inference_loop() -> None:
         )
     state.pipelines = pipelines
 
+    # Daily summary at 08:00 local — own cooldown bucket so a coincidental
+    # alert right before 8am can't suppress it
+    if state.event_db is not None:
+        from src.alerts.summary import start_daily_summary_scheduler
+
+        start_daily_summary_scheduler(
+            state.event_db,
+            lambda text: alert_manager.send_alert(text, person_key="daily-summary"),
+        )
+
     last_event_at: dict[str, float] = {}
+    last_retention_sweep = time.time()
 
     try:
         while True:
@@ -224,6 +264,7 @@ def inference_loop() -> None:
             trigger_frame = None
             event_camera_id: str | None = None
             event_track_id: int | None = None
+            event_bbox: list[int] | None = None
             registration_raw: np.ndarray | None = None
 
             for cam_id, stream in state.active_streams.items():
@@ -293,6 +334,8 @@ def inference_loop() -> None:
                         label = f"{name} #{det['track_id']}"
                         if det.get("zone"):
                             label += f" [{det['zone']}]"
+                        if det.get("loitering"):
+                            label += " ⏳LOITERING"
                         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
                         if det["landmarks"] is not None:
                             for lx, ly in det["landmarks"]:
@@ -302,6 +345,20 @@ def inference_loop() -> None:
                             trigger_frame = frame.copy()
                             event_camera_id = cam_id
                             event_track_id = det["track_id"]
+                            event_bbox = det["bbox"]
+                        if det.get("loitering"):
+                            # Fires once per track (detector's alerted flag);
+                            # zone + duration included in the event
+                            _log_detection_event(
+                                cam_id,
+                                frame,
+                                last_event_at,
+                                event_type="loitering",
+                                track_id=det["track_id"],
+                                bbox=det["bbox"],
+                                throttle_key=f"loitering:{cam_id}:{det['track_id']}",
+                                cooldown=0.0,  # the detector already dedupes per track
+                            )
 
                     cv2.putText(
                         frame, stream.name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
@@ -323,11 +380,30 @@ def inference_loop() -> None:
                         state.camera_status[cam_id] = {"online": False, "fps": 0, "error": str(exc)}
 
             if unknown_detected:
-                alert_manager.send_alert("Unknown person detected!", image_frame=trigger_frame)
+                alert_manager.send_alert(
+                    "Unknown person detected!",
+                    image_frame=trigger_frame,
+                    person_key=f"unknown#{event_track_id}" if event_track_id is not None else None,
+                )
                 if trigger_frame is not None and event_camera_id is not None:
-                    _log_unknown_face_event(
-                        event_camera_id, trigger_frame, last_event_at, track_id=event_track_id
+                    _log_detection_event(
+                        event_camera_id,
+                        trigger_frame,
+                        last_event_at,
+                        event_type="unknown_face",
+                        track_id=event_track_id,
+                        bbox=event_bbox,
                     )
+
+            # Periodic disk-aware retention sweep for events + thumbnails
+            if (
+                state.event_db is not None
+                and time.time() - last_retention_sweep > EVENT_RETENTION_SWEEP_SECONDS
+            ):
+                last_retention_sweep = time.time()
+                state.event_db.delete_older_than(
+                    days=30, only_if_disk_full=True, min_disk_free_gb=10.0
+                )
 
             if display_frames:
                 with state.frame_lock:

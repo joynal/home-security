@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 import cv2
 import httpx
@@ -12,31 +11,25 @@ from src.alerts.base import AlertManager
 class TelegramAlert(AlertManager):
     """
     Sends alerts to a Telegram chat using async HTTP requests on the main event loop.
-    Includes a cooldown mechanism to prevent spam.
+    Per-person cooldown prevents spam without cross-suppressing different people.
     """
 
     def __init__(self, bot_token: str, chat_id: str, cooldown_seconds: float = 5.0):
+        super().__init__(cooldown_seconds=cooldown_seconds)
         self.bot_token = bot_token
         self.chat_id = chat_id
-        self.cooldown_seconds = cooldown_seconds
-        self.last_alert_time = 0.0
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
 
         if not self.bot_token or not self.chat_id:
             print("[Warning] TelegramAlert initialized without bot token or chat ID.")
         else:
-            print(f"TelegramAlert initialized (Cooldown: {cooldown_seconds}s)")
+            print(f"TelegramAlert initialized (Cooldown: {cooldown_seconds}s per person)")
 
-    def send_alert(self, message: str, image_frame: np.ndarray = None):
+    def send_alert(self, message: str, image_frame: np.ndarray = None, person_key: str | None = None):
         if not self.bot_token or not self.chat_id or state.main_loop is None:
             return
-
-        current_time = time.time()
-        if (current_time - self.last_alert_time) < self.cooldown_seconds:
-            # Still in cooldown phase, skip alerting
+        if self._within_cooldown(person_key):
             return
-
-        self.last_alert_time = current_time
 
         if image_frame is not None:
             # Encode frame to JPEG in memory
@@ -45,19 +38,12 @@ class TelegramAlert(AlertManager):
                 photo_bytes = buffer.tobytes()
                 # Schedule the async POST on the main FastAPI event loop
                 asyncio.run_coroutine_threadsafe(
-                    self._send_photo_async(message, photo_bytes),
-                    state.main_loop
+                    self._send_photo_async(message, photo_bytes), state.main_loop
                 )
             else:
-                asyncio.run_coroutine_threadsafe(
-                    self._send_text_async(message),
-                    state.main_loop
-                )
+                asyncio.run_coroutine_threadsafe(self._send_text_async(message), state.main_loop)
         else:
-            asyncio.run_coroutine_threadsafe(
-                self._send_text_async(message),
-                state.main_loop
-            )
+            asyncio.run_coroutine_threadsafe(self._send_text_async(message), state.main_loop)
 
     async def _send_photo_async(self, caption: str, photo_bytes: bytes):
         try:

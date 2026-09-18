@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 
+from src.detection.behaviors import LoiteringDetector
 from src.detection.motion import MotionDetector
 from src.detection.person import PersonDetector
 from src.detection.tracker import PersonTracker
@@ -30,12 +31,16 @@ class DetectionPipeline:
         recognizer: FaceRecognizer,
         enable_motion_filter: bool = True,
         zones: list[dict] | None = None,
+        loitering_threshold_seconds: float = 120.0,
     ):
         self.motion_detector = MotionDetector() if enable_motion_filter else None
         self.person_detector = PersonDetector()
         self.tracker = PersonTracker(recognition_cooldown=30.0)
         self.recognizer = recognizer
         self.zone_filter = ZoneFilter(zones or [])
+        self.loitering_detector = (
+            LoiteringDetector(threshold_seconds=loitering_threshold_seconds) if zones else None
+        )
 
         # Stats
         self.stats = {
@@ -154,6 +159,19 @@ class DetectionPipeline:
 
         # ── Stage 5: Activity zones ────────────────────────
         results = self.zone_filter.filter_detections(results)
+
+        # ── Stage 6: Loitering (unknown persons lingering in a zone) ──
+        if self.loitering_detector is not None:
+            self.stats.setdefault("loitering_alerts", 0)
+            for det in results:
+                det["loitering"] = self.loitering_detector.update(
+                    det["track_id"], det.get("zone"), det["is_known"]
+                )
+                if det["loitering"]:
+                    self.stats["loitering_alerts"] += 1
+            self.loitering_detector.cleanup(
+                {int(tid) for tid in tracked.tracker_id} if len(tracked) else set()
+            )
 
         # Periodic cleanup
         if self.stats["frames_processed"] % 100 == 0:
