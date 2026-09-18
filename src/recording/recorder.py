@@ -8,6 +8,7 @@ Retention (Task 2.2) ships here: cleanup runs piggybacked on segment rotation
 (~every 15 min per camera) plus a startup sweep — no dedicated thread.
 """
 
+import os
 import shutil
 import subprocess
 import threading
@@ -16,6 +17,10 @@ from pathlib import Path
 
 from src.config import RECORDINGS_DIR
 from src.models import CameraConfig
+
+# Host where go2rtc's RTSP proxy listens. "localhost:8554" on bare metal;
+# set GO2RTC_HOST=go2rtc:8554 when the backend runs in Docker Compose.
+GO2RTC_RTSP_HOST = os.getenv("GO2RTC_HOST", "localhost:8554")
 
 
 def _check_ffmpeg_available() -> bool:
@@ -39,7 +44,7 @@ class CameraRecorder:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         # go2rtc proxy (single connection per camera — see src/go2rtc.py).
         # record.source_url overrides for dev testing (ffmpeg testsrc, looped mp4).
-        self.source_url = config.record.source_url or f"rtsp://localhost:8554/{config.id}"
+        self.source_url = config.record.source_url or f"rtsp://{GO2RTC_RTSP_HOST}/{config.id}"
 
     def start(self):
         """Start FFmpeg recording process."""

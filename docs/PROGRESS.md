@@ -87,13 +87,13 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| 4.1 | Loitering detection | 3.5, 3.6 | ⬜ | — | write tests/test_loitering.py in this task |
-| 4.2 | Event thumbnails & snapshots | 2.3 | ⬜ | — | use `THUMBNAILS_DIR` from config, not hardcoded DATA_DIR path |
-| 4.3 | Daily summary | 2.3 | ⬜ | — | |
-| 4.4 | Mobile push via ntfy.sh | 1.3 | ⬜ | — | |
-| 4.5 | Per-person alert cooldown | 3.5 | ⬜ | — | |
-| 4.6 | Test suite | (continuous) | ⬜ | — | ⚠️ do incrementally per-module instead of all at the end |
-| 4.7 | Deployment & ops | 1.8, 2.1 | ⬜ | — | |
+| 4.1 | Loitering detection | 3.5, 3.6 | ✅ | — | 6 tests; live path fires via pipeline flag |
+| 4.2 | Event thumbnails & snapshots | 2.3 | ✅ | — | bbox-cropped + padded; retention sweep every 15 min |
+| 4.3 | Daily summary | 2.3 | ✅ | — | scheduler daemon at 08:00 local; own cooldown bucket |
+| 4.4 | Mobile push via ntfy.sh | 1.3 | ✅ | — | ⚠️ live push needs a real topic + phone — user manual check |
+| 4.5 | Per-person alert cooldown | 3.5 | ✅ | — | 7 tests incl. the two-unknowns regression |
+| 4.6 | Test suite | (continuous) | ✅ | — | 60 tests written alongside each module |
+| 4.7 | Deployment & ops | 1.8, 2.1 | ✅ | — | ⚠️ docker absent here — compose up is a user manual check | |
 
 ---
 
@@ -175,11 +175,46 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Verified** (live server, 40s run, real-people clip `data/test_people.mp4` built from ultralytics' bus.jpg): `/diagnostics/pipeline` shows the cascade working end-to-end — 244 frames → 63 motion-skipped (25.8%) → 181 with persons → **7 recognition calls vs 353 cached (98.1% cache hit)**. 2 unknown_face events logged (30s cooldown) with `{"track_id": 2}` metadata + JPEG thumbnails on disk, served via `/events/{id}/thumbnail` (200 image/jpeg). Registration camera carve-out confirmed: `frames_skipped_no_motion=0` on the registration cam (motion gate off), raw InsightFace path feeds face_status. Both cams ~7 fps. 42 unit tests green, ruff clean.
 - **Deviations**: pipeline annotation adds `[zone]` to labels when zones configured (part of 3.6 integration). Events carry track_id in `metadata` JSON. Registration-cam carve-out runs BOTH pipeline + raw InsightFace per plan's WARNING block (extra compute accepted).
 
+### Task 4.1–4.5 — loitering, thumbnails, summary, ntfy, per-person cooldown
+- **Status**: ✅ (ntfy live push + visual checks deferred to user)
+- **Commit**: (this commit)
+- **Verified**: 60 tests green, ruff clean. Loitering: 6 state-machine tests (threshold, once-only, known-exempt, zone-exit reset, cleanup). Thumbnails: bbox+20px-pad crop test, independent throttle keys (loitering vs unknown). Summary: counts/busiest camera/hour/empty-db/window-exclusion tests. Cooldown: two different unknowns both fire (the old global-cooldown bug), same person suppressed, expiry via mocked clock, ntfy no-op without main loop. `generate_daily_summary` avoids CPython's triple-quoted-f-string quote nesting SyntaxError.
+- **Deviations**: per-person cooldown lives in `AlertManager` base (shared dict) rather than duplicated per implementation; alerts pass `person_key=f"unknown#{track_id}"`; daily summary uses its own cooldown bucket so a 07:59:55 alert can't suppress the 08:00 summary.
+
+### Task 4.6 — test suite
+- **Status**: ✅ (done continuously, as the tracker protocol requires)
+- **Commit**: spread across all task commits
+- **Verified**: `uv run pytest tests/` → 60 passed in ~11s, no hardware, no network (YOLO test uses the bundled bus.jpg; model downloaded once at first run).
+- **Deviations**: none.
+
+### Task 4.7 — deployment & ops
+- **Status**: ✅ (compose up deferred — docker not installed on this machine)
+- **Commit**: (this commit)
+- **Verified**: `plutil -lint deploy/aegis-vision.plist` → OK. Dockerfile/docker-compose/frontend Dockerfile written; `GO2RTC_HOST` env added to recorder so the backend reaches go2rtc by service name in compose (fixes the Task 1.8 networking note). go2rtc-docker.yaml.example binds 0.0.0.0 (compose-internal only, nothing published). systemd unit includes hardening (ProtectSystem=strict, ReadWritePaths=data).
+- **Deviations**: separate `go2rtc-docker.yaml` (0.0.0.0 binds) vs bare-metal `go2rtc.yaml` (127.0.0.1 binds) — containerized go2rtc can't bind loopback for inter-container traffic.
+
 ---
 
 ## Session log
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
+
+### Session 2 — 2026-09-18 (implementation run)
+- **All 26 tasks across all 4 phases implemented and committed** (baseline `f8420fa` docs commit → per-task commits through Task 4.7).
+- Final state: 60 pytest tests green · ruff clean · frontend builds · full-system live checkpoint passed (all endpoints 200, pipeline 98% cache-hit, events with thumbnails flowing).
+- Environment limits hit (and worked around): no webcam permission (macOS dialog — file-camera stand-in), no ffmpeg, no go2rtc binary, no Tapo hardware, no docker.
+- Dev conveniences added: `data/cameras.json` with two `file`-type cameras (`test_clip` + `test_people`), test clips in `data/`, dev credentials `admin`/`DevPass123`.
+
+#### ⚠️ Manual verification backlog for the human (trial-and-error welcome)
+1. **Webcam**: grant Terminal camera permission → swap `data/cameras.json` to a `macbook` camera → live feed in grid.
+2. **Registration wizard**: 5-pose flow with a real face (`/register/face_status` + capture).
+3. **Tapo camera**: add to `cameras.json` with real RTSP creds → detection + grid tile.
+4. **go2rtc + ffmpeg**: `brew install go2rtc ffmpeg` → recording segments appear in `data/recordings/<cam>/`, playback page plays them.
+5. **Telegram alerts**: real `TELEGRAM_BOT_TOKEN`/`CHAT_ID` in `.env` → phone gets photo alerts; two unknown people → two alerts (not cross-suppressed).
+6. **ntfy**: set `NTFY_TOPIC` + `ACTIVE_ALERT=ntfy` in config → subscribe on phone, verify push with image.
+7. **Frontend visuals**: grid layout, expand-on-click, event sidebar collapse, recordings page nav (all API-verified; rendering unseen).
+8. **Docker**: `docker compose up -d` on a machine with docker.
+9. **Real loitering**: configure a zone on a camera, stand in it past the threshold → one loitering alert + event.
 
 ### Session 1 — 2026-09-18
 - Reviewed research.md + implementation-plan.md against actual code; plan assumptions verified correct.

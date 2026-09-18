@@ -1,0 +1,22 @@
+# go2rtc config for Docker Compose — separate from the bare-metal go2rtc.yaml
+# because containerized go2rtc must bind 0.0.0.0 (compose network) instead of
+# 127.0.0.1. Streams here mirror data/cameras.json.
+#
+# NOTE: these ports are NOT published to the host by docker-compose.yml —
+# they are reachable only inside the compose network.
+
+streams:
+  front_door:
+    - rtsp://admin:password@192.168.1.100:554/stream1
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+
+api:
+  listen: ":1984"
+
+log:
+  level: info

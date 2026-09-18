@@ -14,11 +14,15 @@ and alerts when unknown individuals are detected. Full-stack: Python/FastAPI bac
 | Backend     | FastAPI + Uvicorn (port 8000)                                  |
 | Frontend    | React 19 + Vite 8 + React Router 6                            |
 | AI/ML       | InsightFace (buffalo_l) — RetinaFace detection + ArcFace 512-d embeddings |
+| Detection   | Cascading pipeline: motion (MOG2) → YOLOv8n person → ByteTrack → ArcFace → zones |
 | Runtime     | ONNX Runtime (CPU)                                             |
 | Auth        | JWT (python-jose) + bcrypt (passlib) — file-based credentials  |
-| Alerts      | Console + Telegram (async via httpx)                           |
+| Alerts      | Console + Telegram + ntfy.sh (per-person cooldown)             |
+| Recording   | FFmpeg segment recorder + go2rtc stream proxy + disk-aware retention |
+| Events      | SQLite (`data/events.db`) + JPEG thumbnails                   |
 | Pkg Manager | `uv` (Python), `npm` (frontend)                               |
 | Linting     | Ruff (Python), ESLint (JS)                                     |
+| Tests       | pytest (`uv run pytest tests/`) — 60 tests, no hardware needed |
 
 ## Directory Structure
 
@@ -30,34 +34,70 @@ home-security/
 ├── .python-version                  # 3.13
 │
 ├── src/
-│   ├── config.py                    # Central config: paths, env vars, camera/alert settings
+│   ├── config.py                    # Central config: paths, env vars, cameras.json loading
+│   ├── models.py                    # Pydantic config models (CameraConfig, RecordConfig, …)
+│   ├── go2rtc.py                    # go2rtc config generator + process manager
 │   │
 │   ├── api/
 │   │   ├── __init__.py
 │   │   ├── auth.py                  # JWT auth: create/decode tokens, password verify, FastAPI deps
-│   │   ├── inference.py             # Background thread: camera → detect → recognize → alert loop
+│   │   ├── inference.py             # Background thread: cameras → pipeline → events → alerts
 │   │   ├── pose.py                  # Head-pose estimation from 5 facial keypoints
-│   │   ├── state.py                 # Thread-safe shared state (frames, locks, queues)
+│   │   ├── state.py                 # Thread-safe shared state (frames, locks, queues, pipelines)
 │   │   └── routers/
 │   │       ├── __init__.py
 │   │       ├── auth_router.py       # POST /auth/login, GET /auth/me
 │   │       ├── faces.py             # GET /faces, DELETE /faces/{name}, GET /faces/{name}/img/{file}
 │   │       ├── register.py          # GET /register/face_status, POST /register/capture
-│   │       └── stream.py            # GET /cameras, GET /video_feed (MJPEG stream)
+│   │       ├── stream.py            # GET /cameras, /video_feed[/grid|/{id}], /diagnostics/pipeline
+│   │       ├── events.py            # GET /events, /events/summary, /events/{id}/thumbnail
+│   │       └── recordings.py        # GET /recordings/storage, /recordings/{cam}[/{file}]
 │   │
 │   ├── camera/
 │   │   ├── base.py                  # ABC: CameraSource (start, get_frame, stop)
 │   │   ├── stream.py                # CameraStreamWrapper — threaded frame reader
 │   │   ├── webcam.py                # MacbookWebcam — OpenCV VideoCapture
-│   │   └── tapo.py                  # TapoCamera — RTSP via OpenCV
+│   │   ├── tapo.py                  # TapoCamera — RTSP via OpenCV (url or components)
+│   │   └── video_file.py            # VideoFileCamera — looping MP4 (dev/test "file" type)
+│   │
+│   ├── detection/                   # Cascading pipeline (one per camera)
+│   │   ├── motion.py                # MOG2 background subtraction gatekeeper
+│   │   ├── person.py                # YOLOv8n person detector (COCO class 0)
+│   │   ├── tracker.py               # ByteTrack + identity cache (skip redundant recognition)
+│   │   ├── zones.py                 # Polygon activity-zone filter
+│   │   ├── behaviors.py             # LoiteringDetector (time-in-zone)
+│   │   └── pipeline.py              # DetectionPipeline: motion → YOLO → track → ArcFace → zones
+│   │
+│   ├── recording/
+│   │   └── recorder.py              # FFmpeg segment recorder + disk-aware retention
+│   │
+│   ├── events/
+│   │   ├── models.py                # DetectionEvent dataclass (UTC timestamps)
+│   │   └── database.py              # EventDatabase — SQLite, thread-safe
 │   │
 │   ├── alerts/
-│   │   ├── base.py                  # ABC: AlertManager (send_alert)
-│   │   ├── console.py               # ConsoleAlert — prints to terminal with cooldown
-│   │   └── telegram.py              # TelegramAlert — async photo/text via Telegram Bot API
+│   │   ├── base.py                  # ABC: AlertManager + per-person cooldown mixin
+│   │   ├── console.py               # ConsoleAlert
+│   │   ├── telegram.py              # TelegramAlert — async photo/text via Bot API
+│   │   ├── ntfy.py                  # NtfyAlert — push notifications via ntfy.sh
+│   │   └── summary.py               # Daily summary generation + scheduler
 │   │
 │   └── recognition/
 │       └── face_ops.py              # FaceRecognizer — InsightFace pipeline, cosine similarity matching
+│
+├── tests/                           # pytest suite — 60 tests, hardware-free
+├── scripts/
+│   ├── set_password.py              # CLI to create/update admin credentials (bcrypt)
+│   └── make_test_video.py           # Synthetic test clip generator
+│
+├── deploy/
+│   ├── aegis-vision.plist           # macOS launchd auto-start
+│   └── aegis-vision.service         # Linux systemd unit
+│
+├── Dockerfile                       # Backend image (python:3.13-slim + ffmpeg)
+├── docker-compose.yml               # backend + go2rtc + frontend
+├── cameras.json.example             # Typed camera config example
+└── go2rtc.yaml.example              # Bare-metal go2rtc config example
 │
 ├── scripts/
 │   └── set_password.py              # CLI to create/update admin credentials (bcrypt)
@@ -199,15 +239,40 @@ uv run ruff format .             # Python format
 cd frontend && npm run lint      # JS lint
 ```
 
+## API Endpoints
+
+| Method   | Path                          | Auth        | Description                        |
+|----------|-------------------------------|-------------|------------------------------------|
+| `POST`   | `/auth/login`                 | None        | Returns JWT `{ access_token }`     |
+| `GET`    | `/auth/me`                    | Bearer      | Validate token, return username    |
+| `GET`    | `/cameras`                    | Bearer      | Cameras + live status (online/fps) |
+| `GET`    | `/cameras/{id}/status`        | Bearer      | Single-camera detail incl. error   |
+| `GET`    | `/video_feed?token=`          | Query param | MJPEG grid stream (legacy)         |
+| `GET`    | `/video_feed/{id}?token=`     | Query param | Per-camera MJPEG stream            |
+| `GET`    | `/diagnostics/pipeline`       | Bearer      | Per-camera pipeline stats          |
+| `GET`    | `/faces`                      | Bearer      | List registered faces + counts     |
+| `GET`    | `/faces/{name}/img/{file}?token=` | Query param | Serve face image file          |
+| `DELETE` | `/faces/{name}`               | Bearer      | Delete person from disk + model    |
+| `GET`    | `/register/face_status`       | Bearer      | Current face pose (polled by UI)   |
+| `POST`   | `/register/capture?name=&step=` | Bearer    | Snapshot frame, queue embedding    |
+| `GET`    | `/events`                     | Bearer      | Detection events (filters, paging) |
+| `GET`    | `/events/summary`             | Bearer      | Event counts by type               |
+| `GET`    | `/events/{id}/thumbnail?token=` | Query param | Event thumbnail JPEG             |
+| `GET`    | `/recordings/storage`         | Bearer      | Per-camera disk usage              |
+| `GET`    | `/recordings/{cam}?date=`     | Bearer      | List MP4 segments                  |
+| `GET`    | `/recordings/{cam}/{file}?token=` | Query param | Serve MP4 for playback         |
+
 ## Important Conventions
 
-- **No tests exist yet** — the project has no test files or test framework configured.
+- **Tests run without hardware** — `uv run pytest tests/` (60 tests). New modules get tests written alongside them (see `docs/PROGRESS.md` protocol).
 - **All camera I/O is threaded** — never call camera methods from the FastAPI async context directly.
 - **ONNX calls are single-threaded** — enrollment goes through the pending queue, never call `app.get()` from multiple threads.
-- **The `data/` directory is gitignored** — credentials and face images are runtime-only.
-- **Ruff config**: line-length 100, target Python 3.13, double quotes, space indentation.
+- **The `data/` directory is gitignored** — credentials, face images, events.db, recordings, dev `cameras.json`.
+- **Ruff config**: line-length 100, target Python 3.13, double quotes, space indentation. Note: no nested double quotes inside triple-quoted f-strings (CPython rejects them).
 - **Frontend**: hardcoded `API = 'http://localhost:8000'` — no env-based API URL.
 - **CSS**: All styles are in separate `.css` files per component, dark theme throughout.
+- **Detection pipeline**: one `DetectionPipeline` per camera; the registration camera bypasses the motion gate and runs raw InsightFace (see `src/api/inference.py`).
+- **Recording source**: always via go2rtc (`rtsp://$GO2RTC_HOST/{camera_id}`), never the camera directly.
 
 ## Ongoing Implementation Work (Evolution Plan)
 

@@ -72,6 +72,38 @@ Skipping step 3 causes a `RuntimeError` at import time (auth.py loads credential
 
 Terminal app needs Camera access in System Settings > Privacy & Security > Camera. If denied, OpenCV silently fails to open the webcam — you get black frames, not an error.
 
+## Multi-Camera & Detection Pipeline (2026-09-18)
+
+### No-Quotes Inside Triple-Quoted f-Strings
+> `f"""...{x.strftime("%Y")}..."""` is a SyntaxError, even on Python 3.13.
+
+CPython (PEP 701) allows quote reuse in single-quoted f-strings but NOT inside triple-quoted ones. Compute the value into a variable before the f-string, or use implicit concatenation of smaller f-strings (`src/alerts/summary.py` does the latter).
+
+### `:memory:` SQLite Needs One Persistent Connection
+> `sqlite3.connect(":memory:")` per call creates a separate empty DB each time.
+
+Each connection gets its own private in-memory database — schema created in one connection is invisible to the next. Use a single long-lived connection guarded by a lock (`EventDatabase` does this; `check_same_thread=False` + own lock).
+
+### supervision's ByteTrack Is Deprecated (0.28–0.30)
+> `sv.ByteTrack` warns FutureWarning everywhere; removal planned for 0.31.
+
+Import from `supervision.tracker` and pin `supervision<0.31` in pyproject. No in-package replacement exists as of 0.30.4 — when 0.31 ships, adapt `src/detection/tracker.py`.
+
+### Hardware-Free Verification: `file` Camera Type
+> The whole pipeline is testable without any camera hardware.
+
+`CameraConfig(type="file", rtsp_url="path.mp4")` loops any MP4 through the full stack via `VideoFileCamera`. Generate synthetic clips with `scripts/make_test_video.py`; build real-people clips by panning ultralytics' bundled `bus.jpg` into a video. This exercised motion→YOLO→ByteTrack→ArcFace end-to-end with a 98% recognition cache-hit rate.
+
+### MJPEG: Encode Once per Camera, Serve Many Clients
+> Re-encoding JPEG inside each streaming generator multiplies CPU by viewer count.
+
+The inference loop encodes each camera's JPEG once per iteration into `state.latest_jpeg_bytes[cam_id]`; generators only yield cached bytes.
+
+### Registration Camera Must Bypass the Motion Gate
+> A person holding still for the 5-pose wizard generates zero motion.
+
+The registration camera (first enabled camera, `state.registration_camera_id`) gets `enable_motion_filter=False` and runs raw InsightFace on the full frame — pipeline landmarks are crop-relative, which breaks `compute_pose()`.
+
 ---
 
 <!-- 

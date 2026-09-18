@@ -1,0 +1,36 @@
+# No `version` key — obsolete in Compose v2.
+#
+# go2rtc runs as its own service on the internal compose network. Its RTSP
+# proxy is NOT published to the host — only the backend talks to it via
+# GO2RTC_HOST=go2rtc:8554. WebRTC (8555) and the go2rtc API (1984) are also
+# kept internal; publish them explicitly only if you accept unauthenticated
+# LAN access to the video streams (see docs/implementation-plan.md Task 1.8).
+
+services:
+  go2rtc:
+    image: alexxit/go2rtc
+    restart: unless-stopped
+    volumes:
+      - ./go2rtc-docker.yaml:/config/go2rtc.yaml:ro
+
+  backend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - GO2RTC_HOST=go2rtc:8554
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - go2rtc
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

@@ -1,0 +1,21 @@
+[Unit]
+Description=Aegis Vision AI — home security system
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aegis
+WorkingDirectory=/opt/aegis
+ExecStart=/opt/aegis/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/aegis/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
