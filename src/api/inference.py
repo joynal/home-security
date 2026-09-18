@@ -9,6 +9,7 @@ offline in state.camera_status without crashing the loop for the others.
 """
 
 import time
+from datetime import UTC, datetime
 
 import cv2
 import numpy as np
@@ -21,7 +22,9 @@ from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
 from src.camera.video_file import VideoFileCamera
 from src.camera.webcam import MacbookWebcam
-from src.config import ACTIVE_ALERT, CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from src.config import ACTIVE_ALERT, CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, THUMBNAILS_DIR
+from src.events.database import EventDatabase
+from src.events.models import DetectionEvent
 from src.models import CameraConfig
 from src.recognition.face_ops import FaceRecognizer
 
@@ -101,6 +104,40 @@ class _FpsCounter:
 
 
 # ──────────────────────────────────────────────────────────
+# Event logging
+# ──────────────────────────────────────────────────────────
+
+# Per-camera cooldown so a continuous unknown presence logs one event per
+# window, not one per frame (~30/s would flood the DB).
+EVENT_COOLDOWN_SECONDS = 30.0
+
+
+def _log_unknown_face_event(
+    camera_id: str,
+    frame: np.ndarray,
+    last_event_at: dict[str, float],
+) -> None:
+    """Persist an unknown-face detection event with a thumbnail (throttled)."""
+    if state.event_db is None:
+        return
+    now = time.time()
+    if now - last_event_at.get(camera_id, 0.0) < EVENT_COOLDOWN_SECONDS:
+        return
+    last_event_at[camera_id] = now
+
+    # THUMBNAILS_DIR is env-overridable — never hardcode DATA_DIR / "thumbnails"
+    # (the /events/{id}/thumbnail endpoint validates paths against it)
+    thumb_dir = THUMBNAILS_DIR / camera_id
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+    thumb_path = thumb_dir / f"{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}.jpg"
+    cv2.imwrite(str(thumb_path), frame)
+
+    state.event_db.insert(
+        DetectionEvent(camera_id=camera_id, event_type="unknown_face", thumbnail_path=str(thumb_path))
+    )
+
+
+# ──────────────────────────────────────────────────────────
 # Main inference loop (runs in a daemon thread)
 # ──────────────────────────────────────────────────────────
 
@@ -114,6 +151,7 @@ def inference_loop() -> None:
     """
     print("Initializing Home Security System...")
     state.recognizer = FaceRecognizer()
+    state.event_db = EventDatabase()
     alert_manager = build_alert()
 
     # The first enabled camera is the registration camera (pose wizard + capture)
@@ -152,11 +190,14 @@ def inference_loop() -> None:
 
     print("AI inference loop running…")
 
+    last_event_at: dict[str, float] = {}
+
     try:
         while True:
             display_frames: list[np.ndarray] = []
             unknown_detected = False
             trigger_frame = None
+            event_camera_id: str | None = None
             registration_raw: np.ndarray | None = None
 
             for cam_id, stream in state.active_streams.items():
@@ -220,6 +261,7 @@ def inference_loop() -> None:
                         if not is_known:
                             unknown_detected = True
                             trigger_frame = frame.copy()
+                            event_camera_id = cam_id
 
                     cv2.putText(
                         frame, stream.name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
@@ -242,6 +284,8 @@ def inference_loop() -> None:
 
             if unknown_detected:
                 alert_manager.send_alert("Unknown person detected!", image_frame=trigger_frame)
+                if trigger_frame is not None and event_camera_id is not None:
+                    _log_unknown_face_event(event_camera_id, trigger_frame, last_event_at)
 
             if display_frames:
                 with state.frame_lock:

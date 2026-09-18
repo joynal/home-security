@@ -11,6 +11,7 @@ import threading
 import numpy as np
 
 from src.camera.stream import CameraStreamWrapper
+from src.events.database import EventDatabase
 from src.recognition.face_ops import FaceRecognizer
 
 # ── Video stream ────────────────────────────────────────────
@@ -48,6 +49,7 @@ pending_lock = threading.Lock()
 # ── Shared objects (set once, by the inference loop) ────────
 recognizer: FaceRecognizer | None = None
 active_streams: dict[str, CameraStreamWrapper] = {}  # camera_id → stream
+event_db: EventDatabase | None = None
 
 # Per-camera health: camera_id → {online, fps, last_frame_at, error}
 camera_status: dict[str, dict] = {}
