@@ -53,8 +53,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | 1.1 | Refactor camera configuration (`src/models.py`, cameras.json) | — | ✅ | — | example lives at repo root `cameras.json.example` (data/ is gitignored) |
 | 1.2 | Add pydantic dependency | — | ✅ | — | done with 1.1 |
 | 1.3 | Refactor inference loop for multi-camera | 1.1, 1.2 | ✅ | — | |
-| 1.4 | Camera list & status API endpoints | 1.3 | ⬜ | — | |
-| 1.5 | Per-camera video feed endpoints | 1.3 | ⬜ | — | implement `latest_jpeg_bytes` cache (see plan perf note) |
+| 1.4 | Camera list & status API endpoints | 1.3 | ✅ | — | |
+| 1.5 | Per-camera video feed endpoints | 1.3 | ✅ | — | jpeg-bytes cache implemented |
 | 1.6 | Frontend multi-camera grid view | 1.5 | ⬜ | — | |
 | 1.7 | Frontend sidebar camera status (polling) | 1.4, 1.6 | ⬜ | — | |
 | 1.8 | go2rtc integration (required for Phase 2) | 1.1 | ⬜ | — | binary not installed — implement + graceful fallback, mark verify deferred |
@@ -120,6 +120,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run ruff check .` → clean (after fixing 6 pre-existing lint errors in main.py/telegram.py/state.py — the plan's "existing codebase passes ruff" prerequisite did not hold). Full `import main` OK (0.9s). `build_camera` handles macbook/rtsp/tapo + raises on missing rtsp_url; `_FpsCounter` measures >0 fps; `state.active_streams` is a dict; registration camera pinned via `state.registration_camera_id` (first enabled camera).
 - **Deviations**: camera start failure no longer `return`s out of the loop — marks camera offline in `state.camera_status` and continues (plan: "one failing camera doesn't crash others"). Dev credentials created (`admin` / `DevPass123`) in gitignored `data/credentials.json` for verification.
+
+### Task 1.4 + 1.5 — camera status API + per-camera feeds
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified** (live server + curl): `/cameras` returns enriched list with online/fps/last_frame_at; `/cameras/{id}/status` returns detail incl. error; unknown id → 404; `/video_feed`, `/video_feed/grid`, `/video_feed/{id}` all 200 multipart; `/video_feed/{id}` serves real JPEG frames via the encode-once cache (436KB in 3s, JFIF bytes confirmed); bad token → 401. Webcam marked offline gracefully (macOS permission — ⚠️ manual check for user).
+- **Deviations**: added `src/camera/video_file.py` (`VideoFileCamera`, type `"file"`, reuses `rtsp_url` as the path) + `scripts/make_test_video.py` — dev infrastructure so the whole pipeline is verifiable without hardware (plan's own dev-testing note suggests looped MP4s; extended to camera input). Dev `data/cameras.json` points at `data/test_clip.mp4` (gitignored).
 
 ---
 

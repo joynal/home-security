@@ -18,6 +18,13 @@ from src.recognition.face_ops import FaceRecognizer
 latest_grid_frame: np.ndarray = np.zeros((480, 640, 3), dtype=np.uint8)
 frame_lock = threading.Lock()
 
+# ── Per-camera frames ───────────────────────────────────────
+# The inference loop encodes each camera's JPEG ONCE per iteration; MJPEG
+# generators serve these cached bytes — never encode per connected client.
+latest_frames: dict[str, np.ndarray] = {}  # camera_id → latest annotated frame (BGR)
+latest_jpeg_bytes: dict[str, bytes] = {}  # camera_id → pre-encoded JPEG bytes
+frames_lock = threading.Lock()  # Single lock guarding both dicts
+
 # ── Registration ────────────────────────────────────────────
 # Raw (un-annotated) frame from camera[0], used by the capture endpoint
 latest_raw_frame: np.ndarray | None = None

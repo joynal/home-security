@@ -19,6 +19,7 @@ from src.alerts.telegram import TelegramAlert
 from src.api.pose import compute_pose
 from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
+from src.camera.video_file import VideoFileCamera
 from src.camera.webcam import MacbookWebcam
 from src.config import ACTIVE_ALERT, CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from src.models import CameraConfig
@@ -37,6 +38,10 @@ def build_camera(config: CameraConfig):
         if not config.rtsp_url:
             raise ValueError(f"Camera '{config.id}' requires rtsp_url")
         return TapoCamera(rtsp_url=config.rtsp_url)
+    if config.type == "file":
+        if not config.rtsp_url:
+            raise ValueError(f"Camera '{config.id}' (type file) requires rtsp_url=<video file path>")
+        return VideoFileCamera(path=config.rtsp_url)
     raise ValueError(f"Unknown camera type: {config.type}")
 
 
@@ -219,6 +224,15 @@ def inference_loop() -> None:
                     cv2.putText(
                         frame, stream.name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
                     )
+
+                    # Encode each camera's JPEG once per loop — MJPEG generators
+                    # serve these cached bytes instead of re-encoding per client.
+                    ret, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                    with state.frames_lock:
+                        state.latest_frames[cam_id] = frame
+                        if ret:
+                            state.latest_jpeg_bytes[cam_id] = buf.tobytes()
+
                     display_frames.append(frame)
 
                 except Exception as exc:
