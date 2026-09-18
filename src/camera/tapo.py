@@ -7,9 +7,21 @@ from src.camera.base import CameraSource
 
 
 class TapoCamera(CameraSource):
-    def __init__(self, username, password, ip_address, port=554, stream=1):
-        # Default RTSP URL format for Tapo
-        self.rtsp_url = f"rtsp://{username}:{password}@{ip_address}:{port}/stream{stream}"
+    def __init__(
+        self,
+        rtsp_url: str | None = None,
+        *,
+        username=None,
+        password=None,
+        ip_address=None,
+        port=554,
+        stream=1,
+    ):
+        # Accept a full RTSP URL directly, or build one from components
+        if rtsp_url:
+            self.rtsp_url = rtsp_url
+        else:
+            self.rtsp_url = f"rtsp://{username}:{password}@{ip_address}:{port}/stream{stream}"
         self.cap = None
 
     def start(self):

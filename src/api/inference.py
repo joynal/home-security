@@ -3,6 +3,9 @@ src/api/inference.py
 ────────────────────
 Background inference thread: grabs camera frames, runs InsightFace,
 updates shared state, and drains the enrollment queue.
+
+Each camera is handled independently — one failing camera marks itself
+offline in state.camera_status without crashing the loop for the others.
 """
 
 import time
@@ -17,7 +20,8 @@ from src.api.pose import compute_pose
 from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
 from src.camera.webcam import MacbookWebcam
-from src.config import ACTIVE_ALERT, ACTIVE_CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from src.config import ACTIVE_ALERT, CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from src.models import CameraConfig
 from src.recognition.face_ops import FaceRecognizer
 
 # ──────────────────────────────────────────────────────────
@@ -25,18 +29,15 @@ from src.recognition.face_ops import FaceRecognizer
 # ──────────────────────────────────────────────────────────
 
 
-def build_camera(cam_config: dict):
-    """Instantiate a camera from its config dict."""
-    cam_type = cam_config.get("type")
-    if cam_type == "macbook":
-        return MacbookWebcam()
-    if cam_type == "tapo":
-        return TapoCamera(
-            username=cam_config.get("user", "admin"),
-            password=cam_config.get("pass", "password"),
-            ip_address=cam_config.get("ip", "192.168.1.100"),
-        )
-    raise ValueError(f"Unknown camera type: {cam_type}")
+def build_camera(config: CameraConfig):
+    """Instantiate a camera from its typed config."""
+    if config.type == "macbook":
+        return MacbookWebcam(camera_index=config.camera_index)
+    if config.type in ("tapo", "rtsp"):
+        if not config.rtsp_url:
+            raise ValueError(f"Camera '{config.id}' requires rtsp_url")
+        return TapoCamera(rtsp_url=config.rtsp_url)
+    raise ValueError(f"Unknown camera type: {config.type}")
 
 
 def build_alert():
@@ -67,6 +68,33 @@ def stack_frames(frames: list[np.ndarray]) -> np.ndarray:
     return np.hstack(resized)
 
 
+class _FpsCounter:
+    """Simple rolling FPS counter — frames counted over a sliding window."""
+
+    def __init__(self, window_seconds: float = 2.0):
+        self.window = window_seconds
+        self._frames = 0
+        self._window_start = time.monotonic()
+        self.fps = 0.0
+
+    def tick(self) -> float:
+        """Record a frame; returns current FPS estimate."""
+        self._frames += 1
+        elapsed = time.monotonic() - self._window_start
+        if elapsed >= self.window:
+            self.fps = self._frames / elapsed
+            self._frames = 0
+            self._window_start = time.monotonic()
+        return self.fps
+
+    def stale_fps(self) -> float:
+        """FPS estimate even when no frame arrived this tick (decays toward 0)."""
+        elapsed = time.monotonic() - self._window_start
+        if elapsed >= self.window:
+            self.fps = 0.0
+        return self.fps
+
+
 # ──────────────────────────────────────────────────────────
 # Main inference loop (runs in a daemon thread)
 # ──────────────────────────────────────────────────────────
@@ -83,19 +111,38 @@ def inference_loop() -> None:
     state.recognizer = FaceRecognizer()
     alert_manager = build_alert()
 
-    for cam_config in ACTIVE_CAMERAS:
-        stream = CameraStreamWrapper(
-            camera=build_camera(cam_config),
-            name=cam_config.get("name", "Camera"),
-        )
-        state.active_streams.append(stream)
+    # The first enabled camera is the registration camera (pose wizard + capture)
+    state.registration_camera_id = next((c.id for c in CAMERAS if c.enabled), None)
 
-    try:
-        for stream in state.active_streams:
+    fps_counters: dict[str, _FpsCounter] = {}
+
+    for cam_config in CAMERAS:
+        if not cam_config.enabled:
+            print(f"  · Camera disabled, skipping: {cam_config.id}")
+            continue
+        try:
+            stream = CameraStreamWrapper(camera=build_camera(cam_config), name=cam_config.name)
+        except Exception as exc:
+            print(f"  ✗ Camera config invalid: {cam_config.id}: {exc}")
+            with state.camera_status_lock:
+                state.camera_status[cam_config.id] = {"online": False, "fps": 0, "error": str(exc)}
+            continue
+        state.active_streams[cam_config.id] = stream
+        fps_counters[cam_config.id] = _FpsCounter()
+
+    for cam_id, stream in state.active_streams.items():
+        try:
             stream.start()
+            with state.camera_status_lock:
+                state.camera_status[cam_id] = {"online": True, "fps": 0, "error": None}
             print(f"  ✓ Camera started: {stream.name}")
-    except Exception as exc:
-        print(f"Failed to start cameras: {exc}")
+        except Exception as exc:
+            print(f"  ✗ Camera failed to start ({cam_id}): {exc}")
+            with state.camera_status_lock:
+                state.camera_status[cam_id] = {"online": False, "fps": 0, "error": str(exc)}
+
+    if not state.active_streams:
+        print("No cameras running — inference loop exiting.")
         return
 
     print("AI inference loop running…")
@@ -105,60 +152,79 @@ def inference_loop() -> None:
             display_frames: list[np.ndarray] = []
             unknown_detected = False
             trigger_frame = None
-            first_cam_raw: np.ndarray | None = None
+            registration_raw: np.ndarray | None = None
 
-            for i, stream in enumerate(state.active_streams):
-                frame = stream.get_latest_frame()
-                if frame is None:
-                    continue
+            for cam_id, stream in state.active_streams.items():
+                # Per-camera isolation: a crash processing one camera must not
+                # kill the loop for the others.
+                try:
+                    frame = stream.get_latest_frame()
+                    if frame is None:
+                        with state.camera_status_lock:
+                            state.camera_status[cam_id]["fps"] = fps_counters[cam_id].stale_fps()
+                        continue
 
-                # Preserve raw frame from cam[0] for the registration endpoint
-                if i == 0:
-                    first_cam_raw = frame.copy()
+                    fps_counters[cam_id].tick()
+                    with state.camera_status_lock:
+                        state.camera_status[cam_id] = {
+                            "online": True,
+                            "fps": round(fps_counters[cam_id].fps, 1),
+                            "last_frame_at": time.time(),
+                            "error": None,
+                        }
 
-                results = state.recognizer.process_frame(frame)
+                    # Preserve the raw frame from the registration camera for /register/capture
+                    if cam_id == state.registration_camera_id:
+                        registration_raw = frame.copy()
 
-                # Update face-pose status from the first camera's first face
-                if i == 0:
-                    if results:
-                        x, y, w, h, _, _, landmarks = results[0]
-                        if landmarks is not None:
-                            pose_info = compute_pose(landmarks, [x, y, x + w, y + h])
-                            with state.face_status_lock:
-                                state.latest_face_status = {"face_found": True, **pose_info}
+                    results = state.recognizer.process_frame(frame)
+
+                    # Update face-pose status from the registration camera's first face
+                    if cam_id == state.registration_camera_id:
+                        if results:
+                            x, y, w, h, _, _, landmarks = results[0]
+                            if landmarks is not None:
+                                pose_info = compute_pose(landmarks, [x, y, x + w, y + h])
+                                with state.face_status_lock:
+                                    state.latest_face_status = {"face_found": True, **pose_info}
+                            else:
+                                with state.face_status_lock:
+                                    state.latest_face_status = {
+                                        "face_found": True,
+                                        "pose": "center",
+                                        "offset_x": 0.0,
+                                        "offset_y": 0.0,
+                                    }
                         else:
                             with state.face_status_lock:
                                 state.latest_face_status = {
-                                    "face_found": True,
-                                    "pose": "center",
+                                    "face_found": False,
+                                    "pose": "none",
                                     "offset_x": 0.0,
                                     "offset_y": 0.0,
                                 }
-                    else:
-                        with state.face_status_lock:
-                            state.latest_face_status = {
-                                "face_found": False,
-                                "pose": "none",
-                                "offset_x": 0.0,
-                                "offset_y": 0.0,
-                            }
 
-                # Annotate frame
-                for x, y, w, h, name, is_known, landmarks in results:
-                    color = (0, 255, 0) if is_known else (0, 0, 255)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                    cv2.putText(frame, name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-                    if landmarks is not None:
-                        for lx, ly in landmarks:
-                            cv2.circle(frame, (int(lx), int(ly)), 2, (0, 255, 255), -1)
-                    if not is_known:
-                        unknown_detected = True
-                        trigger_frame = frame.copy()
+                    # Annotate frame
+                    for x, y, w, h, name, is_known, landmarks in results:
+                        color = (0, 255, 0) if is_known else (0, 0, 255)
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                        cv2.putText(frame, name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                        if landmarks is not None:
+                            for lx, ly in landmarks:
+                                cv2.circle(frame, (int(lx), int(ly)), 2, (0, 255, 255), -1)
+                        if not is_known:
+                            unknown_detected = True
+                            trigger_frame = frame.copy()
 
-                cv2.putText(
-                    frame, stream.name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
-                )
-                display_frames.append(frame)
+                    cv2.putText(
+                        frame, stream.name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
+                    )
+                    display_frames.append(frame)
+
+                except Exception as exc:
+                    print(f"Camera processing error ({cam_id}): {exc}")
+                    with state.camera_status_lock:
+                        state.camera_status[cam_id] = {"online": False, "fps": 0, "error": str(exc)}
 
             if unknown_detected:
                 alert_manager.send_alert("Unknown person detected!", image_frame=trigger_frame)
@@ -167,9 +233,9 @@ def inference_loop() -> None:
                 with state.frame_lock:
                     state.latest_grid_frame = stack_frames(display_frames)
 
-            if first_cam_raw is not None:
+            if registration_raw is not None:
                 with state.raw_frame_lock:
-                    state.latest_raw_frame = first_cam_raw
+                    state.latest_raw_frame = registration_raw
 
             # Drain enrollment queue — app.get() is safe here (single thread)
             with state.pending_lock:

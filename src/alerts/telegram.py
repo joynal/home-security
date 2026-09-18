@@ -1,5 +1,4 @@
 import asyncio
-import io
 import time
 
 import cv2
@@ -65,7 +64,7 @@ class TelegramAlert(AlertManager):
             url = f"{self.api_url}/sendPhoto"
             files = {"photo": ("alert.jpg", photo_bytes, "image/jpeg")}
             data = {"chat_id": self.chat_id, "caption": caption}
-            
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(url, data=data, files=files)
                 response.raise_for_status()
@@ -77,7 +76,7 @@ class TelegramAlert(AlertManager):
         try:
             url = f"{self.api_url}/sendMessage"
             data = {"chat_id": self.chat_id, "text": text}
-            
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(url, data=data)
                 response.raise_for_status()

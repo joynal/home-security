@@ -23,14 +23,14 @@ async def lifespan(_app: FastAPI):
     import asyncio
     # Capture the main FastAPI event loop so background threads can schedule async tasks safely
     state.main_loop = asyncio.get_running_loop()
-    
+
     # Start the AI inference loop in a background daemon thread
     thread = threading.Thread(target=inference_loop, daemon=True, name="inference")
     thread.start()
     yield
     # Graceful shutdown
     print("\nShutting down cameras…")
-    for s in state.active_streams:
+    for s in state.active_streams.values():
         s.stop()
 
 

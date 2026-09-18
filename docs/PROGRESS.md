@@ -52,7 +52,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 |------|-------------|------|--------|--------|-------|
 | 1.1 | Refactor camera configuration (`src/models.py`, cameras.json) | — | ✅ | — | example lives at repo root `cameras.json.example` (data/ is gitignored) |
 | 1.2 | Add pydantic dependency | — | ✅ | — | done with 1.1 |
-| 1.3 | Refactor inference loop for multi-camera | 1.1, 1.2 | ⬜ | — | |
+| 1.3 | Refactor inference loop for multi-camera | 1.1, 1.2 | ✅ | — | |
 | 1.4 | Camera list & status API endpoints | 1.3 | ⬜ | — | |
 | 1.5 | Per-camera video feed endpoints | 1.3 | ⬜ | — | implement `latest_jpeg_bytes` cache (see plan perf note) |
 | 1.6 | Frontend multi-camera grid view | 1.5 | ⬜ | — | |
@@ -114,6 +114,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run ruff check src/models.py src/config.py` → All checks passed. Python smoke test: legacy fallback yields `macbook_webcam/MacBook_Webcam/macbook` with `rtsp_url=None`; `cameras.json.example` parses into 2 `CameraConfig`s (`source_url` field present, zones parse); `RECORDINGS_DIR`/`THUMBNAILS_DIR` created. Live app-start check deferred to end-of-Phase-1 checkpoint (heavy: loads InsightFace model + webcam).
 - **Deviations**: example file at repo root `cameras.json.example` instead of `data/cameras.json.example` — `data/` is fully gitignored so the plan's location would never be committed. `.env.example` also gained `NTFY_TOPIC` (used by Task 4.4) in the same pass.
+
+### Task 1.3 — multi-camera inference loop
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: `uv run ruff check .` → clean (after fixing 6 pre-existing lint errors in main.py/telegram.py/state.py — the plan's "existing codebase passes ruff" prerequisite did not hold). Full `import main` OK (0.9s). `build_camera` handles macbook/rtsp/tapo + raises on missing rtsp_url; `_FpsCounter` measures >0 fps; `state.active_streams` is a dict; registration camera pinned via `state.registration_camera_id` (first enabled camera).
+- **Deviations**: camera start failure no longer `return`s out of the loop — marks camera offline in `state.camera_status` and continues (plan: "one failing camera doesn't crash others"). Dev credentials created (`admin` / `DevPass123`) in gitignored `data/credentials.json` for verification.
 
 ---
 

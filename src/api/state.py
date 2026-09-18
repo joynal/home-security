@@ -5,6 +5,7 @@ All mutable shared state that crosses thread boundaries.
 Import from here instead of from main.py.
 """
 
+import asyncio
 import threading
 
 import numpy as np
@@ -39,9 +40,16 @@ pending_lock = threading.Lock()
 
 # ── Shared objects (set once, by the inference loop) ────────
 recognizer: FaceRecognizer | None = None
-active_streams: list[CameraStreamWrapper] = []
+active_streams: dict[str, CameraStreamWrapper] = {}  # camera_id → stream
+
+# Per-camera health: camera_id → {online, fps, last_frame_at, error}
+camera_status: dict[str, dict] = {}
+camera_status_lock = threading.Lock()
+
+# Pin which camera is used for face registration (avoids ambiguity now that
+# active_streams is a dict instead of a list with a fixed index-0 convention)
+registration_camera_id: str | None = None  # Set to CAMERAS[0].id at startup
 
 # Main FastAPI event loop, used to schedule async background tasks
 # from synchronous threads (like the inference thread).
-import asyncio
 main_loop: asyncio.AbstractEventLoop | None = None
