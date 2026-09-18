@@ -4,7 +4,9 @@ import './index.css';
 import { useAuth } from './contexts/AuthContext';
 import RegisterModal from './RegisterModal';
 import ManageFacesPage from './ManageFacesPage';
+import RecordingsPage from './RecordingsPage';
 import CameraGrid from './components/CameraGrid';
+import EventSidebar from './components/EventSidebar';
 
 const API = 'http://localhost:8000';
 
@@ -40,6 +42,7 @@ function Dashboard() {
   const [cameras,      setCameras]      = useState([]);
   const [activeCamera, setActiveCamera] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
+  const [eventsCollapsed, setEventsCollapsed] = useState(false);
 
   // Poll /cameras every 10s for live status (online/offline, FPS)
   useEffect(() => {
@@ -90,6 +93,9 @@ function Dashboard() {
             <button className="register-btn manage-faces-btn" onClick={() => navigate('/manage-faces')}>
               <span>👥</span> Manage Faces
             </button>
+            <button className="register-btn manage-faces-btn" onClick={() => navigate('/recordings')}>
+              <span>📹</span> Recordings
+            </button>
             <button className="register-btn" onClick={() => setShowRegister(true)}>
               <span>＋</span> Register Person
             </button>
@@ -118,22 +124,33 @@ function Dashboard() {
             </div>
           </header>
 
-          <div className="video-wrapper video-wrapper--grid">
-            {cameras.length > 0 ? (
-              <CameraGrid cameras={cameras} token={token} />
-            ) : (
-              <div className="video-placeholder">
-                <span>🎥</span>
-                <p>Loading cameras…</p>
+          <div className="content-row">
+            <div className="content-col">
+              <div className="video-wrapper video-wrapper--grid">
+                {cameras.length > 0 ? (
+                  <CameraGrid cameras={cameras} token={token} />
+                ) : (
+                  <div className="video-placeholder">
+                    <span>🎥</span>
+                    <p>Loading cameras…</p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="stats-strip">
-            <div className="stat"><span className="stat__label">AI Model</span><span className="stat__value">InsightFace buffalo_l</span></div>
-            <div className="stat"><span className="stat__label">Detection</span><span className="stat__value">RetinaFace 3D</span></div>
-            <div className="stat"><span className="stat__label">Recognition</span><span className="stat__value">ArcFace 512-d</span></div>
-            <div className="stat"><span className="stat__label">Cameras</span><span className="stat__value">{cameras.filter(c => c.online).length}/{cameras.length} online</span></div>
+              <div className="stats-strip">
+                <div className="stat"><span className="stat__label">AI Model</span><span className="stat__value">InsightFace buffalo_l</span></div>
+                <div className="stat"><span className="stat__label">Detection</span><span className="stat__value">RetinaFace 3D</span></div>
+                <div className="stat"><span className="stat__label">Recognition</span><span className="stat__value">ArcFace 512-d</span></div>
+                <div className="stat"><span className="stat__label">Cameras</span><span className="stat__value">{cameras.filter(c => c.online).length}/{cameras.length} online</span></div>
+              </div>
+            </div>
+
+            <EventSidebar
+              token={token}
+              authHeaders={authHeaders}
+              collapsed={eventsCollapsed}
+              onToggle={() => setEventsCollapsed(c => !c)}
+            />
           </div>
         </main>
       </div>
@@ -153,6 +170,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/manage-faces" element={<ManageFacesPage />} />
+      <Route path="/recordings" element={<RecordingsPage />} />
     </Routes>
   );
 }

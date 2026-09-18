@@ -68,8 +68,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | 2.3 | SQLite event database | 1.3 | ✅ | — | done before 2.1/2.2 per ordering note |
 | 2.4 | Events API endpoints | 2.3 | ✅ | — | |
 | 2.5 | Recordings API endpoints | 2.1 | ✅ | — | |
-| 2.6 | Frontend event sidebar | 2.4, 1.6 | ⬜ | — | |
-| 2.7 | Frontend recording playback | 2.5, 1.6 | ⬜ | — | |
+| 2.6 | Frontend event sidebar | 2.4, 1.6 | ✅ | — | ⚠️ visual check deferred to user |
+| 2.7 | Frontend recording playback | 2.5, 1.6 | ✅ | — | ⚠️ visual check deferred to user |
 
 ### Phase 3 — Smart Detection Pipeline
 
@@ -156,6 +156,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified** (live server, seeded data): `/events` list + camera/type filters + `/events/summary` counts; `/events/999/thumbnail` → 404; `/recordings/storage` per-camera stats; segment listing newest-first + date filter (match and no-match); segment file served; path-traversal attempt blocked (404 — no content leaked); unauthenticated → 401. Ruff clean.
 - **Deviations**: none vs the errata-fixed plan. Dev-only: seeded 2 events into `data/events.db` + 2 fake MP4 segments under `data/recordings/test_clip/` for curl verification (gitignored).
+
+### Task 2.6 + 2.7 — event sidebar + recordings playback UI
+- **Status**: ✅ (visual check deferred to user)
+- **Commit**: (this commit)
+- **Verified**: `npm run build` passes; new files lint-clean (6 pre-existing issues unchanged). EventSidebar polls `/events?limit=50` every 15s, thumbnails via `/events/{id}/thumbnail?token=`, red/green coding, collapsible. RecordingsPage: camera/date selectors hit `/recordings/{id}?date=`, player + prev/next + segment list — all endpoints curl-verified in 2.4/2.5. Route `/recordings` + sidebar nav button added.
+- **Deviations**: event sidebar is collapsible via header button (plan asked for toggleable; also collapses to a rail with live count).
 
 ---
 
