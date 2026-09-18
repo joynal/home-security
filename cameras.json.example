@@ -1,0 +1,27 @@
+[
+  {
+    "id": "macbook_webcam",
+    "name": "MacBook Webcam",
+    "type": "macbook",
+    "camera_index": 0,
+    "detect": { "width": 640, "height": 360, "fps": 5 },
+    "record": { "enabled": false }
+  },
+  {
+    "id": "front_door",
+    "name": "Front Door",
+    "type": "tapo",
+    "rtsp_url": "rtsp://admin:password@192.168.1.100:554/stream1",
+    "rtsp_sub_url": "rtsp://admin:password@192.168.1.100:554/stream2",
+    "detect": { "width": 640, "height": 360, "fps": 5 },
+    "record": {
+      "enabled": true,
+      "retain_days": 30,
+      "delete_only_if_disk_full": true,
+      "min_disk_free_gb": 10.0
+    },
+    "zones": [
+      { "name": "porch", "coordinates": [[0, 0], [300, 0], [300, 360], [0, 360]] }
+    ]
+  }
+]

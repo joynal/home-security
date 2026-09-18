@@ -50,8 +50,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| 1.1 | Refactor camera configuration (`src/models.py`, cameras.json) | — | ⬜ | — | |
-| 1.2 | Add pydantic dependency | — | ⬜ | — | do with 1.1 |
+| 1.1 | Refactor camera configuration (`src/models.py`, cameras.json) | — | ✅ | — | example lives at repo root `cameras.json.example` (data/ is gitignored) |
+| 1.2 | Add pydantic dependency | — | ✅ | — | done with 1.1 |
 | 1.3 | Refactor inference loop for multi-camera | 1.1, 1.2 | ⬜ | — | |
 | 1.4 | Camera list & status API endpoints | 1.3 | ⬜ | — | |
 | 1.5 | Per-camera video feed endpoints | 1.3 | ⬜ | — | implement `latest_jpeg_bytes` cache (see plan perf note) |
@@ -108,6 +108,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Verified**: <commands run + results, or "manual-only, deferred">
 - **Deviations**: <none | what changed vs plan and why>
 -->
+
+### Task 1.1 + 1.2 — camera config refactor + pydantic
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: `uv run ruff check src/models.py src/config.py` → All checks passed. Python smoke test: legacy fallback yields `macbook_webcam/MacBook_Webcam/macbook` with `rtsp_url=None`; `cameras.json.example` parses into 2 `CameraConfig`s (`source_url` field present, zones parse); `RECORDINGS_DIR`/`THUMBNAILS_DIR` created. Live app-start check deferred to end-of-Phase-1 checkpoint (heavy: loads InsightFace model + webcam).
+- **Deviations**: example file at repo root `cameras.json.example` instead of `data/cameras.json.example` — `data/` is fully gitignored so the plan's location would never be committed. `.env.example` also gained `NTFY_TOPIC` (used by Task 4.4) in the same pass.
 
 ---
 
