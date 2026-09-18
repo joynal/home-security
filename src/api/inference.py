@@ -8,6 +8,7 @@ Each camera is handled independently — one failing camera marks itself
 offline in state.camera_status without crashing the loop for the others.
 """
 
+import json
 import time
 from datetime import UTC, datetime
 
@@ -23,6 +24,7 @@ from src.camera.tapo import TapoCamera
 from src.camera.video_file import VideoFileCamera
 from src.camera.webcam import MacbookWebcam
 from src.config import ACTIVE_ALERT, CAMERAS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, THUMBNAILS_DIR
+from src.detection.pipeline import DetectionPipeline
 from src.events.database import EventDatabase
 from src.events.models import DetectionEvent
 from src.models import CameraConfig
@@ -116,6 +118,7 @@ def _log_unknown_face_event(
     camera_id: str,
     frame: np.ndarray,
     last_event_at: dict[str, float],
+    track_id: int | None = None,
 ) -> None:
     """Persist an unknown-face detection event with a thumbnail (throttled)."""
     if state.event_db is None:
@@ -132,8 +135,14 @@ def _log_unknown_face_event(
     thumb_path = thumb_dir / f"{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}.jpg"
     cv2.imwrite(str(thumb_path), frame)
 
+    metadata = json.dumps({"track_id": track_id}) if track_id is not None else ""
     state.event_db.insert(
-        DetectionEvent(camera_id=camera_id, event_type="unknown_face", thumbnail_path=str(thumb_path))
+        DetectionEvent(
+            camera_id=camera_id,
+            event_type="unknown_face",
+            thumbnail_path=str(thumb_path),
+            metadata=metadata,
+        )
     )
 
 
@@ -190,6 +199,22 @@ def inference_loop() -> None:
 
     print("AI inference loop running…")
 
+    # One cascading pipeline per camera (motion → YOLO → ByteTrack → ArcFace).
+    # The registration camera MUST bypass the motion gate — someone holding
+    # still for the 5-pose wizard produces zero motion, so the pipeline would
+    # return [] and face_status would never update (modal hangs at step 1).
+    pipelines: dict[str, DetectionPipeline] = {}
+    for cam in CAMERAS:
+        if cam.id not in state.active_streams:
+            continue
+        is_reg_cam = cam.id == state.registration_camera_id
+        pipelines[cam.id] = DetectionPipeline(
+            recognizer=state.recognizer,
+            enable_motion_filter=not is_reg_cam,  # No motion gate for registration cam
+            zones=[z.model_dump() for z in cam.zones],
+        )
+    state.pipelines = pipelines
+
     last_event_at: dict[str, float] = {}
 
     try:
@@ -198,6 +223,7 @@ def inference_loop() -> None:
             unknown_detected = False
             trigger_frame = None
             event_camera_id: str | None = None
+            event_track_id: int | None = None
             registration_raw: np.ndarray | None = None
 
             for cam_id, stream in state.active_streams.items():
@@ -223,12 +249,19 @@ def inference_loop() -> None:
                     if cam_id == state.registration_camera_id:
                         registration_raw = frame.copy()
 
-                    results = state.recognizer.process_frame(frame)
+                    # ── Cascading pipeline: motion → YOLO → track → recognize ──
+                    results = pipelines[cam_id].process_frame(frame)
 
-                    # Update face-pose status from the registration camera's first face
+                    # ── Registration camera carve-out ──────────────────────
+                    # The registration flow needs:
+                    #   1. registration_raw — the unprocessed frame (captured above)
+                    #   2. face_status with landmarks relative to the FULL FRAME
+                    #      (not a person crop), which pose math requires.
+                    # So for the registration camera, run InsightFace directly.
                     if cam_id == state.registration_camera_id:
-                        if results:
-                            x, y, w, h, _, _, landmarks = results[0]
+                        raw_results = state.recognizer.process_frame(frame)
+                        if raw_results:
+                            x, y, w, h, _, _, landmarks = raw_results[0]
                             if landmarks is not None:
                                 pose_info = compute_pose(landmarks, [x, y, x + w, y + h])
                                 with state.face_status_lock:
@@ -250,18 +283,25 @@ def inference_loop() -> None:
                                     "offset_y": 0.0,
                                 }
 
-                    # Annotate frame
-                    for x, y, w, h, name, is_known, landmarks in results:
+                    # Annotate frame (pipeline results: dict per detection)
+                    for det in results:
+                        x, y, w, h = det["bbox"]
+                        name = det["name"]
+                        is_known = det["is_known"]
                         color = (0, 255, 0) if is_known else (0, 0, 255)
                         cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                        cv2.putText(frame, name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-                        if landmarks is not None:
-                            for lx, ly in landmarks:
+                        label = f"{name} #{det['track_id']}"
+                        if det.get("zone"):
+                            label += f" [{det['zone']}]"
+                        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                        if det["landmarks"] is not None:
+                            for lx, ly in det["landmarks"]:
                                 cv2.circle(frame, (int(lx), int(ly)), 2, (0, 255, 255), -1)
                         if not is_known:
                             unknown_detected = True
                             trigger_frame = frame.copy()
                             event_camera_id = cam_id
+                            event_track_id = det["track_id"]
 
                     cv2.putText(
                         frame, stream.name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
@@ -285,7 +325,9 @@ def inference_loop() -> None:
             if unknown_detected:
                 alert_manager.send_alert("Unknown person detected!", image_frame=trigger_frame)
                 if trigger_frame is not None and event_camera_id is not None:
-                    _log_unknown_face_event(event_camera_id, trigger_frame, last_event_at)
+                    _log_unknown_face_event(
+                        event_camera_id, trigger_frame, last_event_at, track_id=event_track_id
+                    )
 
             if display_frames:
                 with state.frame_lock:

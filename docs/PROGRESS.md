@@ -79,9 +79,9 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | 3.2 | Motion detection module | — | ✅ | — | |
 | 3.3 | YOLO person detector | 3.1 | ✅ | — | verified on bundled bus.jpg |
 | 3.4 | ByteTrack object tracker | 3.1 | ✅ | — | |
-| 3.5 | Cascading detection pipeline | 3.2, 3.3, 3.4 | 🔄 | — | |
+| 3.5 | Cascading detection pipeline | 3.2, 3.3, 3.4 | ✅ | — | live-verified: 98% cache hit rate |
 | 3.6 | Activity zones | 3.5, 1.1 | ✅ | — | zone module + tests done; pipeline integration in 3.5 |
-| 3.7 | Pipeline stats API | 3.5 | ⬜ | — | |
+| 3.7 | Pipeline stats API | 3.5 | ✅ | — | |
 
 ### Phase 4 — Advanced Features
 
@@ -168,6 +168,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run pytest tests/` → 42 passed. Motion: static scene → no motion, moving box detected, sub-min-area specks ignored. YOLO: ≥3 people detected in ultralytics' bundled `bus.jpg` (real detection, real bboxes/conf), blank frame → 0, supervision format carries only class 0. Tracker: stable ID across smooth motion, NEW ID after 60 empty frames, cache cooldown + expiry (mocked clock) + stale cleanup. Zones: inside/outside/multi-zone/tagging/passthrough.
 - **Deviations**: (1) supervision pins `<0.31` — ByteTrack is deprecated (removal in 0.31) with no in-package replacement yet; warning filtered at our import site with an upgrade note. (2) tracker import uses `supervision.tracker.ByteTrack`. (3) tracker test feeds 3 consecutive re-entry frames because ByteTrack confirms new tracks over a couple of frames.
+
+### Task 3.5 + 3.7 — cascading pipeline + diagnostics API
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified** (live server, 40s run, real-people clip `data/test_people.mp4` built from ultralytics' bus.jpg): `/diagnostics/pipeline` shows the cascade working end-to-end — 244 frames → 63 motion-skipped (25.8%) → 181 with persons → **7 recognition calls vs 353 cached (98.1% cache hit)**. 2 unknown_face events logged (30s cooldown) with `{"track_id": 2}` metadata + JPEG thumbnails on disk, served via `/events/{id}/thumbnail` (200 image/jpeg). Registration camera carve-out confirmed: `frames_skipped_no_motion=0` on the registration cam (motion gate off), raw InsightFace path feeds face_status. Both cams ~7 fps. 42 unit tests green, ruff clean.
+- **Deviations**: pipeline annotation adds `[zone]` to labels when zones configured (part of 3.6 integration). Events carry track_id in `metadata` JSON. Registration-cam carve-out runs BOTH pipeline + raw InsightFace per plan's WARNING block (extra compute accepted).
 
 ---
 

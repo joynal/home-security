@@ -110,3 +110,13 @@ def video_feed_camera(camera_id: str, token: str = Query(...)):
         _camera_frame_generator(camera_id),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@router.get("/diagnostics/pipeline")
+def pipeline_stats(_: str = Depends(get_current_user)):
+    """Return detection pipeline performance stats per camera."""
+    return {
+        "pipelines": {
+            cam_id: pipeline.get_stats() for cam_id, pipeline in state.pipelines.items()
+        }
+    }
