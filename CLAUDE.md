@@ -1,0 +1,223 @@
+# CLAUDE.md — Project Index for Claude
+
+## Project Overview
+
+**Aegis Vision AI** — A real-time home security system with AI-powered face recognition.
+Monitors live camera feeds, identifies known faces using deep learning (InsightFace / ArcFace),
+and alerts when unknown individuals are detected. Full-stack: Python/FastAPI backend + React/Vite frontend.
+
+## Tech Stack
+
+| Layer       | Technology                                                     |
+|-------------|----------------------------------------------------------------|
+| Language    | Python 3.13, JavaScript (ES modules)                           |
+| Backend     | FastAPI + Uvicorn (port 8000)                                  |
+| Frontend    | React 19 + Vite 8 + React Router 6                            |
+| AI/ML       | InsightFace (buffalo_l) — RetinaFace detection + ArcFace 512-d embeddings |
+| Runtime     | ONNX Runtime (CPU)                                             |
+| Auth        | JWT (python-jose) + bcrypt (passlib) — file-based credentials  |
+| Alerts      | Console + Telegram (async via httpx)                           |
+| Pkg Manager | `uv` (Python), `npm` (frontend)                               |
+| Linting     | Ruff (Python), ESLint (JS)                                     |
+
+## Directory Structure
+
+```
+home-security/
+├── main.py                          # FastAPI entrypoint — wires app, inference thread, routers
+├── pyproject.toml                   # Python deps, ruff config, uv workspace
+├── .env.example                     # Required env vars: SECRET_KEY, TELEGRAM_*
+├── .python-version                  # 3.13
+│
+├── src/
+│   ├── config.py                    # Central config: paths, env vars, camera/alert settings
+│   │
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── auth.py                  # JWT auth: create/decode tokens, password verify, FastAPI deps
+│   │   ├── inference.py             # Background thread: camera → detect → recognize → alert loop
+│   │   ├── pose.py                  # Head-pose estimation from 5 facial keypoints
+│   │   ├── state.py                 # Thread-safe shared state (frames, locks, queues)
+│   │   └── routers/
+│   │       ├── __init__.py
+│   │       ├── auth_router.py       # POST /auth/login, GET /auth/me
+│   │       ├── faces.py             # GET /faces, DELETE /faces/{name}, GET /faces/{name}/img/{file}
+│   │       ├── register.py          # GET /register/face_status, POST /register/capture
+│   │       └── stream.py            # GET /cameras, GET /video_feed (MJPEG stream)
+│   │
+│   ├── camera/
+│   │   ├── base.py                  # ABC: CameraSource (start, get_frame, stop)
+│   │   ├── stream.py                # CameraStreamWrapper — threaded frame reader
+│   │   ├── webcam.py                # MacbookWebcam — OpenCV VideoCapture
+│   │   └── tapo.py                  # TapoCamera — RTSP via OpenCV
+│   │
+│   ├── alerts/
+│   │   ├── base.py                  # ABC: AlertManager (send_alert)
+│   │   ├── console.py               # ConsoleAlert — prints to terminal with cooldown
+│   │   └── telegram.py              # TelegramAlert — async photo/text via Telegram Bot API
+│   │
+│   └── recognition/
+│       └── face_ops.py              # FaceRecognizer — InsightFace pipeline, cosine similarity matching
+│
+├── scripts/
+│   └── set_password.py              # CLI to create/update admin credentials (bcrypt)
+│
+├── frontend/
+│   ├── package.json                 # React 19, react-router-dom 6, Vite 8
+│   ├── vite.config.js               # Vite + @vitejs/plugin-react
+│   ├── index.html                   # SPA shell
+│   └── src/
+│       ├── main.jsx                 # React root — BrowserRouter + AuthProvider + conditional render
+│       ├── App.jsx                  # Dashboard (camera sidebar, MJPEG feed, register modal)
+│       ├── LoginPage.jsx            # Login form with shield SVG art
+│       ├── ManageFacesPage.jsx      # CRUD for known faces (gallery, delete, update)
+│       ├── RegisterModal.jsx        # 5-step face registration wizard with pose detection
+│       ├── index.css                # Global styles (dark theme)
+│       ├── LoginPage.css            # Login page styles
+│       ├── ManageFacesPage.css      # Face management styles
+│       ├── RegisterModal.css        # Registration modal styles
+│       └── contexts/
+│           └── AuthContext.jsx      # React Context: token/username in localStorage, login/logout
+│
+├── docs/
+│   ├── architecture.jpg             # System architecture diagram
+│   └── architecture.excalidraw      # Editable architecture diagram
+│
+└── data/                            # (gitignored) runtime data
+    ├── credentials.json             # { username, hashed_password }
+    └── known_faces/                 # Person subdirs with face images
+        └── <person_name>/
+            └── *.jpg / *.png
+```
+
+## Architecture & Data Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           main.py (FastAPI)                             │
+│  lifespan → starts inference_loop in daemon thread                      │
+│  Mounts routers: auth, faces, stream, register                         │
+│  CORS: allow all origins (dev)                                          │
+└──────────────┬───────────────────────────────────────────────────────────┘
+               │
+    ┌──────────▼──────────┐          ┌──────────────────────────┐
+    │  inference_loop()   │──reads──▶│  CameraStreamWrapper     │
+    │  (daemon thread)    │          │  (threaded frame grab)   │
+    │                     │          └──────────────────────────┘
+    │  For each frame:    │
+    │  1. FaceRecognizer  │──uses───▶ InsightFace buffalo_l
+    │     .process_frame()│          (RetinaFace + ArcFace)
+    │  2. Annotate frame  │
+    │  3. Alert if unknown│──fires──▶ AlertManager (console/telegram)
+    │  4. Update state.*  │──writes─▶ state.py (thread-safe globals)
+    │  5. Drain enrollment│
+    └─────────────────────┘
+               │
+    ┌──────────▼──────────┐
+    │  API Routers        │ ◀─── React frontend (http://localhost:5173)
+    │  /video_feed        │      MJPEG stream via <img> tag
+    │  /faces             │      Face management CRUD
+    │  /register/capture  │      Snapshot + queue embedding
+    │  /auth/login        │      JWT token exchange
+    └─────────────────────┘
+```
+
+## Key Design Patterns
+
+1. **Strategy Pattern**: Camera and Alert systems use ABCs (`CameraSource`, `AlertManager`) for swappable implementations.
+2. **Thread-safe Shared State**: `src/api/state.py` holds all mutable cross-thread data behind `threading.Lock()`.
+3. **Producer-Consumer Queue**: Registration captures go into `pending_embeddings` → inference loop drains them (avoids concurrent ONNX calls).
+4. **Factory Functions**: `build_camera()` and `build_alert()` in `inference.py` instantiate from config dicts.
+5. **Token Auth via Query Params**: Browser `<img src>` can't set headers, so `/video_feed` and `/faces/{name}/img` accept `?token=` query params.
+
+## API Endpoints
+
+| Method   | Path                          | Auth        | Description                        |
+|----------|-------------------------------|-------------|------------------------------------|
+| `POST`   | `/auth/login`                 | None        | Returns JWT `{ access_token }`     |
+| `GET`    | `/auth/me`                    | Bearer      | Validate token, return username    |
+| `GET`    | `/cameras`                    | Bearer      | List configured cameras            |
+| `GET`    | `/video_feed?token=`          | Query param | Infinite MJPEG stream              |
+| `GET`    | `/faces`                      | Bearer      | List registered faces + counts     |
+| `GET`    | `/faces/{name}/img/{file}?token=` | Query param | Serve face image file          |
+| `DELETE` | `/faces/{name}`               | Bearer      | Delete person from disk + model    |
+| `GET`    | `/register/face_status`       | Bearer      | Current face pose (polled by UI)   |
+| `GET`    | `/register/face_debug`        | Bearer      | Extended pose with calibration     |
+| `POST`   | `/register/capture?name=&step=` | Bearer    | Snapshot frame, queue embedding    |
+
+## Key Classes & Functions
+
+### Backend
+
+- **`FaceRecognizer`** (`src/recognition/face_ops.py`): Core AI class. Loads InsightFace buffalo_l, generates 512-d ArcFace embeddings, matches via cosine similarity (threshold: 0.40). Methods: `load_and_train()`, `process_frame()`, `add_face_embedding()`, `remove_person()`.
+- **`CameraSource`** ABC (`src/camera/base.py`): `start()`, `get_frame() → np.ndarray`, `stop()`.
+- **`CameraStreamWrapper`** (`src/camera/stream.py`): Wraps CameraSource with background thread for non-blocking frame reads.
+- **`AlertManager`** ABC (`src/alerts/base.py`): `send_alert(message, image_frame=None)`.
+- **`TelegramAlert`** (`src/alerts/telegram.py`): Async HTTP via httpx, schedules coroutines on FastAPI's event loop from the inference thread using `asyncio.run_coroutine_threadsafe()`.
+- **`compute_pose()`** (`src/api/pose.py`): Determines head orientation (center/left/right/up/down) from 5 InsightFace keypoints using interocular-distance normalization.
+- **`inference_loop()`** (`src/api/inference.py`): Main processing loop — runs in daemon thread, ~30 FPS.
+
+### Frontend
+
+- **`AuthContext`** (`contexts/AuthContext.jsx`): React Context providing `{ token, username, login, logout, authHeaders }`. Persists JWT in localStorage.
+- **`App.jsx`**: Main dashboard — camera sidebar, MJPEG video feed, register modal trigger. Routes: `/` (Dashboard), `/manage-faces`.
+- **`RegisterModal.jsx`**: 5-step guided face registration wizard. Polls `/register/face_status` every 350ms, auto-captures when correct pose held for 2s.
+- **`ManageFacesPage.jsx`**: Grid of registered faces with thumbnails, delete, and update actions.
+
+## Configuration
+
+### Environment Variables (`.env`)
+
+```
+SECRET_KEY=<32+ char string>           # REQUIRED — JWT signing key
+TELEGRAM_BOT_TOKEN=<bot token>         # Optional — for Telegram alerts
+TELEGRAM_CHAT_ID=<chat id>             # Optional — for Telegram alerts
+```
+
+### `src/config.py` Key Settings
+
+- `ACTIVE_CAMERAS`: List of camera config dicts. Types: `"macbook"`, `"tapo"`.
+- `ACTIVE_ALERT`: `"console"` or `"telegram"`.
+- `KNOWN_FACES_DIR`: `data/known_faces/` — person subdirectories with face images.
+- `similarity_threshold`: `0.40` (in FaceRecognizer) — cosine similarity cutoff.
+
+## Development Commands
+
+```bash
+# Backend
+uv sync                          # Install Python dependencies
+uv run scripts/set_password.py   # Set admin password (required before first run)
+uv run main.py                   # Start FastAPI on port 8000
+
+# Frontend
+cd frontend && npm install       # Install JS dependencies
+cd frontend && npm run dev       # Start Vite dev server (port 5173)
+
+# Linting
+uv run ruff check .              # Python lint
+uv run ruff format .             # Python format
+cd frontend && npm run lint      # JS lint
+```
+
+## Important Conventions
+
+- **No tests exist yet** — the project has no test files or test framework configured.
+- **All camera I/O is threaded** — never call camera methods from the FastAPI async context directly.
+- **ONNX calls are single-threaded** — enrollment goes through the pending queue, never call `app.get()` from multiple threads.
+- **The `data/` directory is gitignored** — credentials and face images are runtime-only.
+- **Ruff config**: line-length 100, target Python 3.13, double quotes, space indentation.
+- **Frontend**: hardcoded `API = 'http://localhost:8000'` — no env-based API URL.
+- **CSS**: All styles are in separate `.css` files per component, dark theme throughout.
+
+## Ongoing Implementation Work (Evolution Plan)
+
+The project is being evolved per [docs/implementation-plan.md](./docs/implementation-plan.md) (research: [docs/research.md](./docs/research.md)).
+
+- **Before any implementation work**: read [docs/PROGRESS.md](./docs/PROGRESS.md) — it is the single source of truth for task state (what's done, blocked, or pending) across sessions.
+- **Follow its protocol**: update task status in the same commit as the work, record verification evidence, commit per task (`task X.Y: <description>`), and never mark a task ✅ without executed verification.
+- The "No tests exist yet" convention above is being superseded — new modules get pytest tests written alongside them (see Task 4.6).
+
+## Learnings
+
+See [LEARNINGS.md](./LEARNINGS.md) for project-specific knowledge, tricks, and gotchas discovered over time.
+When you discover something non-obvious about this codebase, **append it there**.

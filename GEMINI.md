@@ -1,0 +1,148 @@
+# Gemini Project Index
+
+## Identity
+
+- **Project**: Aegis Vision AI (Home Security System)
+- **Repository**: `home-security`
+- **Purpose**: Real-time video monitoring with AI face recognition — identifies known people and alerts on unknown faces
+
+## Tech Stack
+
+- **Backend**: Python 3.13 · FastAPI · Uvicorn · InsightFace (buffalo_l: RetinaFace + ArcFace) · ONNX Runtime (CPU)
+- **Frontend**: React 19 · Vite 8 · React Router 6 · vanilla CSS (dark theme)
+- **Auth**: JWT via python-jose · bcrypt via passlib · file-based credentials (`data/credentials.json`)
+- **Alerts**: Console (stdout) or Telegram (async httpx)
+- **Package Management**: `uv` (Python) · `npm` (frontend)
+- **Linting**: Ruff (Python, line-length 100, py313) · ESLint (JS)
+
+## File Map
+
+### Root
+| File | Purpose |
+|------|---------|
+| `main.py` | FastAPI app entrypoint — lifespan starts inference daemon thread, mounts CORS + 4 routers |
+| `pyproject.toml` | Python project config, dependencies, ruff settings |
+| `.env.example` | Required: `SECRET_KEY`; Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
+| `.python-version` | `3.13` |
+
+### `src/config.py` — Central Configuration
+Loads `.env`, defines `BASE_DIR`, `DATA_DIR`, `KNOWN_FACES_DIR`, `SECRET_KEY`, `ACTIVE_CAMERAS` (list of camera dicts), `ACTIVE_ALERT` ("console"/"telegram"), Telegram credentials.
+
+### `src/recognition/face_ops.py` — AI Core
+**`FaceRecognizer` class**: Loads InsightFace buffalo_l model pack. Scans `data/known_faces/<person>/` to build 512-d ArcFace embedding vectors. Uses cosine similarity (threshold 0.40) to match live faces.
+- `load_and_train()` — batch-load known face embeddings at startup
+- `process_frame(frame)` → `[(x, y, w, h, name, is_known, landmarks), ...]`
+- `add_face_embedding(name, frame)` → incrementally add without restart
+- `remove_person(name)` → remove from live model
+- `compute_sim(feat1, feat2)` → cosine similarity
+
+### `src/api/` — API Layer
+
+| File | Key Exports |
+|------|-------------|
+| `auth.py` | `create_access_token()`, `decode_token()`, `verify_password()`, `get_current_user` (FastAPI Depends), `verify_token_param()` |
+| `state.py` | Thread-safe shared globals: `latest_grid_frame`, `latest_raw_frame`, `latest_face_status`, `pending_embeddings`, `recognizer`, `active_streams`, `main_loop` — all with `threading.Lock()` |
+| `inference.py` | `inference_loop()` — daemon thread: grabs frames → runs InsightFace → annotates → alerts → updates state → drains enrollment queue. Also: `build_camera()`, `build_alert()` factories, `stack_frames()` |
+| `pose.py` | `compute_pose(kps_array, bbox)` → `{pose, offset_x, offset_y}` using interocular-distance normalization |
+
+### `src/api/routers/` — HTTP Endpoints
+
+| Router | Prefix | Endpoints |
+|--------|--------|-----------|
+| `auth_router.py` | `/auth` | `POST /auth/login` → JWT token; `GET /auth/me` → validate token |
+| `stream.py` | `/` | `GET /cameras` → camera list; `GET /video_feed?token=` → MJPEG stream |
+| `faces.py` | `/faces` | `GET /faces` → list with counts; `GET /faces/{name}/img/{file}?token=` → serve image; `DELETE /faces/{name}` → remove from disk + model |
+| `register.py` | `/register` | `GET /register/face_status` → pose data (polled); `GET /register/face_debug` → extended; `POST /register/capture?name=&step=` → save + queue embedding |
+
+### `src/camera/` — Camera Abstraction
+
+| File | Class | Description |
+|------|-------|-------------|
+| `base.py` | `CameraSource` (ABC) | Interface: `start()`, `get_frame() → np.ndarray`, `stop()` |
+| `webcam.py` | `MacbookWebcam` | OpenCV VideoCapture by index |
+| `tapo.py` | `TapoCamera` | RTSP via OpenCV (`rtsp://user:pass@ip:554/stream1`) |
+| `stream.py` | `CameraStreamWrapper` | Wraps any CameraSource with background thread for non-blocking reads |
+
+### `src/alerts/` — Alert Abstraction
+
+| File | Class | Description |
+|------|-------|-------------|
+| `base.py` | `AlertManager` (ABC) | Interface: `send_alert(message, image_frame=None)` |
+| `console.py` | `ConsoleAlert` | Terminal print with cooldown timer |
+| `telegram.py` | `TelegramAlert` | Async photo/text via Telegram Bot API, schedules on FastAPI event loop |
+
+### `scripts/`
+| File | Purpose |
+|------|---------|
+| `set_password.py` | CLI to create/update `data/credentials.json` with bcrypt hash. Validates: min 8 chars, uppercase, lowercase, digit. |
+
+### `frontend/src/` — React SPA
+
+| File | Role |
+|------|------|
+| `main.jsx` | Root: `BrowserRouter` → `AuthProvider` → conditional `App` or `LoginPage` |
+| `contexts/AuthContext.jsx` | React Context: `{ token, username, login, logout, authHeaders }`, persists in localStorage |
+| `App.jsx` | Dashboard: camera sidebar, live MJPEG feed (`<img src>`), register person button. Routes: `/` and `/manage-faces` |
+| `LoginPage.jsx` | Login form with shield SVG illustration |
+| `ManageFacesPage.jsx` | Grid of registered faces — view thumbnails, delete, update |
+| `RegisterModal.jsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold |
+| `*.css` | Per-component CSS files, dark theme |
+
+## Architecture Pattern
+
+```
+React SPA (Vite :5173)  ───HTTP───▶  FastAPI (:8000)
+                                         │
+                                    ┌────┴─────┐
+                                    │ Routers   │  (auth, faces, stream, register)
+                                    └────┬─────┘
+                                         │
+                                    ┌────▼─────┐
+                                    │  state   │  Thread-safe shared globals
+                                    └────┬─────┘
+                                         │
+                              ┌──────────▼──────────┐
+                              │  inference_loop()   │  Daemon thread
+                              │  ~30 FPS cycle:     │
+                              │  camera → detect →  │
+                              │  recognize → alert  │
+                              └──────────┬──────────┘
+                                         │
+                          ┌──────────────┼──────────────┐
+                          ▼              ▼              ▼
+                    CameraSource   FaceRecognizer   AlertManager
+                    (Strategy)     (InsightFace)    (Strategy)
+```
+
+## Critical Implementation Details
+
+1. **Single-threaded ONNX**: All InsightFace `app.get()` calls happen in the inference thread only. Registration uses a `pending_embeddings` queue.
+2. **Thread safety**: Every shared variable in `state.py` has a corresponding `threading.Lock()`.
+3. **Token in query params**: `/video_feed` and `/faces/{name}/img/` use `?token=` because `<img src>` can't set HTTP headers.
+4. **Async from sync thread**: `TelegramAlert` uses `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to post from the inference thread.
+5. **No tests**: No test framework or test files exist.
+6. **Hardcoded API URL**: Frontend uses `const API = 'http://localhost:8000'` in multiple files.
+7. **Data directory gitignored**: `data/` (credentials, face images) is not tracked.
+
+## Development
+
+```bash
+# Setup
+uv sync                              # Python deps
+cd frontend && npm install            # JS deps
+cp .env.example .env                  # Configure SECRET_KEY
+uv run scripts/set_password.py        # Create admin password
+
+# Run
+uv run main.py                        # Backend on :8000
+cd frontend && npm run dev            # Frontend on :5173
+
+# Lint
+uv run ruff check . && uv run ruff format .
+cd frontend && npm run lint
+```
+
+## Learnings
+
+See [LEARNINGS.md](./LEARNINGS.md) for project-specific knowledge, tricks, and gotchas discovered over time.
+When you discover something non-obvious about this codebase, **append it there**.
