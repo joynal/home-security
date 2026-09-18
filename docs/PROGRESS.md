@@ -75,12 +75,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| 3.1 | Add ultralytics + supervision deps | — | ⬜ | — | first YOLO run downloads ~6MB model |
-| 3.2 | Motion detection module | — | ⬜ | — | write tests/test_motion.py in this task |
-| 3.3 | YOLO person detector | 3.1 | ⬜ | — | verify with static test image/video, not live person |
-| 3.4 | ByteTrack object tracker | 3.1 | ⬜ | — | |
-| 3.5 | Cascading detection pipeline | 3.2, 3.3, 3.4 | ⬜ | — | ⚠️ registration-camera carve-out — read the plan's WARNING block |
-| 3.6 | Activity zones | 3.5, 1.1 | ⬜ | — | write tests/test_zones.py in this task |
+| 3.1 | Add ultralytics + supervision deps | — | ✅ | — | supervision pinned <0.31 |
+| 3.2 | Motion detection module | — | ✅ | — | |
+| 3.3 | YOLO person detector | 3.1 | ✅ | — | verified on bundled bus.jpg |
+| 3.4 | ByteTrack object tracker | 3.1 | ✅ | — | |
+| 3.5 | Cascading detection pipeline | 3.2, 3.3, 3.4 | 🔄 | — | |
+| 3.6 | Activity zones | 3.5, 1.1 | ✅ | — | zone module + tests done; pipeline integration in 3.5 |
 | 3.7 | Pipeline stats API | 3.5 | ⬜ | — | |
 
 ### Phase 4 — Advanced Features
@@ -162,6 +162,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `npm run build` passes; new files lint-clean (6 pre-existing issues unchanged). EventSidebar polls `/events?limit=50` every 15s, thumbnails via `/events/{id}/thumbnail?token=`, red/green coding, collapsible. RecordingsPage: camera/date selectors hit `/recordings/{id}?date=`, player + prev/next + segment list — all endpoints curl-verified in 2.4/2.5. Route `/recordings` + sidebar nav button added.
 - **Deviations**: event sidebar is collapsible via header button (plan asked for toggleable; also collapses to a rail with live count).
+
+### Task 3.1–3.4 + 3.6 (modules) — motion, YOLO, ByteTrack, zones
+- **Status**: ✅ (3.6's pipeline integration lands with 3.5)
+- **Commit**: (this commit)
+- **Verified**: `uv run pytest tests/` → 42 passed. Motion: static scene → no motion, moving box detected, sub-min-area specks ignored. YOLO: ≥3 people detected in ultralytics' bundled `bus.jpg` (real detection, real bboxes/conf), blank frame → 0, supervision format carries only class 0. Tracker: stable ID across smooth motion, NEW ID after 60 empty frames, cache cooldown + expiry (mocked clock) + stale cleanup. Zones: inside/outside/multi-zone/tagging/passthrough.
+- **Deviations**: (1) supervision pins `<0.31` — ByteTrack is deprecated (removal in 0.31) with no in-package replacement yet; warning filtered at our import site with an upgrade note. (2) tracker import uses `supervision.tracker.ByteTrack`. (3) tracker test feeds 3 consecutive re-entry frames because ByteTrack confirms new tracks over a couple of frames.
 
 ---
 
