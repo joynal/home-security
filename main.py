@@ -16,6 +16,8 @@ import src.api.state as state
 from src.api.inference import inference_loop
 from src.api.routers import faces, register, stream
 from src.api.routers.auth_router import router as auth_router
+from src.api.routers.events import router as events_router
+from src.api.routers.recordings import router as recordings_router
 
 
 @asynccontextmanager
@@ -64,6 +66,8 @@ app.include_router(auth_router)
 app.include_router(faces.router)
 app.include_router(stream.router)
 app.include_router(register.router)
+app.include_router(events_router)
+app.include_router(recordings_router)
 
 
 if __name__ == "__main__":

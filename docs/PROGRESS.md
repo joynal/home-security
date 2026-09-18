@@ -66,8 +66,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | 2.1 | FFmpeg recording manager | 1.1, 1.2, (1.8) | ✅ | — | ⚠️ ffmpeg missing — unit-tested with mocks; live recording deferred |
 | 2.2 | Retention strategy (disk-space controlled) | 2.1, 2.3 | ✅ | — | retention ships inside 2.1's cleanup; full matrix unit-tested |
 | 2.3 | SQLite event database | 1.3 | ✅ | — | done before 2.1/2.2 per ordering note |
-| 2.4 | Events API endpoints | 2.3 | ⬜ | — | |
-| 2.5 | Recordings API endpoints | 2.1 | ⬜ | — | |
+| 2.4 | Events API endpoints | 2.3 | ✅ | — | |
+| 2.5 | Recordings API endpoints | 2.1 | ✅ | — | |
 | 2.6 | Frontend event sidebar | 2.4, 1.6 | ⬜ | — | |
 | 2.7 | Frontend recording playback | 2.5, 1.6 | ⬜ | — | |
 
@@ -150,6 +150,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run pytest tests/` → 23 passed. Retention matrix covered: kept-when-space-available (60-day file preserved), oldest-purged-first under quota, free-space-threshold stop (dynamic disk mock), strict age mode, `source_url` override, ffmpeg cmd shape, disabled cameras skipped, graceful no-ffmpeg start. Live startup: `[RecordingManager] Started 0 recorders` (dev cameras have recording disabled) with no errors.
 - **Deviations**: **fixed a plan bug found by testing** — the purge break condition used `AND` (free-space restored AND quota satisfied); with a genuinely tight volume a camera would delete its entire history even after returning under its quota. Changed to independent stops (`OR` semantics): volume threshold or per-camera cap each halt the purge. `RecordingManager`/`CameraRecorder` accept `recordings_dir` for testability.
+
+### Task 2.4 + 2.5 — events + recordings API
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified** (live server, seeded data): `/events` list + camera/type filters + `/events/summary` counts; `/events/999/thumbnail` → 404; `/recordings/storage` per-camera stats; segment listing newest-first + date filter (match and no-match); segment file served; path-traversal attempt blocked (404 — no content leaked); unauthenticated → 401. Ruff clean.
+- **Deviations**: none vs the errata-fixed plan. Dev-only: seeded 2 events into `data/events.db` + 2 fake MP4 segments under `data/recordings/test_clip/` for curl verification (gitignored).
 
 ---
 
