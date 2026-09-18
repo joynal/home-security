@@ -55,8 +55,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | 1.3 | Refactor inference loop for multi-camera | 1.1, 1.2 | ✅ | — | |
 | 1.4 | Camera list & status API endpoints | 1.3 | ✅ | — | |
 | 1.5 | Per-camera video feed endpoints | 1.3 | ✅ | — | jpeg-bytes cache implemented |
-| 1.6 | Frontend multi-camera grid view | 1.5 | ⬜ | — | |
-| 1.7 | Frontend sidebar camera status (polling) | 1.4, 1.6 | ⬜ | — | |
+| 1.6 | Frontend multi-camera grid view | 1.5 | ✅ | — | ⚠️ visual check deferred to user |
+| 1.7 | Frontend sidebar camera status (polling) | 1.4, 1.6 | ✅ | — | ⚠️ visual check deferred to user |
 | 1.8 | go2rtc integration (required for Phase 2) | 1.1 | ⬜ | — | binary not installed — implement + graceful fallback, mark verify deferred |
 
 ### Phase 2 — Recording & Playback
@@ -126,6 +126,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified** (live server + curl): `/cameras` returns enriched list with online/fps/last_frame_at; `/cameras/{id}/status` returns detail incl. error; unknown id → 404; `/video_feed`, `/video_feed/grid`, `/video_feed/{id}` all 200 multipart; `/video_feed/{id}` serves real JPEG frames via the encode-once cache (436KB in 3s, JFIF bytes confirmed); bad token → 401. Webcam marked offline gracefully (macOS permission — ⚠️ manual check for user).
 - **Deviations**: added `src/camera/video_file.py` (`VideoFileCamera`, type `"file"`, reuses `rtsp_url` as the path) + `scripts/make_test_video.py` — dev infrastructure so the whole pipeline is verifiable without hardware (plan's own dev-testing note suggests looped MP4s; extended to camera input). Dev `data/cameras.json` points at `data/test_clip.mp4` (gitignored).
+
+### Task 1.6 + 1.7 — frontend grid + status polling
+- **Status**: ✅ (visual check deferred to user)
+- **Commit**: (this commit)
+- **Verified**: `npm run build` passes (30 modules). New files lint-clean. Camera payload consumed by `CameraTile` matches the live `/cameras` response shape; feed URL pattern `/video_feed/{id}?token=` already curl-verified in Task 1.5. Polling every 10s per plan.
+- **Deviations**: `npm run lint` has 6 **pre-existing** errors/warnings in `RegisterModal.jsx`, `AuthContext.jsx`, `main.jsx` (React Compiler strictness; untouched files) — the plan's "passes npm run lint" prerequisite did not hold. Left as-is: fixing requires restructuring registration logic, risky without browser testing. Flagged for user.
 
 ---
 

@@ -1,0 +1,15 @@
+/* ─── Camera grid ─────────────────────────────────────── */
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols, 1), 1fr);
+  gap: 14px;
+  width: 100%;
+  align-content: start;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.camera-grid--single {
+  grid-template-columns: 1fr;
+  height: 100%;
+}

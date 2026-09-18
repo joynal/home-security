@@ -1,0 +1,100 @@
+/* ─── Camera tile ─────────────────────────────────────── */
+.camera-tile {
+  position: relative;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-tile:hover {
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 1px var(--accent-glow);
+}
+
+.camera-tile--expanded {
+  aspect-ratio: auto;
+  height: 100%;
+  min-height: 320px;
+}
+
+.camera-tile--offline {
+  opacity: 0.75;
+}
+
+.camera-tile__feed {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+/* Status badge — top-left */
+.camera-tile__status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: rgba(7, 9, 15, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+
+.camera-tile__name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text1);
+  white-space: nowrap;
+}
+
+.camera-tile__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+}
+
+.camera-tile__dot--online {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(34, 211, 165, 0.7);
+}
+
+/* Info strip — bottom-left */
+.camera-tile__info {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+}
+
+/* Offline placeholder */
+.camera-tile__offline-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text3);
+}
+
+.camera-tile__offline-msg span { font-size: 34px; }
+.camera-tile__offline-msg p { font-size: 12px; color: var(--text2); }

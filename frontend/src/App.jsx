@@ -4,11 +4,12 @@ import './index.css';
 import { useAuth } from './contexts/AuthContext';
 import RegisterModal from './RegisterModal';
 import ManageFacesPage from './ManageFacesPage';
+import CameraGrid from './components/CameraGrid';
 
 const API = 'http://localhost:8000';
 
 function CameraCard({ camera, isActive, onClick }) {
-  const icons = { macbook: '💻', tapo: '📷', default: '🎥' };
+  const icons = { macbook: '💻', tapo: '📷', file: '🎬', rtsp: '🎥', default: '🎥' };
   const icon  = icons[camera.type] || icons.default;
   return (
     <button
@@ -18,9 +19,17 @@ function CameraCard({ camera, isActive, onClick }) {
       <div className="camera-card__icon">{icon}</div>
       <div className="camera-card__info">
         <span className="camera-card__name">{camera.name}</span>
-        <span className="camera-card__type">{camera.type.toUpperCase()}</span>
+        <span className="camera-card__type">
+          {camera.type.toUpperCase()}
+          {camera.online && camera.fps > 0 ? ` · ${Math.round(camera.fps)} FPS` : ''}
+        </span>
       </div>
-      <div className={`camera-card__dot ${isActive ? 'camera-card__dot--active' : ''}`} />
+      <div
+        className={`camera-card__dot ${camera.online ? 'camera-card__dot--online' : ''} ${
+          isActive ? 'camera-card__dot--active' : ''
+        }`}
+        title={camera.online ? 'Online' : 'Offline'}
+      />
     </button>
   );
 }
@@ -32,23 +41,27 @@ function Dashboard() {
   const [activeCamera, setActiveCamera] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
 
+  // Poll /cameras every 10s for live status (online/offline, FPS)
   useEffect(() => {
     if (!token) return;
-    fetch(`${API}/cameras`, { headers: authHeaders() })
-      .then(r => r.json())
-      .then(data => {
-        setCameras(data.cameras);
-        if (data.cameras.length > 0) setActiveCamera(data.cameras[0]);
-      })
-      .catch(() => {
-        const demo = [{ id: 'MacBook_Webcam', name: 'MacBook Webcam', type: 'macbook' }];
-        setCameras(demo);
-        setActiveCamera(demo[0]);
-      });
+    let cancelled = false;
+    const fetchCameras = () => {
+      fetch(`${API}/cameras`, { headers: authHeaders() })
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled || !data.cameras) return;
+          setCameras(prev => {
+            // Keep activeCamera valid when the list changes
+            if (!prev.length && data.cameras.length > 0) setActiveCamera(data.cameras[0]);
+            return data.cameras;
+          });
+        })
+        .catch(() => {});
+    };
+    fetchCameras();
+    const interval = setInterval(fetchCameras, 10000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [token, authHeaders]);
-
-  // Video feed URL includes token as query param (browsers can't add headers to img src)
-  const videoUrl = activeCamera ? `${API}/video_feed?token=${encodeURIComponent(token)}` : null;
 
   return (
     <>
@@ -97,7 +110,7 @@ function Dashboard() {
         {/* ── Main ── */}
         <main className="content">
           <header className="topbar">
-            <div className="topbar__title">{activeCamera ? activeCamera.name : 'Select a Camera'}</div>
+            <div className="topbar__title">{activeCamera ? activeCamera.name : 'All Cameras'}</div>
             <div className="topbar__badges">
               <span className="badge badge--live">● LIVE</span>
               <span className="badge badge--ai">AI: ArcFace + RetinaFace</span>
@@ -105,23 +118,22 @@ function Dashboard() {
             </div>
           </header>
 
-          <div className="video-wrapper">
-            {videoUrl ? (
-              <img key={activeCamera.id} src={videoUrl} alt={`${activeCamera.name} live`} className="video-feed" />
+          <div className="video-wrapper video-wrapper--grid">
+            {cameras.length > 0 ? (
+              <CameraGrid cameras={cameras} token={token} />
             ) : (
               <div className="video-placeholder">
                 <span>🎥</span>
-                <p>Select a camera from the sidebar</p>
+                <p>Loading cameras…</p>
               </div>
             )}
-            <div className="video-overlay-corner">{activeCamera?.name}</div>
           </div>
 
           <div className="stats-strip">
             <div className="stat"><span className="stat__label">AI Model</span><span className="stat__value">InsightFace buffalo_l</span></div>
             <div className="stat"><span className="stat__label">Detection</span><span className="stat__value">RetinaFace 3D</span></div>
             <div className="stat"><span className="stat__label">Recognition</span><span className="stat__value">ArcFace 512-d</span></div>
-            <div className="stat"><span className="stat__label">Cameras</span><span className="stat__value">{cameras.length} active</span></div>
+            <div className="stat"><span className="stat__label">Cameras</span><span className="stat__value">{cameras.filter(c => c.online).length}/{cameras.length} online</span></div>
           </div>
         </main>
       </div>

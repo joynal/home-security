@@ -377,3 +377,20 @@ button { background: none; border: none; cursor: pointer; color: inherit; }
   font-weight: 500;
   color: var(--text2);
 }
+
+/* ─── Multi-camera grid mode (Task 1.6/1.7) ───────────── */
+.camera-card__dot--online {
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+}
+
+.camera-card__dot--online.camera-card__dot--active {
+  box-shadow: 0 0 8px var(--success);
+}
+
+.video-wrapper--grid {
+  display: block;
+  overflow: hidden;
+  padding: 14px;
+  background: var(--bg);
+}
