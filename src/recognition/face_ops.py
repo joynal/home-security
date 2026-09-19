@@ -118,6 +118,17 @@ class FaceRecognizer:
     self.add_embedding(name, face.embedding)
     return True
 
+  def rename_person(self, old_name: str, new_name: str) -> bool:
+    """Re-key live embeddings after a directory rename. Returns True if any changed."""
+    renamed = False
+    for i, existing in enumerate(self.known_names):
+      if existing == old_name:
+        self.known_names[i] = new_name
+        renamed = True
+    if renamed:
+      print(f"[FaceRecognizer] Renamed '{old_name}' → '{new_name}' in live model.")
+    return renamed
+
   def remove_person(self, name: str) -> bool:
     """
     Remove a person's embeddings and name from live memory without restarting.

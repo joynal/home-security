@@ -185,11 +185,16 @@ def _log_detection_event(
   last_event_at[key] = now
 
   metadata = json.dumps({'track_id': track_id}) if track_id is not None else ''
+  person_id = None
+  if person_name and state.person_store is not None:
+    person = state.person_store.get_person(name=person_name)
+    person_id = person['id'] if person else None
   state.event_db.insert(
     DetectionEvent(
       camera_id=camera_id,
       event_type=event_type,
       person_name=person_name,
+      person_id=person_id,
       confidence=confidence,
       thumbnail_path=_save_thumbnail(camera_id, frame, bbox),
       metadata=metadata,

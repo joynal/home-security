@@ -59,7 +59,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | B3.2 | frame.jpg?ts= endpoint | B1.2 | ✅ | (this commit) | OpenCV-based, no ffmpeg |
 | B5.1 | Known-face events + person filter | B0 | ✅ | (this commit) | 60s per-person/camera throttle |
 | B6.1 | Request-response enrollment queue | — | ✅ | 7f87217 | gates: size/blur/brightness |
-| B6.2 | Person store + management API | B6.1 | ⬜ | | |
+| B6.2 | Person store + management API | B6.1 | ✅ | (this commit) | rename keeps person_id history |
 | B12.1 | Photo import | B6.1 | ⬜ | | |
 | B7.1 | Live snapshot endpoint | — | ⬜ | | |
 | B7.2 | Clip extraction (ffmpeg) | B1.2 | ⬜ | | deferred until ffmpeg installed |

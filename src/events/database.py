@@ -67,6 +67,7 @@ class EventDatabase:
                     event_type TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
                     person_name TEXT,
+                    person_id INTEGER,
                     confidence REAL DEFAULT 0.0,
                     thumbnail_path TEXT,
                     recording_segment TEXT,
@@ -83,6 +84,15 @@ class EventDatabase:
       self._conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)'
       )
+      # B6.2 migration: stable person link (added for pre-existing databases;
+      # fresh ones get it via CREATE TABLE above only if listed there — keep
+      # the ALTER for both paths' safety)
+      cols = [r['name'] for r in self._conn.execute('PRAGMA table_info(events)')]
+      if 'person_id' not in cols:
+        self._conn.execute('ALTER TABLE events ADD COLUMN person_id INTEGER')
+        self._conn.execute(
+          'CREATE INDEX IF NOT EXISTS idx_events_person ON events(person_id)'
+        )
       self._conn.commit()
 
   def close(self) -> None:
@@ -92,14 +102,15 @@ class EventDatabase:
   def insert(self, event: DetectionEvent) -> int:
     with self._lock:
       cursor = self._conn.execute(
-        """INSERT INTO events (camera_id, event_type, timestamp, person_name,
+        """INSERT INTO events (camera_id, event_type, timestamp, person_name, person_id,
                    confidence, thumbnail_path, recording_segment, metadata)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
           event.camera_id,
           event.event_type,
           event.timestamp.isoformat(),
           event.person_name,
+          event.person_id,
           event.confidence,
           event.thumbnail_path,
           event.recording_segment,

@@ -24,9 +24,10 @@ from src.api.routers.recordings import router as recordings_router
 async def lifespan(_app: FastAPI):
     import asyncio
 
-    from src.config import CAMERAS, RECORDINGS_DIR
+    from src.config import CAMERAS, KNOWN_FACES_DIR, RECORDINGS_DIR
     from src.events.database import EventDatabase
     from src.go2rtc import start_go2rtc, stop_go2rtc
+    from src.persons.store import PersonStore
     from src.recording.index import RecordingIndex
     from src.recording.recorder import RecordingManager
 
@@ -44,6 +45,13 @@ async def lifespan(_app: FastAPI):
       state.event_db._conn, state.event_db._lock, RECORDINGS_DIR  # noqa: SLF001 — shared by design
     )
     state.recording_index.scan_directory()
+
+    # Person metadata: backfill from data/known_faces/ + link existing events
+    state.person_store = PersonStore(
+      state.event_db._conn, state.event_db._lock, KNOWN_FACES_DIR  # noqa: SLF001 — shared by design
+    )
+    state.person_store.backfill_from_directory()
+    state.person_store.backfill_event_links()
 
     # Recording manager — FFmpeg per camera, retention piggybacked on rotation
     recording_manager = RecordingManager(CAMERAS, index=state.recording_index)
