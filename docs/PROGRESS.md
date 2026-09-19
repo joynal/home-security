@@ -46,6 +46,43 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 ## Task status
 
+### Phase B — Backend: timeline + faces (plan v2)
+
+| Task | Description | Deps | Status | Commit | Notes |
+|------|-------------|------|--------|--------|-------|
+| B0 | Consolidate to single `aegis.db` | — | ✅ | (this commit) | 4 migration tests; live-verified (11 events carried over) |
+| B1.1 | Recording index store | B0 | 🔄 | | |
+| B1.2 | Wire recorder → index | B1.1 | ⬜ | | |
+| B2.1 | Timeline API | B1.2 | ⬜ | | |
+| B2.2 | Recordings summary (calendar) | B1.2 | ⬜ | | |
+| B3.1 | Event → playable segment | B1.2 | ⬜ | | |
+| B3.2 | frame.jpg?ts= endpoint | B1.2 | ⬜ | | |
+| B5.1 | Known-face events + person filter | B0 | ⬜ | | |
+| B6.1 | Request-response enrollment queue | — | ⬜ | | |
+| B6.2 | Person store + management API | B6.1 | ⬜ | | |
+| B12.1 | Photo import | B6.1 | ⬜ | | |
+| B7.1 | Live snapshot endpoint | — | ⬜ | | |
+| B7.2 | Clip extraction (ffmpeg) | B1.2 | ⬜ | | deferred until ffmpeg installed |
+
+### Phase U — Frontend: Scrypted layout (plan v2)
+
+| Task | Description | Deps | Status | Commit | Notes |
+|------|-------------|------|--------|--------|-------|
+| U1.1 | Design tokens | — | ⬜ | | |
+| U1.2 | Lucide icons | — | ⬜ | | |
+| U2.1 | Icon rail + routing | U1 | ⬜ | | |
+| U3.1 | Grid hero | U2.1 | ⬜ | | |
+| U3.3 | Story strip | U2.1, B5 | ⬜ | | |
+| U3.4 | Stream gating | U3.1 | ⬜ | | |
+| U3.5 | Snapshot-idle tiles (opt) | B7.1 | ⬜ | | |
+| U4.1 | Camera detail: player shell | B2, U2.1 | ⬜ | | |
+| U4.2 | Timeline rail | U4.1, B2.1 | ⬜ | | |
+| U4.3 | Scrub-to-playback | U4.2, B3 | ⬜ | | |
+| U5 | Events page v2 | B5, B6.2 | ⬜ | | |
+| U6.1–6.3 | Faces gallery/detail/import | B6, B12 | ⬜ | | |
+| U6.4 | Wizard restyle | U1 | ⬜ | | |
+| U7.1–7.3 | Login, a11y, guardrails | all | ⬜ | | |
+
 ### Phase 1 — Foundation (Multi-Camera + Streaming)
 
 | Task | Description | Deps | Status | Commit | Notes |
@@ -108,6 +145,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Verified**: <commands run + results, or "manual-only, deferred">
 - **Deviations**: <none | what changed vs plan and why>
 -->
+
+### Task B0 — single aegis.db
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: 4 new migration tests (copy+rename, idempotency, no-clobber, post-migration inserts) + full suite 64 passed, ruff clean. Live: app start migrated the dev `data/events.db` (11 events from manual testing) → `data/aegis.db`, legacy renamed `events.db.migrated`, `/events/summary` returns all 11 rows.
+- **Deviations**: none vs plan. Class name `EventDatabase` kept (it's now the app DB; a rename would churn every caller for zero behavior change — noted for a future tidy-up).
 
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅

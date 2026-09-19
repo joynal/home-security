@@ -1,8 +1,8 @@
 """
 src/events/database.py
 ──────────────────────
-SQLite event storage for detection events.
-Thread-safe: uses a single connection with a lock.
+The app database (data/aegis.db): detection events now, recordings index and
+person metadata as the v2 plan lands. Thread-safe: single connection + lock.
 
 All timestamps are UTC. Using naive local time causes bugs when API filters
 carry timezone-aware ISO strings — lexicographic SQL comparison breaks across
@@ -18,13 +18,38 @@ from pathlib import Path
 from src.config import DATA_DIR
 from src.events.models import DetectionEvent
 
-DB_PATH = DATA_DIR / 'events.db'
+DB_PATH = DATA_DIR / 'aegis.db'
+LEGACY_DB_PATH = DATA_DIR / 'events.db'
+LEGACY_MIGRATED_SUFFIX = '.migrated'
+
+
+def migrate_legacy_db(
+  legacy_path: Path = LEGACY_DB_PATH, target_path: Path = DB_PATH
+) -> bool:
+  """
+  One-time: fold the old events.db into aegis.db. Idempotent — no-op when the
+  legacy file is absent or the target already exists. Returns True if migrated.
+  """
+  if not legacy_path.exists() or target_path.exists():
+    return False
+  src = sqlite3.connect(str(legacy_path))
+  dst = sqlite3.connect(str(target_path))
+  try:
+    src.backup(dst)  # copies schema + rows into the fresh target
+  finally:
+    src.close()
+    dst.close()
+  legacy_path.rename(legacy_path.with_name(legacy_path.name + LEGACY_MIGRATED_SUFFIX))
+  return True
 
 
 class EventDatabase:
   def __init__(self, db_path: Path | None = None):
     self.db_path = Path(db_path) if db_path else DB_PATH
     self._lock = threading.Lock()
+    # One-time legacy migration (default path only — tests pass explicit paths)
+    if self.db_path == DB_PATH:
+      migrate_legacy_db()
     # Single persistent connection — required for ":memory:" databases
     # (each sqlite3.connect(":memory:") would create a separate empty DB),
     # and faster than per-call connects. Our lock serializes access, so
