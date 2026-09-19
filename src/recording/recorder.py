@@ -17,10 +17,14 @@ from pathlib import Path
 
 from src.config import RECORDINGS_DIR
 from src.models import CameraConfig
+from src.recording.index import RecordingIndex
 
 # Host where go2rtc's RTSP proxy listens. "localhost:8554" on bare metal;
 # set GO2RTC_HOST=go2rtc:8554 when the backend runs in Docker Compose.
 GO2RTC_RTSP_HOST = os.getenv('GO2RTC_HOST', 'localhost:8554')
+
+# Directory re-index cadence while FFmpeg runs (segment rotation detection)
+INDEX_POLL_SECONDS = 60.0
 
 
 def _check_ffmpeg_available() -> bool:
@@ -35,13 +39,20 @@ def _check_ffmpeg_available() -> bool:
 class CameraRecorder:
   """Manages FFmpeg recording for a single camera."""
 
-  def __init__(self, config: CameraConfig, recordings_dir: Path | None = None):
+  def __init__(
+    self,
+    config: CameraConfig,
+    recordings_dir: Path | None = None,
+    index: 'RecordingIndex | None' = None,
+  ):
     self.config = config
     self.process: subprocess.Popen | None = None
     self.is_running = False
     self._monitor_thread: threading.Thread | None = None
     self.output_dir = (recordings_dir or RECORDINGS_DIR) / config.id
     self.output_dir.mkdir(parents=True, exist_ok=True)
+    # Recordings index (shared aegis.db) — optional so tests can run without one
+    self.index = index
     # go2rtc proxy (single connection per camera — see src/go2rtc.py).
     # record.source_url overrides for dev testing (ffmpeg testsrc, looped mp4).
     self.source_url = (
@@ -53,6 +64,12 @@ class CameraRecorder:
     if not self.config.record.enabled:
       print(f'[Recorder] Skipping {self.config.id} (recording disabled)')
       return
+
+    # Backfill the index from any segments already on disk (downtime, first
+    # run) — before and independent of the ffmpeg check: indexing existing
+    # footage never needs the binary.
+    self._rescan_index()
+
     if not _check_ffmpeg_available():
       print(
         f'[Recorder] ERROR: ffmpeg binary not found — cannot record {self.config.id}'
@@ -66,6 +83,15 @@ class CameraRecorder:
       name=f'Recorder-{self.config.id}',
     )
     self._monitor_thread.start()
+
+  def _rescan_index(self) -> None:
+    """Idempotent directory scan → index rows (new/changed files only)."""
+    if self.index is None:
+      return
+    try:
+      self.index.scan_directory(camera_id=self.config.id)
+    except Exception as exc:  # indexing must never take recording down
+      print(f'[Recorder] Index scan failed for {self.config.id}: {exc}')
 
   def _build_ffmpeg_cmd(self) -> list[str]:
     """Build the FFmpeg command for segment recording."""
@@ -112,7 +138,12 @@ class CameraRecorder:
         self.process = subprocess.Popen(
           cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
-        self.process.wait()
+        # Poll instead of blocking wait(): each pass re-indexes the output
+        # directory, so rotated segments land in the index within ~a minute
+        # and the in-progress segment's size/end-time stay fresh.
+        while self.is_running and self.process.poll() is None:
+          time.sleep(INDEX_POLL_SECONDS)
+          self._rescan_index()
         if self.is_running:
           print(
             f'[Recorder] FFmpeg exited for {self.config.id} '
@@ -120,6 +151,9 @@ class CameraRecorder:
           )
       except Exception as e:
         print(f'[Recorder] FFmpeg error for {self.config.id}: {e}')
+
+      # Final scan catches the last segment written before exit
+      self._rescan_index()
 
       # Piggyback retention cleanup: each segment is ~15 min, so this
       # runs every ~15 min per camera — no dedicated cleanup thread.
@@ -189,6 +223,7 @@ class CameraRecorder:
         try:
           size = segment.stat().st_size
           segment.unlink()
+          self._drop_index_row(segment)
           deleted += 1
           freed += size
           free_gb += size / (1024**3)
@@ -203,6 +238,7 @@ class CameraRecorder:
           if stat.st_mtime < cutoff:
             freed += stat.st_size
             segment.unlink()
+            self._drop_index_row(segment)
             deleted += 1
         except OSError:
           pass
@@ -212,6 +248,15 @@ class CameraRecorder:
         f'[Retention] {self.config.id}: pruned {deleted} segments, '
         f'freed {freed / (1024 * 1024):.1f} MB (free: {free_gb:.1f} GB)'
       )
+
+  def _drop_index_row(self, segment: Path) -> None:
+    """Keep the recordings index in sync when retention deletes a file."""
+    if self.index is None:
+      return
+    try:
+      self.index.delete_path(segment)
+    except Exception:
+      pass  # index drift is cosmetic; the next directory scan reconciles
 
   def stop(self):
     """Stop recording."""
@@ -228,10 +273,13 @@ class RecordingManager:
   """Manages recorders for all cameras."""
 
   def __init__(
-    self, cameras: list[CameraConfig], recordings_dir: Path | None = None
+    self,
+    cameras: list[CameraConfig],
+    recordings_dir: Path | None = None,
+    index: RecordingIndex | None = None,
   ):
     self.recorders = {
-      cam.id: CameraRecorder(cam, recordings_dir=recordings_dir)
+      cam.id: CameraRecorder(cam, recordings_dir=recordings_dir, index=index)
       for cam in cameras
       if cam.record.enabled
     }

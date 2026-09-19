@@ -13,6 +13,7 @@ import numpy as np
 from src.camera.stream import CameraStreamWrapper
 from src.events.database import EventDatabase
 from src.recognition.face_ops import FaceRecognizer
+from src.recording.index import RecordingIndex
 from src.recording.recorder import RecordingManager
 
 # ── Video stream ────────────────────────────────────────────
@@ -53,6 +54,7 @@ pending_lock = threading.Lock()
 recognizer: FaceRecognizer | None = None
 active_streams: dict[str, CameraStreamWrapper] = {}  # camera_id → stream
 event_db: EventDatabase | None = None
+recording_index: 'RecordingIndex | None' = None  # set by lifespan (shared aegis.db conn)
 recording_manager: RecordingManager | None = None  # set by lifespan
 # camera_id → DetectionPipeline (typed loosely to avoid importing the heavy
 # detection stack at state-import time; the inference loop populates it)

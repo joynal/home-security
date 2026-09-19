@@ -172,6 +172,12 @@ class RecordingIndex:
       rows = self._conn.execute(sql, params).fetchall()
       return [r['day'] for r in rows]
 
+  def delete_path(self, path: Path) -> None:
+    """Drop the index row for one segment file (retention deleted it)."""
+    with self._lock:
+      self._conn.execute('DELETE FROM recordings WHERE path = ?', (str(path),))
+      self._conn.commit()
+
   def delete_for_camera(self, camera_id: str) -> int:
     """Drop all index rows for a camera (call when purging its recordings)."""
     with self._lock:

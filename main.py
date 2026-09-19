@@ -24,8 +24,10 @@ from src.api.routers.recordings import router as recordings_router
 async def lifespan(_app: FastAPI):
     import asyncio
 
-    from src.config import CAMERAS
+    from src.config import CAMERAS, RECORDINGS_DIR
+    from src.events.database import EventDatabase
     from src.go2rtc import start_go2rtc, stop_go2rtc
+    from src.recording.index import RecordingIndex
     from src.recording.recorder import RecordingManager
 
     # Capture the main FastAPI event loop so background threads can schedule async tasks safely
@@ -34,8 +36,15 @@ async def lifespan(_app: FastAPI):
     # go2rtc stream proxy — required for RTSP cameras (single connection per camera)
     go2rtc_proc = start_go2rtc()
 
+    # Shared app database (events now; recordings index; person metadata later)
+    # + segment index backfilled from disk before the recorders start.
+    state.event_db = EventDatabase()
+    state.recording_index = RecordingIndex(
+      state.event_db._conn, state.event_db._lock, RECORDINGS_DIR  # noqa: SLF001 — shared by design
+    )
+
     # Recording manager — FFmpeg per camera, retention piggybacked on rotation
-    recording_manager = RecordingManager(CAMERAS)
+    recording_manager = RecordingManager(CAMERAS, index=state.recording_index)
     recording_manager.cleanup_all()  # startup sweep for stragglers from downtime
     recording_manager.start_all()
     state.recording_manager = recording_manager

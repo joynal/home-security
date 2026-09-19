@@ -51,8 +51,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
 | B0 | Consolidate to single `aegis.db` | — | ✅ | (this commit) | 4 migration tests; live-verified (11 events carried over) |
-| B1.1 | Recording index store | B0 | 🔄 | | |
-| B1.2 | Wire recorder → index | B1.1 | ⬜ | | |
+| B1.1 | Recording index store | B0 | ✅ | 041fe4b | |
+| B1.2 | Wire recorder → index | B1.1 | ✅ | (this commit) | poll loop re-indexes every 60s |
 | B2.1 | Timeline API | B1.2 | ⬜ | | |
 | B2.2 | Recordings summary (calendar) | B1.2 | ⬜ | | |
 | B3.1 | Event → playable segment | B1.2 | ⬜ | | |
@@ -151,6 +151,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 4 new migration tests (copy+rename, idempotency, no-clobber, post-migration inserts) + full suite 64 passed, ruff clean. Live: app start migrated the dev `data/events.db` (11 events from manual testing) → `data/aegis.db`, legacy renamed `events.db.migrated`, `/events/summary` returns all 11 rows.
 - **Deviations**: none vs plan. Class name `EventDatabase` kept (it's now the app DB; a rename would churn every caller for zero behavior change — noted for a future tidy-up).
+
+### Task B1.1 + B1.2 — recordings index + recorder wiring
+- **Status**: ✅ (live rotation verification ⚠️ deferred until ffmpeg installed — unit-verified with simulated rotations)
+- **Commit**: 041fe4b + (this commit)
+- **Verified**: 78 tests green, ruff clean. B1.1: filename parsing, backfill (gap trade-off documented), idempotent + size-aware rescans, covering/overlap queries, days list, delete paths. B1.2: start-backfill (runs before+independent of the ffmpeg check — caught by test), simulated rotation picked up by rescan, retention drops index rows for deleted files, index optional for standalone recorders, live startup clean (`Started 0 recorders` — dev cams have recording off).
+- **Deviations**: (1) recorder monitor loop changed from blocking `wait()` to a 60s poll that rescans the directory — rotation lands in the index within ~a minute and the in-progress segment's end/size stay fresh (growing mtime). (2) `EventDatabase` now created in lifespan (before recorders) instead of the inference thread; the loop falls back to creating it if absent. (3) `RecordingIndex.delete_path()` added (retention sync).
 
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅

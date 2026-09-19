@@ -203,7 +203,8 @@ def inference_loop() -> None:
   """
   print('Initializing Home Security System...')
   state.recognizer = FaceRecognizer()
-  state.event_db = EventDatabase()
+  if state.event_db is None:  # normally created by lifespan before this thread
+    state.event_db = EventDatabase()
   alert_manager = build_alert()
 
   # The first enabled camera is the registration camera (pose wizard + capture)
