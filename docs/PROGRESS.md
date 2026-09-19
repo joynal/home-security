@@ -58,7 +58,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | B3.1 | Event → playable segment | B1.2 | ✅ | (this commit) | |
 | B3.2 | frame.jpg?ts= endpoint | B1.2 | ✅ | (this commit) | OpenCV-based, no ffmpeg |
 | B5.1 | Known-face events + person filter | B0 | ✅ | (this commit) | 60s per-person/camera throttle |
-| B6.1 | Request-response enrollment queue | — | ⬜ | | |
+| B6.1 | Request-response enrollment queue | — | ✅ | 7f87217 | gates: size/blur/brightness |
 | B6.2 | Person store + management API | B6.1 | ⬜ | | |
 | B12.1 | Photo import | B6.1 | ⬜ | | |
 | B7.1 | Live snapshot endpoint | — | ⬜ | | |
@@ -175,6 +175,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 92 tests green, ruff clean. Per-person/camera throttle (50 rapid calls → 1 row; second person same minute → own row), person_name stored on events, DB person_name filter (alone + combined with type), router param passthrough. Live sighting check pending user's next camera session.
 - **Deviations**: confidence logged as 0.0 for now — the pipeline det dicts don't carry the similarity score (recognizer doesn't return it); noted for B6 when the recognizer is touched anyway.
+
+### Task B6.1 — request-response enrollment queue
+- **Status**: ✅
+- **Commit**: 7f87217
+- **Verified**: 100 tests green, ruff clean. 8 new tests with a fake recognizer: quality gates (too_small/too_dark/too_bright/blurry each), submit→drain round trip, no-face verdict, gates block blurry (nothing enrolled), gates optional, multiple-faces-picks-largest + note, timeout when no drainer, 5 concurrent submitters all served. `FaceRecognizer` gained `detect_faces()`/`add_embedding()` (add_face_embedding now delegates — largest-face selection fixed as a side effect).
+- **Deviations**: none vs plan.
 
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅
