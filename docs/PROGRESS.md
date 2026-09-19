@@ -207,6 +207,13 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
 
+### Session 3 — 2026-09-19 (UI redesign research)
+- User verified manual testing end-to-end (face registration + detection) ✅.
+- UI dissatisfaction: "generic AI bloat", sidebar list instead of grid hero, emoji icons → full research run (3 parallel research agents + pixel-level analysis of Synology SS9 and Netguru PSIM screenshots).
+- **Wrote [ui-research.md](./ui-research.md) + [ui-plan.md](./ui-plan.md). NO implementation done — plan awaits user approval.** Execute with the same per-task protocol (tasks U1.1–U7.2). Note: user's `format fix` commit (single-quote reformat) is the current baseline; `ruff check` + 60 tests still pass on it.
+
+> One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
+
 ### Session 2 — 2026-09-18 (implementation run)
 - **All 26 tasks across all 4 phases implemented and committed** (baseline `f8420fa` docs commit → per-task commits through Task 4.7).
 - Final state: 60 pytest tests green · ruff clean · frontend builds · full-system live checkpoint passed (all endpoints 200, pipeline 98% cache-hit, events with thumbnails flowing).
