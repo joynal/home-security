@@ -95,12 +95,19 @@ gates (face size ≥96px, blur Laplacian threshold, brightness), fills result;
 `submit_job()` blocks ≤2s. ONNX stays single-threaded (project rule preserved).
 **Verify:** tests with a fake recognizer; concurrency test (5 parallel submits).
 
-### Task B6.2: Person management endpoints
-**Create/modify:** `PATCH /faces/{name}` (rename: dir + live embeddings + events
-person_name update), `POST /faces/{name}/add` (JSON `{event_id}` or `{frame_source:
-"registration"}` — enroll from an event's stored thumbnail/full-res re-detect).
-**Verify:** tests (rename updates all three stores; add-from-event embeds and returns
-per-image verdict).
+### Task B6.2: Person store + management endpoints
+**Create:** `persons(id, name, created_at, cover_image)` and
+`person_images(person_id, path, source, quality, created_at)` tables in `aegis.db`
+(one-time backfill from the existing directory structure). Architecture: **images on
+disk stay the source of truth; embeddings stay derived in RAM (recomputed at boot);
+the DB holds only metadata** — so no second truth to drift. `events.person_name`
+backfilled to `person_id` → **rename becomes one row update** (directory rename +
+live-embedding rekey), history survives. `source` ∈ {wizard, photo_import, enriched,
+event} drives gallery + enrichment caps.
+**Endpoints:** `PATCH /faces/{name}` (rename), `POST /faces/{name}/add` (JSON
+`{event_id}` — enroll from an event's stored frame).
+**Verify:** tests (backfill from dir; rename updates persons + dir + live embeddings
+without touching event rows; add-from-event embeds and returns per-image verdict).
 
 ### Task B12.1: Photo import
 **Add dep:** `pillow`. **Create:** `POST /faces/import` (multipart `name` + `files[]`):
