@@ -178,6 +178,12 @@ class EventDatabase:
       ).fetchone()
       return dict(row) if row else None
 
+  def query_raw(self, sql: str, params: list | tuple = ()) -> list[dict]:
+    """Escape hatch for read-only aggregate queries (e.g. timeline GROUP BY)."""
+    with self._lock:
+      rows = self._conn.execute(sql, params).fetchall()
+      return [dict(r) for r in rows]
+
   def delete_older_than(
     self,
     days: int = 30,

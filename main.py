@@ -37,11 +37,13 @@ async def lifespan(_app: FastAPI):
     go2rtc_proc = start_go2rtc()
 
     # Shared app database (events now; recordings index; person metadata later)
-    # + segment index backfilled from disk before the recorders start.
+    # + segment index backfilled from disk — for ALL cameras, so footage stays
+    # browsable even for cameras with recording currently disabled.
     state.event_db = EventDatabase()
     state.recording_index = RecordingIndex(
       state.event_db._conn, state.event_db._lock, RECORDINGS_DIR  # noqa: SLF001 — shared by design
     )
+    state.recording_index.scan_directory()
 
     # Recording manager — FFmpeg per camera, retention piggybacked on rotation
     recording_manager = RecordingManager(CAMERAS, index=state.recording_index)

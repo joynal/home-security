@@ -53,8 +53,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | B0 | Consolidate to single `aegis.db` | — | ✅ | (this commit) | 4 migration tests; live-verified (11 events carried over) |
 | B1.1 | Recording index store | B0 | ✅ | 041fe4b | |
 | B1.2 | Wire recorder → index | B1.1 | ✅ | (this commit) | poll loop re-indexes every 60s |
-| B2.1 | Timeline API | B1.2 | ⬜ | | |
-| B2.2 | Recordings summary (calendar) | B1.2 | ⬜ | | |
+| B2.1 | Timeline API | B1.2 | ✅ | (this commit) | |
+| B2.2 | Recordings summary (calendar) | B1.2 | ✅ | (this commit) | one commit, same router |
 | B3.1 | Event → playable segment | B1.2 | ⬜ | | |
 | B3.2 | frame.jpg?ts= endpoint | B1.2 | ⬜ | | |
 | B5.1 | Known-face events + person filter | B0 | ⬜ | | |
@@ -157,6 +157,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: 041fe4b + (this commit)
 - **Verified**: 78 tests green, ruff clean. B1.1: filename parsing, backfill (gap trade-off documented), idempotent + size-aware rescans, covering/overlap queries, days list, delete paths. B1.2: start-backfill (runs before+independent of the ffmpeg check — caught by test), simulated rotation picked up by rescan, retention drops index rows for deleted files, index optional for standalone recorders, live startup clean (`Started 0 recorders` — dev cams have recording off).
 - **Deviations**: (1) recorder monitor loop changed from blocking `wait()` to a 60s poll that rescans the directory — rotation lands in the index within ~a minute and the in-progress segment's end/size stay fresh (growing mtime). (2) `EventDatabase` now created in lifespan (before recorders) instead of the inference thread; the loop falls back to creating it if absent. (3) `RecordingIndex.delete_path()` added (retention sync).
+
+### Task B2.1 + B2.2 — timeline + calendar APIs
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: 84 tests green, ruff clean. 6 new tests: hour buckets (segment-minutes incl. cross-hour clipping, events/unknowns per hour, camera isolation, quiet-hour zeros), empty day, bad-date 422 ×3 shapes, summary days, summary empty. Live: `/recordings/summary` → `{"days":["2026-09-18"]}`; timeline returns the two dev segments with correct grid + per-hour minutes.
+- **Deviations**: (1) startup backfill moved from recorder-start to lifespan `scan_directory()` for ALL cameras — otherwise footage from cameras with recording disabled was invisible (found in live verification). (2) Fixed a latent time-of-day flake in a B1.1 test (unpinned mtime inflated the newest segment's end). (3) `EventDatabase.query_raw()` read-only escape hatch added for the GROUP BY.
 
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅
