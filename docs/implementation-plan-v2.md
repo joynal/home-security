@@ -18,10 +18,22 @@ is specified with OpenCV (no external binary) so it stays verifiable; only clip-
 
 ## Phase B1 — Recordings index (the foundation)
 
+### Task B0: Consolidate to a single database
+**Modify:** `src/events/database.py` → one canonical DB `data/aegis.db` holding ALL
+tables (events, recordings, and anything later). One-time migration: if `events.db`
+exists and `aegis.db` doesn't, copy tables over and rename the old file to
+`events.db.migrated`. The existing single-connection + lock pattern already serializes
+all writers (inference thread, recorder, API), so cross-table transactions are safe —
+and the timeline API (B2.1) gets native SQL joins between events and recordings
+(the reason one DB wins). Retention purges become atomic across tables.
+**Verify:** migration test (old events.db → aegis.db with rows intact); all existing
+DB tests repointed; `uv run pytest` green.
+
 ### Task B1.1: Recording index store
-**Create:** `src/recording/index.py` (+ tests).
-SQLite table `recordings(camera_id, path, start_time, end_time, duration, size_bytes)`
-(own DB `data/recordings.db` — keep separate from events.db). `RecordingIndex` class:
+**Create:** `src/recording/index.py` (+ tests) — operates on the shared DB connection
+via `state.event_db`. Table `recordings(camera_id, path, start_time, end_time,
+duration, size_bytes)` + indexes on (camera_id, start_time).
+`RecordingIndex` class:
 `index_segment(camera, path, start, end)` · `scan_directory(cameras_dir)` backfill
 (start from filename `YYYYMMDD_HHMMSS`, end = min(next segment start, file mtime)) ·
 `segments_between(cam, start, end)` · `segment_covering(cam, ts)` ·
@@ -41,8 +53,9 @@ ffmpeg installed).
 ### Task B2.1: `GET /recordings/{cam}/timeline?date=YYYYMMDD`
 **Create:** router method (in `recordings.py`). Response:
 `{ hours: [{hour, segment_minutes, events, unknowns}], segments: [{start,end,file}] }`.
-Hour buckets = SQL GROUP BY over events + segments-between aggregation (Frigate's
-shape; no per-segment counters needed at our scale — compute at query time).
+Hour buckets = **single SQL query joining events + recordings tables** in the shared
+DB (native now that B0 consolidated them; no per-segment counters needed at our
+scale — compute at query time).
 **Verify:** unit tests (seeded index + events: bucket math, unknown vs known counts,
 empty day); live curl.
 
