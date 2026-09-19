@@ -1,163 +1,169 @@
-# Home Security System
+# Aegis Vision AI
 
-Home security application that monitors video feeds, recognizes known faces, and alerts you when unknown individuals are detected.
+Real-time home security system with AI-powered face recognition. Monitors live camera
+feeds, identifies known faces, records everything to disk, and alerts you when unknown
+people are detected — with a cascading detection pipeline that keeps CPU usage low.
 
-## How It Works
-
-The system is designed with a continuous event loop that processes data in real-time. Here is exactly what happens under the hood:
-
-1. **Initialization & Training**: 
-   When the app starts, it looks inside the `data/known_faces/` directory. It passes all reference images through the **InsightFace** neural network to generate dense **512-dimensional ArcFace embeddings** for every known person.
-2. **Video Capture**: 
-   The application connects to an active camera source (like your MacBook WebCam or a Tapo IP camera) and continually grabs individual image frames.
-3. **Face Detection**: 
-   For every frame, it uses the state-of-the-art **RetinaFace** deep learning model. It detects faces at any angle or scale and pinpoints 5 key facial landmarks (eyes, nose, mouth corners) in 3D space to align the face perfectly.
-4. **Face Recognition (Identification)**:
-   The aligned face is passed through the **ArcFace** network which computes its 512-number geometric vector. It then uses **Cosine Similarity** to compare this live vector against the known vectors in memory. If the similarity score is high (above ~40%), it labels the face with the person's name. Otherwise, it is labeled "Unknown".
-5. **Alerting Mechanism**: 
-   If an "Unknown" face is detected, the Alert Manager is triggered. To prevent notification spam, the alerting system enforces a cooldown period (e.g., 5 seconds) before sending subsequent alerts.
-6. **Live Display**: 
-   The frame is annotated with colored bounding boxes (🟢 Green for Known, 🔴 Red for Unknown) and displayed on your screen.
-
----
-
-## Architecture & Modularity
-
-The system abstracts the **Camera Source** and the **Alerting Mechanism**. This means you can easily swap out components without rewriting the face recognition pipeline.
-
-<p align="center">
-  <img src="docs/architecture.jpg" alt="Architecture diagram" width="5323"/>
-</p>
-
-* **`src/config.py`**: Central configuration for paths, active camera, active alerts, and face detection tuning parameters.
-* **`src/camera/base.py`**: Abstract base class defining how a camera should behave (`start`, `get_frame`, `stop`).
-  * **`webcam.py`**: Concrete implementation for local USB/laptop webcams using OpenCV.
-  * **`tapo.py`**: (Stub) Concrete implementation for IP cameras broadcasting via RTSP (like the Tapo C210).
-* **`src/alerts/base.py`**: Abstract base class defining how alerts should be sent.
-  * **`console.py`**: Concrete implementation that prints alerts to your terminal window.
-  * **`telegram.py`**: (Stub) Concrete implementation intended to send a push notification to a Telegram group chat.
-* **`src/recognition/face_ops.py`**: Encapsulates the InsightFace AI pipeline (RetinaFace for detection, ArcFace for embeddings).
-* **`main.py`**: The entrypoint that ties the Camera, Recognizer, and Alerts together.
-* **`add_person.py`**: A convenient utility script to quickly capture 360-degree facial profiles using your webcam and the RetinaFace AI to ensure high-quality reference embeddings.
-
----
-
-## Authentication
-
-The system includes a secure JWT-based authentication mechanism for accessing the API. Authentication credentials and settings are managed as follows:
-
-### Environment Configuration
-
-The system relies on a few critical environment variables. These can be set in your terminal or via a `.env` file in the project root:
-
-```env
-# Required for JWT authentication signing
-SECRET_KEY="your-super-secret-key"
-
-# Required for Telegram Alerts (Optional)
-TELEGRAM_BOT_TOKEN="123456789:ABCdefg..."
-TELEGRAM_CHAT_ID="-100123456789"
+```
+Frame → Motion Detect → YOLO Person → ByteTrack → ArcFace Recognize → Zones → Alert
+        (<1ms, CPU)     (only if motion)  (track IDs)  (only new/unknown)    ↓
+                                                                  SQLite event log + thumbnails
 ```
 
-This key must be set before running the application.
+Each stage filters the next: on a real-people test clip the pipeline skipped 26% of
+frames at the motion gate and served 98% of identity lookups from the tracker cache —
+ArcFace recognition ran for only 2% of person detections.
 
-### Password Management
+## Features
 
-Before starting the application, you must create the credentials file and set your password.
+- **Multi-camera** — MacBook webcam, Tapo/RTSP IP cameras, or looping video files
+  (dev), configured declaratively in `data/cameras.json`
+- **Cascading detection** — MOG2 motion gate → YOLOv8n person filter → ByteTrack
+  tracking → ArcFace recognition only when needed
+- **Activity zones + loitering** — polygon zones per camera; alerts when unknown
+  people linger in a zone
+- **Recording & playback** — FFmpeg 15-minute MP4 segments via [go2rtc](https://github.com/AlexxIT/go2rtc),
+  disk-aware retention (keeps footage while space allows, prunes oldest-first when low)
+- **Event log** — every detection lands in SQLite with a cropped JPEG thumbnail,
+  browsable in the dashboard
+- **Alerts** — console, Telegram (photo), or ntfy.sh push; per-person cooldown so two
+  different intruders both get their own alert
+- **Dashboard** — React grid view (any number of cameras), live FPS/online status,
+  event sidebar, recordings browser with in-browser playback, 5-pose face
+  registration wizard
+- **Ops** — JWT auth, Docker Compose (backend + go2rtc + frontend), launchd/systemd units
 
-⚠️ **Required**: Run the password script before starting the application:
+## Quick Start
+
 ```bash
+# 1. Install dependencies
+uv sync
+
+# 2. Configure secrets
+cp .env.example .env        # then edit: SECRET_KEY (required)
+
+# 3. Create the admin login
 uv run scripts/set_password.py
+
+# 4. Start the backend (port 8000)
+uv run main.py
+
+# 5. Start the frontend (separate terminal)
+cd frontend && npm install && npm run dev
 ```
 
-The script validates password strength (minimum 8 characters, with uppercase, lowercase, and digits).
+Open **http://localhost:5173** and log in.
 
-### Default Credentials
+> **macOS webcam**: the first run triggers a camera permission dialog for your
+> terminal app — click Allow, or enable it under System Settings → Privacy &
+> Security → Camera. Without it the webcam shows offline (the app keeps running).
 
-If you forget your password, you can manually edit `data/credentials.json` and update the `hashed_password` field with a new bcrypt hash, or delete the file and run the set_password script to create new credentials.
+## Configuration
 
----
+### Cameras — `data/cameras.json`
 
-## Setup & Installation
+Absent → falls back to the MacBook webcam. See `cameras.json.example`:
 
-This project uses `uv` for fast, reproducible Python environment management.
-
-### Prerequisites
-- Python 3.10+
-- `uv` installed
-- A functioning webcam (for testing)
-
-### Installation Steps
-
-1. **Clone/Navigate to the repository**
-   ```bash
-   cd /path/to/home-security
-   ```
-
-2. **Sync the environment**
-   This will automatically create a virtual environment (`.venv`) and install all dependencies.
-   ```bash
-   uv sync
-   ```
-
----
-
-## Operating the Application
-
-### 1. Register Known Faces
-For the system to recognize you or your family, you need to provide reference images.
-
-The easiest way to do this is using the built-in capture utility:
-
-1. Run the `add_person.py` script:
-   ```bash
-   uv run add_person.py
-   ```
-2. Enter the person's name when prompted.
-3. Look at the camera and press the `c` key to take 3-5 photos from slightly different angles.
-4. Press `q` to quit and save.
-
-The script automatically creates the necessary folder structure under `data/known_faces/` and saves the images. The next time you run `main.py`, the system will automatically train itself on these new faces.
-
-*(Alternatively, you can manually create a folder named after the person in `data/known_faces/` and place clear, front-facing `.jpg` or `.png` images inside).*
-
-*Example Directory Structure:*
-```text
-home-security/
-└── data/
-    └── known_faces/
-        ├── joynal/
-        │   ├── face1.jpg
-        │   └── face2.jpg
-        └── alice/
-            └── profile.png
+```json
+[
+  { "id": "macbook_webcam", "name": "MacBook Webcam", "type": "macbook",
+    "record": { "enabled": false } },
+  {
+    "id": "front_door", "name": "Front Door", "type": "tapo",
+    "rtsp_url": "rtsp://USER:PASSWORD@192.168.1.100:554/stream1",
+    "record": { "enabled": true, "retain_days": 30 },
+    "zones": [ { "name": "porch", "coordinates": [[0,0],[300,0],[300,360],[0,360]] } ]
+  }
+]
 ```
 
-### 2. Run the System
-Activate the script via `uv` which will handle the virtual environment execution automatically:
+- Camera types: `"macbook"`, `"tapo"` / `"rtsp"`, `"file"` (looping MP4 — great for
+  testing without hardware; generate clips with `uv run scripts/make_test_video.py`)
+- The **first enabled camera is the registration camera** used by the face wizard
+- `zones` enable activity filtering + loitering detection (threshold 120s)
+- Recording retention is disk-aware by default: `delete_only_if_disk_full: true`
+  keeps footage past `retain_days` while free space ≥ `min_disk_free_gb`
+
+### Environment — `.env`
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `SECRET_KEY` | ✅ | JWT signing key (32+ chars) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | for Telegram alerts | from @BotFather |
+| `NTFY_TOPIC` | for ntfy.sh push | subscribe on your phone at `https://ntfy.sh/<topic>` |
+| `RECORDINGS_DIR` / `THUMBNAILS_DIR` | NAS/external storage | defaults to `data/…` |
+| `GO2RTC_HOST` | Docker Compose only | `go2rtc:8554` |
+
+Alert channel is `ACTIVE_ALERT` in `src/config.py` (`console` / `telegram` / `ntfy`).
+
+### IP cameras (Tapo)
+
+1. Tapo app → Camera Settings → Advanced → Camera Account (set user/password)
+2. `brew install go2rtc ffmpeg` — go2rtc proxies one RTSP connection per camera
+   (Tapos crash under concurrent connections); ffmpeg records the stream
+3. Add the camera to `data/cameras.json` (above) and restart
+
+Without go2rtc/ffmpeg installed the app still runs — cameras stream, recording
+degrades gracefully with a warning.
+
+## Testing
 
 ```bash
-uv run main.py
+uv run pytest tests/        # 60 tests, no camera hardware or network needed
+uv run ruff check .         # lint
+cd frontend && npm run lint && npm run build
 ```
 
-### 3. Usage & Troubleshooting
-* **Permissions on macOS**: The first time you run this, macOS will explicitly ask if "Terminal" (or iTerm) can access your Camera. You **must** click "Allow". If you accidentally deny it, go to *System Settings > Privacy & Security > Camera* and enable it for your terminal application.
-* **Exiting**: Ensure the visual camera window is active/focused, and **press the `q` key** on your keyboard to safely stop the camera and close the application. Do not just `Ctrl+C` in the terminal if you can avoid it, to ensure the webcam hardware releases properly.
+The suite covers the retention policy, event DB (incl. concurrent access), motion
+detector, zones, loitering, tracker identity cache, per-person alert cooldowns, and
+the daily summary. YOLO tests use ultralytics' bundled sample image; `yolov8n.pt`
+(~6MB) auto-downloads on first pipeline start.
 
----
+## Deployment
 
-## Future Extensions
+```bash
+docker compose up -d        # backend + go2rtc + frontend
+```
 
-When you are ready to transition from a MacBook testing environment to a real home security setup:
+Or bare-metal auto-start: `deploy/aegis-vision.plist` (macOS launchd) or
+`deploy/aegis-vision.service` (Linux systemd). Copy go2rtc-docker.yaml.example →
+go2rtc-docker.yaml with your streams for the compose setup.
 
-1. **Enable Tapo C210 Camera**:
-   * Open the Tapo App on your phone.
-   * Go to your Camera Settings > Advanced Settings > Camera Account and set a username/password.
-   * Modify `main.py` to instantiate `TapoCamera(username="...", password="...", ip_address="...")`.
-   * Change `ACTIVE_CAMERA = "tapo"` in `src/config.py`.
-### 2. Enable Telegram Alerts (Implemented)
-   The system can instantly send a JPEG snapshot to a Telegram group chat when an unknown face is detected (throttled to 1 alert per 30 seconds per camera).
-   * Open Telegram and message `@BotFather` to create a Bot and get your `TELEGRAM_BOT_TOKEN`.
-   * Add the bot to your Family Group and use `https://api.telegram.org/bot<TOKEN>/getUpdates` to find the `TELEGRAM_CHAT_ID` (usually starts with `-100`).
-   * Add both of these to your `.env` file.
-   * Open `src/config.py` and change line 33 to read: `ACTIVE_ALERT = "telegram"`.
+## Project Layout
+
+| Path | What |
+|------|------|
+| `main.py` | FastAPI entrypoint — wires routers, go2rtc, recorder, inference thread |
+| `src/config.py` + `src/models.py` | Env vars, cameras.json loading, Pydantic config models |
+| `src/api/` | Inference loop, shared state, routers (stream/events/recordings/faces/auth/register) |
+| `src/detection/` | Cascading pipeline: motion, person, tracker, zones, loitering |
+| `src/recognition/` | InsightFace ArcFace recognizer |
+| `src/camera/` | Camera sources: webcam, Tapo RTSP, looping video file |
+| `src/recording/` | FFmpeg segment recorder + retention |
+| `src/events/` | SQLite event database |
+| `src/alerts/` | Console / Telegram / ntfy + daily summary |
+| `frontend/src/` | React dashboard, face manager, registration wizard, recordings page |
+| `docs/` | Architecture diagram, research, implementation plan, progress tracker |
+
+Further docs: [CLAUDE.md](./CLAUDE.md) (project index) · [docs/PROGRESS.md](./docs/PROGRESS.md)
+(task state + verification log) · [LEARNINGS.md](./LEARNINGS.md) (gotchas)
+
+## API Overview
+
+`POST /auth/login` → JWT, then Bearer auth everywhere; media streams
+(`/video_feed/{cam}`, `/events/{id}/thumbnail`, `/recordings/{cam}/{file}`) accept
+`?token=` because browsers can't set headers on `<img>`/`<video>` tags.
+
+Key endpoints: `/cameras` (+ `/{id}/status`), `/video_feed/{camera_id}`,
+`/events` (+ `/summary`), `/recordings/{cam}` (+ `/storage`), `/faces`,
+`/register/face_status` · `/register/capture`, `/diagnostics/pipeline`.
+Full table in [CLAUDE.md](./CLAUDE.md).
+
+## Security Notes
+
+- JWT tokens appear in URLs for media endpoints — acceptable on a LAN, not exposed
+  to the internet
+- go2rtc's API/WebRTC ports bind to `127.0.0.1` (bare metal) and stay on the compose
+  network (Docker) — publishing them means unauthenticated video access
+- `data/` (credentials, face images, events, recordings) is gitignored; so are
+  `go2rtc.yaml` (contains camera passwords) and `yolov8n.pt`

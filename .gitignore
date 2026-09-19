@@ -15,3 +15,6 @@ data
 
 # go2rtc generated config (contains camera credentials)
 go2rtc.yaml
+
+# YOLO model weights — auto-downloaded by ultralytics on first run
+yolov8n.pt

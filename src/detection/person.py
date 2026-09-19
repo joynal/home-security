@@ -8,11 +8,17 @@ Only detects 'person' class (COCO class 0) for efficiency.
 import numpy as np
 from ultralytics import YOLO
 
+from src.config import BASE_DIR
+
+# Anchored to the project root so running from another CWD doesn't trigger a
+# second download. Ultralytics fetches yolov8n.pt (~6MB) on first use if missing.
+DEFAULT_MODEL_PATH = str(BASE_DIR / 'yolov8n.pt')
+
 
 class PersonDetector:
   """Lightweight YOLO-based person detector."""
 
-  def __init__(self, model_path: str = 'yolov8n.pt', confidence: float = 0.5):
+  def __init__(self, model_path: str = DEFAULT_MODEL_PATH, confidence: float = 0.5):
     self.model = YOLO(model_path)
     self.confidence = confidence
     # COCO class 0 = person
