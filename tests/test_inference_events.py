@@ -93,3 +93,41 @@ def test_event_model_defaults():
   assert e.person_name is None
   assert e.confidence == 0.0
   assert e.timestamp.tzinfo is not None  # timezone-aware UTC default
+
+
+def test_known_face_event_logged_per_person(tmp_path, monkeypatch):
+  """Known sightings: person_name stored, per-person throttle keys independent."""
+  db = EventDatabase(db_path=tmp_path / 'events.db')
+  monkeypatch.setattr(state, 'event_db', db)
+  monkeypatch.setattr('src.api.inference.THUMBNAILS_DIR', tmp_path / 'thumbs')
+
+  last_event_at: dict[str, float] = {}
+  frame = _frame()
+  for _ in range(50):  # would flood without throttling
+    _log_detection_event(
+      'front_door', frame, last_event_at, 'known_face',
+      track_id=1, bbox=[10, 10, 50, 50],
+      throttle_key='known:front_door:joynal', person_name='joynal',
+    )
+  assert db.count(event_type='known_face', person_name='joynal') == 1
+
+  # A different person the same minute is NOT suppressed
+  _log_detection_event(
+    'front_door', frame, last_event_at, 'known_face',
+    track_id=2, throttle_key='known:front_door:alice', person_name='alice',
+  )
+  assert db.count(event_type='known_face', person_name='alice') == 1
+
+  rows = db.query(event_type='known_face')
+  assert {r['person_name'] for r in rows} == {'joynal', 'alice'}
+  assert all(r['thumbnail_path'] for r in rows)
+
+
+def test_person_name_filter(tmp_path):
+  db = EventDatabase(db_path=tmp_path / 'e.db')
+  db.insert(DetectionEvent(camera_id='c', event_type='known_face', person_name='joynal'))
+  db.insert(DetectionEvent(camera_id='c', event_type='known_face', person_name='alice'))
+  db.insert(DetectionEvent(camera_id='c', event_type='unknown_face'))
+  assert db.count(person_name='joynal') == 1
+  assert db.count(event_type='known_face', person_name='alice') == 1
+  assert db.query(person_name='joynal')[0]['person_name'] == 'joynal'

@@ -113,6 +113,7 @@ class EventDatabase:
     self,
     camera_id: str | None = None,
     event_type: str | None = None,
+    person_name: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
     limit: int = 100,
@@ -120,7 +121,7 @@ class EventDatabase:
   ) -> list[dict]:
     """Query events with optional filters. newest first."""
     conditions, params = self._build_filters(
-      camera_id, event_type, since, until
+      camera_id, event_type, person_name, since, until
     )
     where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
@@ -135,11 +136,12 @@ class EventDatabase:
     self,
     camera_id: str | None = None,
     event_type: str | None = None,
+    person_name: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
   ) -> int:
     conditions, params = self._build_filters(
-      camera_id, event_type, since, until
+      camera_id, event_type, person_name, since, until
     )
     where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
@@ -152,6 +154,7 @@ class EventDatabase:
   def _build_filters(
     camera_id: str | None,
     event_type: str | None,
+    person_name: str | None,
     since: datetime | None,
     until: datetime | None,
   ) -> tuple[list[str], list]:
@@ -162,6 +165,9 @@ class EventDatabase:
     if event_type:
       conditions.append('event_type = ?')
       params.append(event_type)
+    if person_name:
+      conditions.append('person_name = ?')
+      params.append(person_name)
     if since:
       conditions.append('timestamp >= ?')
       params.append(since.isoformat())

@@ -51,6 +51,7 @@ def _attach_playback(events: list[dict]) -> list[dict]:
 def list_events(
   camera_id: str | None = None,
   event_type: str | None = None,
+  person_name: str | None = None,
   since: str | None = None,  # ISO format
   until: str | None = None,  # ISO format
   limit: int = Query(50, le=500),
@@ -67,6 +68,7 @@ def list_events(
   events = state.event_db.query(
     camera_id=camera_id,
     event_type=event_type,
+    person_name=person_name,
     since=since_dt,
     until=until_dt,
     limit=limit,
@@ -75,6 +77,7 @@ def list_events(
   total = state.event_db.count(
     camera_id=camera_id,
     event_type=event_type,
+    person_name=person_name,
     since=since_dt,
     until=until_dt,
   )

@@ -130,6 +130,10 @@ class _FpsCounter:
 # window, not one per frame (~30/s would flood the DB).
 EVENT_COOLDOWN_SECONDS = 30.0
 
+# Known-person sighting cooldown: one row per person per camera per minute —
+# enough for "last seen" + counts without flooding.
+KNOWN_EVENT_COOLDOWN_SECONDS = 60.0
+
 # Event/thumbnail retention sweep cadence (disk-aware — only prunes when low).
 EVENT_RETENTION_SWEEP_SECONDS = 900.0
 
@@ -168,6 +172,8 @@ def _log_detection_event(
   bbox: list[int] | None = None,
   throttle_key: str | None = None,
   cooldown: float = EVENT_COOLDOWN_SECONDS,
+  person_name: str | None = None,
+  confidence: float = 0.0,
 ) -> None:
   """Persist a detection event with a thumbnail (throttled per key)."""
   if state.event_db is None:
@@ -183,6 +189,8 @@ def _log_detection_event(
     DetectionEvent(
       camera_id=camera_id,
       event_type=event_type,
+      person_name=person_name,
+      confidence=confidence,
       thumbnail_path=_save_thumbnail(camera_id, frame, bbox),
       metadata=metadata,
     )
@@ -377,6 +385,20 @@ def inference_loop() -> None:
               event_camera_id = cam_id
               event_track_id = det['track_id']
               event_bbox = det['bbox']
+            elif name and name != 'Unknown':
+              # Known sighting — one event per person per camera per window
+              # (per-person history for the Faces page)
+              _log_detection_event(
+                cam_id,
+                frame,
+                last_event_at,
+                event_type='known_face',
+                track_id=det['track_id'],
+                bbox=det['bbox'],
+                throttle_key=f'known:{cam_id}:{name}',
+                cooldown=KNOWN_EVENT_COOLDOWN_SECONDS,
+                person_name=name,
+              )
             if det.get('loitering'):
               # Fires once per track (detector's alerted flag);
               # zone + duration included in the event
