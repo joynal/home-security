@@ -212,6 +212,13 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - UI dissatisfaction: "generic AI bloat", sidebar list instead of grid hero, emoji icons → full research run (3 parallel research agents + pixel-level analysis of Synology SS9 and Netguru PSIM screenshots).
 - **Wrote [ui-research.md](./ui-research.md) + [ui-plan.md](./ui-plan.md). NO implementation done — plan awaits user approval.** Execute with the same per-task protocol (tasks U1.1–U7.2). Note: user's `format fix` commit (single-quote reformat) is the current baseline; `ruff check` + 60 tests still pass on it.
 
+### Session 4 — 2026-09-19 (Scrypted deep-dive)
+- User chose Scrypted as the design target (timeline, events, settings, mobile) + wants smoother face management → deep research.
+- Subagent API hit a 5h rate limit mid-run; research completed directly via curl (docs.scrypted.app, docs.frigate.video, Frigate API source `frigate/api/record.py`+`media.py`+`preview.py`) + pixel analysis of Scrypted timeline screenshot.
+- Key answers: **Scrypted HAS face recognition for known people** (docs) — ours is recognition-equal-or-better, behind on integration. Frigate's timeline is powered by a SQLite recordings index + summary APIs + frame-at-time/clip endpoints; our MP4 serving already supports Range seeking (verified: 206).
+- **Wrote [scrypted-research.md](./scrypted-research.md): backend additions spec (B1–B6 must, B7–B11 nice) + face enrollment v2 (quality gates, passive enrichment, enroll-from-event, Faces gallery v2) + timeline UI mechanics. NOT implemented.** ui-plan.md §layout superseded → v2 pending user approval.
+- MCP search quotas (Z.ai web-search/web-reader) exhausted until 2026-10-13; use curl/WebSearch fallbacks in future sessions.
+
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
 
 ### Session 2 — 2026-09-18 (implementation run)
