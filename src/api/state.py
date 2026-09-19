@@ -23,7 +23,9 @@ frame_lock = threading.Lock()
 # ── Per-camera frames ───────────────────────────────────────
 # The inference loop encodes each camera's JPEG ONCE per iteration; MJPEG
 # generators serve these cached bytes — never encode per connected client.
-latest_frames: dict[str, np.ndarray] = {}  # camera_id → latest annotated frame (BGR)
+latest_frames: dict[
+  str, np.ndarray
+] = {}  # camera_id → latest annotated frame (BGR)
 latest_jpeg_bytes: dict[str, bytes] = {}  # camera_id → pre-encoded JPEG bytes
 frames_lock = threading.Lock()  # Single lock guarding both dicts
 
@@ -34,10 +36,10 @@ raw_frame_lock = threading.Lock()
 
 # Latest face-pose result from the inference loop (polled by the UI)
 latest_face_status: dict = {
-    "face_found": False,
-    "pose": "none",
-    "offset_x": 0.0,
-    "offset_y": 0.0,
+  'face_found': False,
+  'pose': 'none',
+  'offset_x': 0.0,
+  'offset_y': 0.0,
 }
 face_status_lock = threading.Lock()
 
@@ -54,7 +56,7 @@ event_db: EventDatabase | None = None
 recording_manager: RecordingManager | None = None  # set by lifespan
 # camera_id → DetectionPipeline (typed loosely to avoid importing the heavy
 # detection stack at state-import time; the inference loop populates it)
-pipelines: dict[str, "object"] = {}
+pipelines: dict[str, 'object'] = {}
 
 # Per-camera health: camera_id → {online, fps, last_frame_at, error}
 camera_status: dict[str, dict] = {}

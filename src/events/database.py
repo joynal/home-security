@@ -18,24 +18,24 @@ from pathlib import Path
 from src.config import DATA_DIR
 from src.events.models import DetectionEvent
 
-DB_PATH = DATA_DIR / "events.db"
+DB_PATH = DATA_DIR / 'events.db'
 
 
 class EventDatabase:
-    def __init__(self, db_path: Path | None = None):
-        self.db_path = Path(db_path) if db_path else DB_PATH
-        self._lock = threading.Lock()
-        # Single persistent connection — required for ":memory:" databases
-        # (each sqlite3.connect(":memory:") would create a separate empty DB),
-        # and faster than per-call connects. Our lock serializes access, so
-        # check_same_thread=False is safe here.
-        self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._init_db()
+  def __init__(self, db_path: Path | None = None):
+    self.db_path = Path(db_path) if db_path else DB_PATH
+    self._lock = threading.Lock()
+    # Single persistent connection — required for ":memory:" databases
+    # (each sqlite3.connect(":memory:") would create a separate empty DB),
+    # and faster than per-call connects. Our lock serializes access, so
+    # check_same_thread=False is safe here.
+    self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+    self._conn.row_factory = sqlite3.Row
+    self._init_db()
 
-    def _init_db(self) -> None:
-        with self._lock:
-            self._conn.execute("""
+  def _init_db(self) -> None:
+    with self._lock:
+      self._conn.execute("""
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     camera_id TEXT NOT NULL,
@@ -49,137 +49,145 @@ class EventDatabase:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_events_camera ON events(camera_id)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)"
-            )
-            self._conn.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)")
-            self._conn.commit()
+      self._conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_events_camera ON events(camera_id)'
+      )
+      self._conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)'
+      )
+      self._conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)'
+      )
+      self._conn.commit()
 
-    def close(self) -> None:
-        with self._lock:
-            self._conn.close()
+  def close(self) -> None:
+    with self._lock:
+      self._conn.close()
 
-    def insert(self, event: DetectionEvent) -> int:
-        with self._lock:
-            cursor = self._conn.execute(
-                """INSERT INTO events (camera_id, event_type, timestamp, person_name,
+  def insert(self, event: DetectionEvent) -> int:
+    with self._lock:
+      cursor = self._conn.execute(
+        """INSERT INTO events (camera_id, event_type, timestamp, person_name,
                    confidence, thumbnail_path, recording_segment, metadata)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    event.camera_id,
-                    event.event_type,
-                    event.timestamp.isoformat(),
-                    event.person_name,
-                    event.confidence,
-                    event.thumbnail_path,
-                    event.recording_segment,
-                    event.metadata,
-                ),
-            )
-            self._conn.commit()
-            return cursor.lastrowid
+        (
+          event.camera_id,
+          event.event_type,
+          event.timestamp.isoformat(),
+          event.person_name,
+          event.confidence,
+          event.thumbnail_path,
+          event.recording_segment,
+          event.metadata,
+        ),
+      )
+      self._conn.commit()
+      return cursor.lastrowid
 
-    def query(
-        self,
-        camera_id: str | None = None,
-        event_type: str | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> list[dict]:
-        """Query events with optional filters. newest first."""
-        conditions, params = self._build_filters(camera_id, event_type, since, until)
-        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+  def query(
+    self,
+    camera_id: str | None = None,
+    event_type: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    limit: int = 100,
+    offset: int = 0,
+  ) -> list[dict]:
+    """Query events with optional filters. newest first."""
+    conditions, params = self._build_filters(
+      camera_id, event_type, since, until
+    )
+    where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
-        with self._lock:
-            rows = self._conn.execute(
-                f"SELECT * FROM events {where} ORDER BY timestamp DESC LIMIT ? OFFSET ?",
-                params + [limit, offset],
-            ).fetchall()
-            return [dict(row) for row in rows]
+    with self._lock:
+      rows = self._conn.execute(
+        f'SELECT * FROM events {where} ORDER BY timestamp DESC LIMIT ? OFFSET ?',
+        params + [limit, offset],
+      ).fetchall()
+      return [dict(row) for row in rows]
 
-    def count(
-        self,
-        camera_id: str | None = None,
-        event_type: str | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
-    ) -> int:
-        conditions, params = self._build_filters(camera_id, event_type, since, until)
-        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+  def count(
+    self,
+    camera_id: str | None = None,
+    event_type: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+  ) -> int:
+    conditions, params = self._build_filters(
+      camera_id, event_type, since, until
+    )
+    where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
-        with self._lock:
-            return self._conn.execute(
-                f"SELECT COUNT(*) FROM events {where}", params
-            ).fetchone()[0]
+    with self._lock:
+      return self._conn.execute(
+        f'SELECT COUNT(*) FROM events {where}', params
+      ).fetchone()[0]
 
-    @staticmethod
-    def _build_filters(
-        camera_id: str | None,
-        event_type: str | None,
-        since: datetime | None,
-        until: datetime | None,
-    ) -> tuple[list[str], list]:
-        conditions, params = [], []
-        if camera_id:
-            conditions.append("camera_id = ?")
-            params.append(camera_id)
-        if event_type:
-            conditions.append("event_type = ?")
-            params.append(event_type)
-        if since:
-            conditions.append("timestamp >= ?")
-            params.append(since.isoformat())
-        if until:
-            conditions.append("timestamp <= ?")
-            params.append(until.isoformat())
-        return conditions, params
+  @staticmethod
+  def _build_filters(
+    camera_id: str | None,
+    event_type: str | None,
+    since: datetime | None,
+    until: datetime | None,
+  ) -> tuple[list[str], list]:
+    conditions, params = [], []
+    if camera_id:
+      conditions.append('camera_id = ?')
+      params.append(camera_id)
+    if event_type:
+      conditions.append('event_type = ?')
+      params.append(event_type)
+    if since:
+      conditions.append('timestamp >= ?')
+      params.append(since.isoformat())
+    if until:
+      conditions.append('timestamp <= ?')
+      params.append(until.isoformat())
+    return conditions, params
 
-    def get_by_id(self, event_id: int) -> dict | None:
-        """Fetch a single event by ID."""
-        with self._lock:
-            row = self._conn.execute(
-                "SELECT * FROM events WHERE id = ?", (event_id,)
-            ).fetchone()
-            return dict(row) if row else None
+  def get_by_id(self, event_id: int) -> dict | None:
+    """Fetch a single event by ID."""
+    with self._lock:
+      row = self._conn.execute(
+        'SELECT * FROM events WHERE id = ?', (event_id,)
+      ).fetchone()
+      return dict(row) if row else None
 
-    def delete_older_than(
-        self,
-        days: int = 30,
-        only_if_disk_full: bool = True,
-        min_disk_free_gb: float = 10.0,
-    ) -> int:
-        """
-        Delete events older than N days and their thumbnail files.
-        If only_if_disk_full is True (default), skip deletion entirely while the
-        volume holding the DB has at least min_disk_free_gb free.
-        """
-        if only_if_disk_full:
-            try:
-                _, _, free_bytes = shutil.disk_usage(self.db_path.parent)
-                free_gb = free_bytes / (1024**3)
-                if free_gb >= min_disk_free_gb:
-                    return 0  # Ample space, keep events and thumbnails!
-            except OSError:
-                pass
+  def delete_older_than(
+    self,
+    days: int = 30,
+    only_if_disk_full: bool = True,
+    min_disk_free_gb: float = 10.0,
+  ) -> int:
+    """
+    Delete events older than N days and their thumbnail files.
+    If only_if_disk_full is True (default), skip deletion entirely while the
+    volume holding the DB has at least min_disk_free_gb free.
+    """
+    if only_if_disk_full:
+      try:
+        _, _, free_bytes = shutil.disk_usage(self.db_path.parent)
+        free_gb = free_bytes / (1024**3)
+        if free_gb >= min_disk_free_gb:
+          return 0  # Ample space, keep events and thumbnails!
+      except OSError:
+        pass
 
-        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
-        with self._lock:
-            # Collect thumbnail paths before deleting rows (cascade to files)
-            thumbs = self._conn.execute(
-                "SELECT thumbnail_path FROM events WHERE timestamp < ? AND thumbnail_path IS NOT NULL",
-                (cutoff,),
-            ).fetchall()
-            cursor = self._conn.execute("DELETE FROM events WHERE timestamp < ?", (cutoff,))
-            self._conn.commit()
-            deleted = cursor.rowcount
-        for (thumb_path,) in thumbs:
-            try:
-                Path(thumb_path).unlink(missing_ok=True)
-            except OSError:
-                pass
-        return deleted
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    with self._lock:
+      # Collect thumbnail paths before deleting rows (cascade to files)
+      thumbs = self._conn.execute(
+        'SELECT thumbnail_path FROM events WHERE timestamp < ? AND thumbnail_path IS NOT NULL',
+        (cutoff,),
+      ).fetchall()
+      cursor = self._conn.execute(
+        'DELETE FROM events WHERE timestamp < ?', (cutoff,)
+      )
+      self._conn.commit()
+      deleted = cursor.rowcount
+    for (thumb_path,) in thumbs:
+      try:
+        Path(thumb_path).unlink(missing_ok=True)
+      except OSError:
+        pass
+    return deleted

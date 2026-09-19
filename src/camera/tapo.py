@@ -7,35 +7,37 @@ from src.camera.base import CameraSource
 
 
 class TapoCamera(CameraSource):
-    def __init__(
-        self,
-        rtsp_url: str | None = None,
-        *,
-        username=None,
-        password=None,
-        ip_address=None,
-        port=554,
-        stream=1,
-    ):
-        # Accept a full RTSP URL directly, or build one from components
-        if rtsp_url:
-            self.rtsp_url = rtsp_url
-        else:
-            self.rtsp_url = f"rtsp://{username}:{password}@{ip_address}:{port}/stream{stream}"
-        self.cap = None
+  def __init__(
+    self,
+    rtsp_url: str | None = None,
+    *,
+    username=None,
+    password=None,
+    ip_address=None,
+    port=554,
+    stream=1,
+  ):
+    # Accept a full RTSP URL directly, or build one from components
+    if rtsp_url:
+      self.rtsp_url = rtsp_url
+    else:
+      self.rtsp_url = (
+        f'rtsp://{username}:{password}@{ip_address}:{port}/stream{stream}'
+      )
+    self.cap = None
 
-    def start(self):
-        self.cap = cv2.VideoCapture(self.rtsp_url)
-        if not self.cap.isOpened():
-            raise RuntimeError(f"Could not open Tapo stream at {self.rtsp_url}")
+  def start(self):
+    self.cap = cv2.VideoCapture(self.rtsp_url)
+    if not self.cap.isOpened():
+      raise RuntimeError(f'Could not open Tapo stream at {self.rtsp_url}')
 
-    def get_frame(self) -> np.ndarray:
-        if self.cap is None:
-            raise RuntimeError("Camera not started.")
-        ret, frame = self.cap.read()
-        return frame if ret else None
+  def get_frame(self) -> np.ndarray:
+    if self.cap is None:
+      raise RuntimeError('Camera not started.')
+    ret, frame = self.cap.read()
+    return frame if ret else None
 
-    def stop(self):
-        if self.cap:
-            self.cap.release()
-            self.cap = None
+  def stop(self):
+    if self.cap:
+      self.cap.release()
+      self.cap = None
