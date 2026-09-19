@@ -55,8 +55,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | B1.2 | Wire recorder → index | B1.1 | ✅ | (this commit) | poll loop re-indexes every 60s |
 | B2.1 | Timeline API | B1.2 | ✅ | (this commit) | |
 | B2.2 | Recordings summary (calendar) | B1.2 | ✅ | (this commit) | one commit, same router |
-| B3.1 | Event → playable segment | B1.2 | ⬜ | | |
-| B3.2 | frame.jpg?ts= endpoint | B1.2 | ⬜ | | |
+| B3.1 | Event → playable segment | B1.2 | ✅ | (this commit) | |
+| B3.2 | frame.jpg?ts= endpoint | B1.2 | ✅ | (this commit) | OpenCV-based, no ffmpeg |
 | B5.1 | Known-face events + person filter | B0 | ⬜ | | |
 | B6.1 | Request-response enrollment queue | — | ⬜ | | |
 | B6.2 | Person store + management API | B6.1 | ⬜ | | |
@@ -163,6 +163,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 84 tests green, ruff clean. 6 new tests: hour buckets (segment-minutes incl. cross-hour clipping, events/unknowns per hour, camera isolation, quiet-hour zeros), empty day, bad-date 422 ×3 shapes, summary days, summary empty. Live: `/recordings/summary` → `{"days":["2026-09-18"]}`; timeline returns the two dev segments with correct grid + per-hour minutes.
 - **Deviations**: (1) startup backfill moved from recorder-start to lifespan `scan_directory()` for ALL cameras — otherwise footage from cameras with recording disabled was invisible (found in live verification). (2) Fixed a latent time-of-day flake in a B1.1 test (unpinned mtime inflated the newest segment's end). (3) `EventDatabase.query_raw()` read-only escape hatch added for the GROUP BY.
+
+### Task B3.1 + B3.2 — playback primitives
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: 90 tests green, ruff clean. B3.1: events gain `playback {file,url,start_offset}` via segment_covering (offset math, unparseable/uncovered → null, end-to-end through `list_events`). B3.2: OpenCV `CAP_PROP_POS_MSEC` seek on a synthetic numbered-frames mp4 — t=2s frame differs from t=0s; endpoint caches (second call = cache hit, no new file); 404 when no covering segment. Frame route declared before `/{camera_id}/{filename}`.
+- **Deviations**: none vs plan (OpenCV extraction as specified; ffmpeg-free).
 
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅

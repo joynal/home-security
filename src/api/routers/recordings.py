@@ -15,6 +15,7 @@ matches in declaration order.
 
 import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -24,6 +25,7 @@ from src.api.auth import get_current_user, verify_token_param
 from src.config import (
   RECORDINGS_DIR,
 )  # env-overridable — same path the recorder writes to
+from src.recording.frames import get_cached_frame
 
 router = APIRouter(prefix='/recordings')
 
@@ -144,6 +146,37 @@ def camera_timeline(
       {'start': s['start_time'], 'end': s['end_time'], 'file': s['path']} for s in segments
     ],
   }
+
+
+@router.get('/{camera_id}/frame.jpg')
+def frame_at_time(
+  camera_id: str,
+  ts: float = Query(..., description='UTC epoch seconds'),
+  token: str = Query(...),
+):
+  """
+  JPEG frame at an arbitrary timestamp (timeline hover previews).
+  OpenCV seek inside the covering segment; cached under data/thumbnails/frames/.
+  """
+  verify_token_param(token)
+  if state.recording_index is None:
+    raise HTTPException(status_code=503, detail='Recording index not initialized')
+
+  segment = state.recording_index.segment_covering(
+    camera_id, datetime.fromtimestamp(ts, tz=UTC)
+  )
+  if segment is None:
+    raise HTTPException(status_code=404, detail='No recording covers that timestamp')
+  segment_path = Path(segment['path'])
+  if not segment_path.exists():
+    raise HTTPException(status_code=404, detail='Segment file missing')
+
+  jpeg = get_cached_frame(
+    segment_path, ts, datetime.fromisoformat(segment['start_time'])
+  )
+  if jpeg is None:
+    raise HTTPException(status_code=404, detail='Could not decode frame at that time')
+  return FileResponse(jpeg, media_type='image/jpeg')
 
 
 @router.get('/{camera_id}')

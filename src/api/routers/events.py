@@ -2,7 +2,7 @@
 src/api/routers/events.py
 ─────────────────────────
 Event log API:
-  GET /events                   — list events with filters
+  GET /events                   — list events with filters (+ playback link)
   GET /events/summary           — counts by type
   GET /events/{id}/thumbnail    — serve event thumbnail image
 """
@@ -18,6 +18,33 @@ from src.api.auth import get_current_user, verify_token_param
 from src.config import THUMBNAILS_DIR
 
 router = APIRouter(prefix='/events')
+
+
+def _attach_playback(events: list[dict]) -> list[dict]:
+  """
+  Enrich event rows with `playback: {file, url, start_offset}` — the segment
+  covering the event's timestamp and the seconds into it. None when no
+  recording covers the event (e.g. recording was off).
+  """
+  index = state.recording_index
+  if index is None:
+    return events
+  for ev in events:
+    try:
+      ts = datetime.fromisoformat(ev['timestamp'])
+    except (ValueError, TypeError):
+      ev['playback'] = None
+      continue
+    seg = index.segment_covering(ev['camera_id'], ts)
+    if seg is None:
+      ev['playback'] = None
+      continue
+    ev['playback'] = {
+      'file': Path(seg['path']).name,
+      'url': f"/recordings/{ev['camera_id']}/{Path(seg['path']).name}",
+      'start_offset': round((ts - datetime.fromisoformat(seg['start_time'])).total_seconds(), 1),
+    }
+  return events
 
 
 @router.get('')
@@ -52,7 +79,7 @@ def list_events(
     until=until_dt,
   )
 
-  return {'events': events, 'total': total}
+  return {'events': _attach_playback(events), 'total': total}
 
 
 @router.get('/summary')
