@@ -1,4 +1,8 @@
-# Aegis Vision — UI Redesign Implementation Plan
+# Aegis Vision — UI Redesign Implementation Plan ⚠️ SUPERSEDED by v2
+
+> **Superseded** by [implementation-plan-v2.md](./implementation-plan-v2.md) (Scrypted-style
+> layout + supporting backend). v1's foundation/polish phases (U1, U2, U7) carried into v2;
+> layout tasks were replaced. Kept for reference (also in git @ `4fd04e3`).
 
 > Task-by-task plan for the redesign defined in [ui-research.md](./ui-research.md).
 > Same protocol as [implementation-plan.md](./implementation-plan.md): commit per task
