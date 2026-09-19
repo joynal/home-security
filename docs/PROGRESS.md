@@ -218,6 +218,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - Key answers: **Scrypted HAS face recognition for known people** (docs) — ours is recognition-equal-or-better, behind on integration. Frigate's timeline is powered by a SQLite recordings index + summary APIs + frame-at-time/clip endpoints; our MP4 serving already supports Range seeking (verified: 206).
 - **Wrote [scrypted-research.md](./scrypted-research.md): backend additions spec (B1–B6 must, B7–B11 nice) + face enrollment v2 (quality gates, passive enrichment, enroll-from-event, Faces gallery v2) + timeline UI mechanics. NOT implemented.** ui-plan.md §layout superseded → v2 pending user approval.
 - MCP search quotas (Z.ai web-search/web-reader) exhausted until 2026-10-13; use curl/WebSearch fallbacks in future sessions.
+- User added scope: **enroll from photos** (B12) — spec'd in scrypted-research.md §4a (request-response over the pending queue keeps ONNX single-threaded; EXIF strip for privacy).
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
 

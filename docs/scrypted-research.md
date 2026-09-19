@@ -104,6 +104,7 @@ per-event thumbnails.
 | B4 | **Frame-at-time endpoint** | `GET /recordings/{cam}/frame.jpg?ts=` → ffmpeg `-ss {t} -i segment -frames:v 1` (cached). Timeline hover previews. |
 | B5 | **Log known-face events** | Inference loop currently logs `unknown_face` only. Log `known_face` with `person_name` + `confidence` too (own cooldown, e.g. 60s/person/cam) → per-person sighting history. Add `person_name` filter to `/events`. |
 | B6 | **Person management API** | `PATCH /faces/{name}` (rename), `POST /faces/{name}/add` (add reference image from event/frame — enroll-from-detection), per-person image listing already exists. |
+| B12 | **Photo import API** | `POST /faces/import` (multipart: `name` + `files[]`) — enroll people from existing photos (phone gallery, etc.). See §4a. |
 
 **NICE (polish + parity):**
 
@@ -146,6 +147,10 @@ WebRTC playback, LLM AI-search, license plates.
 
 ### Proposed flow v2
 
+Three enrollment paths, one library: **guided wizard** (person present — below),
+**photo import** (§4a, person absent), **enroll-from-event** (§4.6, stranger already
+seen). All feed the same `data/known_faces/<name>/` store + embeddings.
+
 **Enrollment — keep the wizard skeleton, add gates + feedback:**
 1. Same 5 poses (center/left/right/up/down) — `compute_pose` already drives it
 2. **Quality gate before capture counts**: face size ≥ ~96px, blur (Laplacian var
@@ -173,6 +178,34 @@ WebRTC playback, LLM AI-search, license plates.
 9. Correction loop (later phase): on a sighting card "Not [name]" / merge two people
 
 All of 6–9 ride on B5/B6. The wizard (1–4) is frontend + a small quality-gate helper.
+
+### 4a. Import from photos (B12) — the third enrollment path
+
+Registering via the webcam wizard assumes the person is *present*. Photo import
+covers everyone else (family photos, profile pictures). Our data model already
+supports it — `load_and_train()` scans `data/known_faces/<name>/*` at startup — so
+this is purely API + UI:
+
+- **`POST /faces/import`** (multipart `name` + `files[]`, multi-file batch):
+  1. Preprocess each image: EXIF-orientation transpose (⚠️ verify `cv2.imread`'s
+     EXIF behavior — use `PIL.ImageOps.exif_transpose` if unreliable), downscale to
+     ≤1280px before detection
+  2. **Synchronous validation via the pending-queue**: the endpoint must NOT call
+     `app.get()` directly (ONNX is single-threaded — project rule). Extend the
+     existing producer/consumer pattern into a request-response one: push a job
+     carrying a `threading.Event` + result slot; the inference loop runs detection +
+     quality gates and fills the result; the endpoint waits with a timeout (~2s) and
+     returns. Inference stays the only ONNX caller.
+  3. Per-file response: `✓ enrolled` (face found + gates passed) / `✗ no face` /
+     `⚠ low quality (blurry/small)` / `⚠ multiple faces — used the largest`
+  4. Save as a face crop (not the whole photo), **EXIF-stripped** (privacy — photos
+     carry GPS), reasonable JPEG size; embedding queued for the live model
+- **UI**: Faces page "Add person" → name + drag-and-drop multi-file dropzone with
+  per-file result chips; same dropzone on a person's detail page ("Add photos")
+- **Gotcha**: one good photo ≠ 5-pose diversity — photos taken frontal at close
+  range enroll well; warn (not block) when all imported references are
+  near-identical angles, and suggest the enrichment loop (§4.5) to grow diversity
+  from live sightings over time
 
 ## 5. What this changes in ui-plan.md
 
