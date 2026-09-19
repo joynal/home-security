@@ -195,6 +195,14 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 ---
 
+## Maintenance watch
+
+| Item | Trigger | Action |
+|------|---------|--------|
+| supervision ByteTrack removal | supervision 0.31 ships (0.30.4 is latest as of 2026-09-19; we pin `<0.31`) | Migrate `src/detection/tracker.py` to the external `trackers` package (Roboflow's documented successor, v2.6.0, active) — swap import + adapt `update()`, same tests. Fallbacks: vendor supervision's byte_tracker module (Apache-2.0, pure numpy) or BoxMot. |
+| InsightFace model cache | fresh machine / clean deploy | buffalo_l (~330MB) auto-downloads to `~/.insightface/models` on first run; yolov8n.pt (~6MB) to project root. Both need internet once. |
+| Frontend lint debt | next frontend touch | 6 pre-existing React Compiler errors in RegisterModal/AuthContext/main.jsx (predate this work) |
+
 ## Session log
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
