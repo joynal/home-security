@@ -182,6 +182,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Verified**: 100 tests green, ruff clean. 8 new tests with a fake recognizer: quality gates (too_small/too_dark/too_bright/blurry each), submit→drain round trip, no-face verdict, gates block blurry (nothing enrolled), gates optional, multiple-faces-picks-largest + note, timeout when no drainer, 5 concurrent submitters all served. `FaceRecognizer` gained `detect_faces()`/`add_embedding()` (add_face_embedding now delegates — largest-face selection fixed as a side effect).
 - **Deviations**: none vs plan.
 
+### Task B6.2 — person store + management API
+- **Status**: ✅
+- **Commit**: 235b3f3
+- **Verified**: 108 tests green, ruff clean. 8 new tests: dir backfill (idempotent, dotfiles skipped), event person_id links + rename survives (display names updated, ids stable), person_images path rewrite on rename, rename endpoint (disk+DB+live model, 409 on collision), add-from-event (enrolls + saves crop, source='event'; gates-rejected leaves no dir), inference helper attaches person_id. Live: user's real "Joynal" (5 wizard poses) backfilled — id=1, sightings=0 (B5.1 postdates their test session).
+- **Deviations**: (1) `events.person_id` ALTER lives in `EventDatabase._init_db` (schema owner), not PersonStore — initially placed in PersonStore, which broke every EventDatabase-only test fixture. (2) Rename updates the denormalized `events.person_name` too (display convenience) while `person_id` remains the stable link — slightly more than "one row", still one transaction. (3) Caught + fixed an ordering bug: old name captured after the UPDATE made the image-path REPLACE a no-op.
+
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅
 - **Commit**: (this commit)
