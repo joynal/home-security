@@ -99,10 +99,6 @@ function Dashboard() {
             <button className="register-btn" onClick={() => setShowRegister(true)}>
               <span>＋</span> Register Person
             </button>
-            <div className="status-pill">
-              <span className="status-pill__pulse" />
-              System Armed
-            </div>
             {/* Logout */}
             <button className="logout-btn" onClick={logout} title={`Signed in as ${username}`}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -117,11 +113,6 @@ function Dashboard() {
         <main className="content">
           <header className="topbar">
             <div className="topbar__title">{activeCamera ? activeCamera.name : 'All Cameras'}</div>
-            <div className="topbar__badges">
-              <span className="badge badge--live">● LIVE</span>
-              <span className="badge badge--ai">AI: ArcFace + RetinaFace</span>
-              <span className="badge badge--user">👤 {username}</span>
-            </div>
           </header>
 
           <div className="content-row">
@@ -135,13 +126,6 @@ function Dashboard() {
                     <p>Loading cameras…</p>
                   </div>
                 )}
-              </div>
-
-              <div className="stats-strip">
-                <div className="stat"><span className="stat__label">AI Model</span><span className="stat__value">InsightFace buffalo_l</span></div>
-                <div className="stat"><span className="stat__label">Detection</span><span className="stat__value">RetinaFace 3D</span></div>
-                <div className="stat"><span className="stat__label">Recognition</span><span className="stat__value">ArcFace 512-d</span></div>
-                <div className="stat"><span className="stat__label">Cameras</span><span className="stat__value">{cameras.filter(c => c.online).length}/{cameras.length} online</span></div>
               </div>
             </div>
 
