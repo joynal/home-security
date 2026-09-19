@@ -480,12 +480,21 @@ def inference_loop() -> None:
         with state.raw_frame_lock:
           state.latest_raw_frame = registration_raw
 
-      # Drain enrollment queue — app.get() is safe here (single thread)
+      # Drain enrollment queues — app.get() is safe here (single thread)
       with state.pending_lock:
         to_enroll = state.pending_embeddings.copy()
         state.pending_embeddings.clear()
       for item in to_enroll:
         state.recognizer.add_face_embedding(item['name'], item['frame'])
+
+      # Request-response jobs (photo import / add-from-event): verdicts go
+      # straight back to the waiting API caller
+      if state.pending_enroll_jobs:
+        from src.api.enroll_jobs import drain_jobs
+
+        drained = drain_jobs()
+        if drained:
+          print(f'[EnrollJobs] Processed {drained} enrollment job(s)')
 
       time.sleep(0.03)
 

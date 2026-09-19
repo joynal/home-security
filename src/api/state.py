@@ -50,6 +50,11 @@ face_status_lock = threading.Lock()
 pending_embeddings: list[dict] = []
 pending_lock = threading.Lock()
 
+# Request-response enrollment jobs (photo import / add-from-event).
+# API threads submit EnrollJob; the inference loop drains them (the only
+# legal ONNX caller) and sets each job's event with the verdict.
+pending_enroll_jobs: list = []
+
 # ── Shared objects (set once, by the inference loop) ────────
 recognizer: FaceRecognizer | None = None
 active_streams: dict[str, CameraStreamWrapper] = {}  # camera_id → stream

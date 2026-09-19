@@ -84,24 +84,38 @@ class FaceRecognizer:
     else:
       print('No known faces found to encode.')
 
+  def detect_faces(self, frame):
+    """
+    Detect + embed faces WITHOUT matching against known people.
+    Returns the raw insightface Face objects (bbox, embedding, kps).
+    Inference thread only (ONNX is single-threaded).
+    """
+    return self.app.get(frame)
+
+  def add_embedding(self, name: str, embedding) -> None:
+    """Append a precomputed embedding (inference thread only)."""
+    self.known_embeddings.append(embedding)
+    self.known_names.append(name)
+    self.is_trained = True
+    print(
+      f'[add_embedding] Added embedding for \'{name}\'. Total: {len(self.known_embeddings)}.'
+    )
+
   def add_face_embedding(self, name: str, image_frame) -> bool:
     """
     Incrementally add a single new embedding without rescanning all images.
     Runs InsightFace on the provided BGR frame and appends the result.
     Returns True if a face was found and added, False otherwise.
     """
-    faces = self.app.get(image_frame)
+    faces = self.detect_faces(image_frame)
     if not faces:
       print(f"[add_face_embedding] No face detected in frame for '{name}'.")
       return False
 
-    embedding = faces[0].embedding
-    self.known_embeddings.append(embedding)
-    self.known_names.append(name)
-    self.is_trained = True
-    print(
-      f"[add_face_embedding] Added embedding for '{name}'. Total: {len(self.known_embeddings)}."
+    face = max(
+      faces, key=lambda f: float((f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
     )
+    self.add_embedding(name, face.embedding)
     return True
 
   def remove_person(self, name: str) -> bool:
