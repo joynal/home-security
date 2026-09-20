@@ -1,18 +1,20 @@
 /**
  * Live page — the camera grid IS the app (UniFi/Frigate pattern).
- * Grid hero + recent-event rail (U3 replaces the sidebar-era event panel).
+ * Story strip (recent activity) above the grid; grid is the camera list.
+ * Tile click → camera detail via URL hash (U4).
  */
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import CameraGrid from '../components/CameraGrid';
-import EventSidebar from '../components/EventSidebar';
+import RecentEvents from '../components/RecentEvents';
 
 const API = 'http://localhost:8000';
 
 export default function LivePage() {
   const { token, authHeaders } = useAuth();
+  const navigate = useNavigate();
   const [cameras, setCameras] = useState([]);
-  const [eventsCollapsed, setEventsCollapsed] = useState(false);
 
   // Poll /cameras every 10s for live status (online/offline, FPS)
   useEffect(() => {
@@ -34,6 +36,10 @@ export default function LivePage() {
 
   const online = cameras.filter(c => c.online).length;
 
+  const openCamera = (cameraId) => {
+    navigate(`?cam=${cameraId}`); // camera detail (U4) reads this
+  };
+
   return (
     <>
       <header className="page-header">
@@ -43,23 +49,15 @@ export default function LivePage() {
         <span className="page-header__spacer" />
       </header>
 
-      <div className="live-body">
-        <div className="live-body__grid">
-          {cameras.length > 0 ? (
-            <CameraGrid cameras={cameras} token={token} />
-          ) : (
-            <div className="live-placeholder">
-              <p>Loading cameras…</p>
-            </div>
-          )}
-        </div>
-
-        <EventSidebar
-          token={token}
-          authHeaders={authHeaders}
-          collapsed={eventsCollapsed}
-          onToggle={() => setEventsCollapsed(c => !c)}
-        />
+      <div className="page-body live-page">
+        <RecentEvents limit={10} />
+        {cameras.length > 0 ? (
+          <CameraGrid cameras={cameras} token={token} onSelect={openCamera} />
+        ) : (
+          <div className="live-placeholder">
+            <p>Loading cameras…</p>
+          </div>
+        )}
       </div>
     </>
   );

@@ -1,0 +1,39 @@
+/* ─── Recent activity strip ───────────────────────────── */
+.recent-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.recent-strip__card {
+  position: relative;
+  flex-shrink: 0;
+  width: 150px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  border-bottom: 2px solid transparent; /* severity = this border only */
+}
+
+.recent-strip__card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-strip__card--unknown_face { border-bottom-color: var(--alert); }
+.recent-strip__card--loitering { border-bottom-color: var(--warn); }
+.recent-strip__card--known_face { border-bottom-color: var(--live); }
+
+.recent-strip__time {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 10.5px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}

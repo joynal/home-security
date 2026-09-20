@@ -1,100 +1,75 @@
-/* ─── Camera tile ─────────────────────────────────────── */
+/* ─── Camera tile — the stream is the card ────────────── */
 .camera-tile {
   position: relative;
-  background: var(--surface2);
-  border: 1px solid var(--border);
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
   border-radius: var(--radius);
   overflow: hidden;
-  aspect-ratio: 16 / 9;
-  cursor: pointer;
-  transition: border-color var(--transition), box-shadow var(--transition);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  padding: 0;
+  transition: outline-color var(--transition);
+  outline: 1px solid transparent;
+  outline-offset: -1px;
 }
 
-.camera-tile:hover {
-  border-color: var(--border-active);
-  box-shadow: 0 0 0 1px var(--accent-glow);
-}
-
-.camera-tile--expanded {
-  aspect-ratio: auto;
-  height: 100%;
-  min-height: 320px;
-}
-
-.camera-tile--offline {
-  opacity: 0.75;
-}
+.camera-tile:hover { outline-color: var(--border-strong); }
+.camera-tile:focus-visible { outline: 2px solid var(--accent); }
 
 .camera-tile__feed {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  background: #000;
-  display: block;
+  object-fit: contain; /* letterbox — never crop a security feed */
 }
 
-/* Status badge — top-left */
-.camera-tile__status {
+/* Offline — calm, never red (red = alerts only) */
+.camera-tile__offline {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  background: rgba(7, 9, 15, 0.72);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  backdrop-filter: blur(4px);
-}
-
-.camera-tile__name {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text1);
-  white-space: nowrap;
-}
-
-.camera-tile__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--danger);
-  flex-shrink: 0;
-}
-
-.camera-tile__dot--online {
-  background: var(--success);
-  box-shadow: 0 0 6px rgba(34, 211, 165, 0.7);
-}
-
-/* Info strip — bottom-left */
-.camera-tile__info {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  z-index: 2;
-  display: flex;
-  gap: 10px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--text2);
-}
-
-/* Offline placeholder */
-.camera-tile__offline-msg {
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  color: var(--text3);
+  color: var(--text-3);
+  background: var(--surface-2);
 }
 
-.camera-tile__offline-msg span { font-size: 34px; }
-.camera-tile__offline-msg p { font-size: 12px; color: var(--text2); }
+.camera-tile__offline span { font-size: 12px; }
+
+.camera-tile__offline--paused {
+  background: #000; /* stream paused, not an error state */
+}
+
+/* Name — bottom-left scrim */
+.camera-tile__name {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  padding: 28px 12px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65)); /* legibility scrim over video — the one allowed gradient-to-transparent */
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  pointer-events: none;
+}
+
+/* Status — top-right chip */
+.camera-tile__status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(9, 9, 11, 0.72);
+  backdrop-filter: blur(4px);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+  pointer-events: none;
+}

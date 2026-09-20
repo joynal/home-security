@@ -192,6 +192,9 @@ img { display: block; }
   margin-top: 3px;
 }
 
+/* ─── Live page wrapper ─────────────────────────────── */
+.live-page { padding: 12px 14px; }
+
 /* ─── Faces page reuses mf-* classes (ManageFacesPage.css) ── */
 .mf-page { max-width: 1080px; }
 
