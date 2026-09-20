@@ -15,7 +15,7 @@ export const faceService = {
   async importFaces(name: string, files: File[]): Promise<FaceImportResponse> {
     const form = new FormData();
     form.append('name', name.trim());
-    files.forEach(f => form.append('files', f, f.name));
+    files.forEach((f) => form.append('files', f, f.name));
     return apiFetch<FaceImportResponse>('/faces/import', {
       method: 'POST',
       body: form,

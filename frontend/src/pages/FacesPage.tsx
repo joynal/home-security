@@ -6,64 +6,75 @@
 import { useState, useEffect, useCallback, type SyntheticEvent } from 'react';
 import { css } from '@emotion/react';
 import { ImagePlus, UserPlus, Users } from 'lucide-react';
-import RegisterModal from '../RegisterModal';
-import ImportModal from '../components/ImportModal';
-import { faceService } from '../services/faces';
-import type { FacePerson } from '../types';
+import RegisterModal from '@/components/RegisterModal';
+import ImportModal from '@/components/ImportModal';
+import { faceService } from '@/services/faces';
+import { useToast } from '@/hooks/useToast';
+import { tokens } from '@/theme/designTokens';
+import type { FacePerson } from '@/types';
 
 const facesStyles = css`
   max-width: 1080px;
 
-  .mf-loading, .mf-error, .mf-empty {
+  .mf-loading,
+  .mf-error,
+  .mf-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 60px 0;
-    color: #7a879e;
-    font-size: 14px;
+    color: ${tokens.colors.text.muted};
+    font-size: ${tokens.fontSizes.md};
     text-align: center;
-    gap: 16px;
+    gap: ${tokens.spacing.lg};
   }
   .mf-empty-icon {
     font-size: 48px;
     opacity: 0.5;
-    margin-bottom: 8px;
+    margin-bottom: ${tokens.spacing.sm};
   }
   .mf-spinner {
-    width: 24px; height: 24px;
-    border: 2px solid rgba(255,255,255,0.1);
-    border-top-color: #3b9eff;
-    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top-color: ${tokens.colors.accent.primary};
+    border-radius: ${tokens.radii.full};
     animation: mf-spin 0.8s linear infinite;
   }
-  @keyframes mf-spin { to { transform: rotate(360deg); } }
+  @keyframes mf-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .mf-error {
-    color: #f87171;
-    background: rgba(248,113,113,0.05);
-    border-radius: 12px;
+    color: ${tokens.colors.status.danger};
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: ${tokens.radii.default};
   }
 
   .mf-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
+    gap: ${tokens.spacing.lg};
   }
 
   .mf-card {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px;
+    background: ${tokens.colors.surface.default};
+    border: 1px solid ${tokens.colors.border.subtle};
+    border-radius: ${tokens.radii.lg};
     overflow: hidden;
-    transition: transform 0.2s, background 0.2s;
+    transition:
+      transform ${tokens.transitions.slow},
+      background ${tokens.transitions.slow};
     display: flex;
     flex-direction: column;
   }
   .mf-card:hover {
     transform: translateY(-2px);
-    background: rgba(255,255,255,0.04);
-    border-color: rgba(255,255,255,0.1);
+    background: ${tokens.colors.surface.subtle};
+    border-color: ${tokens.colors.border.strong};
   }
 
   .mf-card__gallery {
@@ -71,14 +82,14 @@ const facesStyles = css`
     gap: 2px;
     padding: 2px;
     background: #000;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid ${tokens.colors.border.subtle};
   }
   .mf-card__img-wrap {
     flex: 1;
     aspect-ratio: 1;
     position: relative;
     overflow: hidden;
-    border-radius: 4px;
+    border-radius: ${tokens.radii.sm};
   }
   .mf-card__img {
     width: 100%;
@@ -91,7 +102,7 @@ const facesStyles = css`
     transform: scale(1.05);
   }
   .mf-card__img-fallback {
-    background: var(--surface-3);
+    background: ${tokens.colors.surface.raised};
   }
   .mf-card__img-fallback::after {
     content: '👤';
@@ -111,19 +122,19 @@ const facesStyles = css`
   .mf-card__name {
     margin: 0 0 4px;
     font-size: 15px;
-    font-weight: 600;
-    color: #e8eaf0;
+    font-weight: ${tokens.fontWeights.semibold};
+    color: ${tokens.colors.text.primary};
     letter-spacing: -0.2px;
   }
   .mf-card__meta {
     margin: 0;
-    font-size: 12px;
-    color: #7a879e;
+    font-size: ${tokens.fontSizes.sm};
+    color: ${tokens.colors.text.muted};
   }
 
   .mf-card__actions {
     display: flex;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid ${tokens.colors.border.subtle};
   }
   .mf-btn {
     flex: 1;
@@ -132,28 +143,31 @@ const facesStyles = css`
     border: none;
     font-family: inherit;
     font-size: 12.5px;
-    font-weight: 500;
+    font-weight: ${tokens.fontWeights.medium};
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background ${tokens.transitions.fast},
+      color ${tokens.transitions.fast};
   }
   .mf-btn--update {
-    color: #63b3ff;
-    border-right: 1px solid rgba(255,255,255,0.05);
+    color: ${tokens.colors.accent.hover};
+    border-right: 1px solid ${tokens.colors.border.subtle};
   }
   .mf-btn--update:hover {
-    background: rgba(99,179,255,0.1);
+    background: rgba(59, 130, 246, 0.1);
   }
 
   .mf-btn--delete {
-    color: #7a879e;
+    color: ${tokens.colors.text.muted};
   }
   .mf-btn--delete:hover {
-    color: #f87171;
-    background: rgba(248,113,113,0.1);
+    color: ${tokens.colors.status.danger};
+    background: rgba(239, 68, 68, 0.1);
   }
 `;
 
 export default function FacesPage() {
+  const toast = useToast();
   const [faces, setFaces] = useState<FacePerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,17 +186,24 @@ export default function FacesPage() {
     }
   }, []);
 
-  useEffect(() => { fetchFaces(); }, [fetchFaces]);
+  useEffect(() => {
+    fetchFaces();
+  }, [fetchFaces]);
 
   const handleDelete = async (name: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${name}? This will instantly remove them from the AI model.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${name}? This will instantly remove them from the AI model.`,
+      )
+    ) {
       return;
     }
     try {
       await faceService.deleteFace(name);
-      setFaces(prev => prev.filter(f => f.name !== name));
+      setFaces((prev) => prev.filter((f) => f.name !== name));
+      toast.success(`Removed ${name} from AI recognition model`);
     } catch (err) {
-      alert(`Error deleting: ${(err as Error).message}`);
+      toast.error(`Error deleting ${name}: ${(err as Error).message}`);
     }
   };
 
@@ -191,7 +212,11 @@ export default function FacesPage() {
       <RegisterModal
         initialName={modalName || undefined}
         onClose={() => setModalName(null)}
-        onSuccess={() => { setModalName(null); fetchFaces(); }}
+        onSuccess={() => {
+          setModalName(null);
+          fetchFaces();
+          toast.success('Face profile updated successfully');
+        }}
       />
     );
   }
@@ -214,30 +239,44 @@ export default function FacesPage() {
         <ImportModal
           fixedName={importFor || null}
           onClose={() => setImportFor(undefined)}
-          onDone={() => { setImportFor(undefined); fetchFaces(); }}
+          onDone={() => {
+            setImportFor(undefined);
+            fetchFaces();
+            toast.success('Photos imported successfully');
+          }}
         />
       )}
 
       <div className="page-body">
         <div css={facesStyles} className="mf-page">
-          {loading && <div className="mf-loading"><span className="mf-spinner" /> Loading…</div>}
+          {loading && (
+            <div className="mf-loading">
+              <span className="mf-spinner" /> Loading…
+            </div>
+          )}
           {error && <div className="mf-error">{error}</div>}
 
           {!loading && !error && faces.length === 0 && (
             <div className="mf-empty">
-              <div className="mf-empty-icon"><Users size={30} strokeWidth={1.5} /></div>
+              <div className="mf-empty-icon">
+                <Users size={30} strokeWidth={1.5} />
+              </div>
               <p>No faces registered yet.</p>
             </div>
           )}
 
           {!loading && faces.length > 0 && (
             <div className="mf-grid">
-              {faces.map(face => (
+              {faces.map((face) => (
                 <div key={face.name} className="mf-card">
                   <div className="mf-card__gallery">
                     {face.images?.length > 0 ? (
-                      face.images.slice(0, 5).map(filename => (
-                        <div key={filename} className="mf-card__img-wrap" title={filename.split('_')[0]}>
+                      face.images.slice(0, 5).map((filename) => (
+                        <div
+                          key={filename}
+                          className="mf-card__img-wrap"
+                          title={filename.split('_')[0]}
+                        >
                           <img
                             className="mf-card__img"
                             src={faceService.getFaceImageUrl(face.name, filename)}
@@ -260,18 +299,29 @@ export default function FacesPage() {
                     <h3 className="mf-card__name">{face.name}</h3>
                     <p className="mf-card__meta tnum">
                       {face.image_count ?? face.images?.length ?? 0} reference images
-                      {face.sightings !== undefined && face.sightings > 0 && ` · ${face.sightings} sightings`}
+                      {face.sightings !== undefined &&
+                        face.sightings > 0 &&
+                        ` · ${face.sightings} sightings`}
                     </p>
                   </div>
 
                   <div className="mf-card__actions">
-                    <button className="mf-btn mf-btn--update" onClick={() => setModalName(face.name)}>
+                    <button
+                      className="mf-btn mf-btn--update"
+                      onClick={() => setModalName(face.name)}
+                    >
                       Update
                     </button>
-                    <button className="mf-btn mf-btn--update" onClick={() => setImportFor(face.name)}>
+                    <button
+                      className="mf-btn mf-btn--update"
+                      onClick={() => setImportFor(face.name)}
+                    >
                       Add photos
                     </button>
-                    <button className="mf-btn mf-btn--delete" onClick={() => handleDelete(face.name)}>
+                    <button
+                      className="mf-btn mf-btn--delete"
+                      onClick={() => handleDelete(face.name)}
+                    >
                       Delete
                     </button>
                   </div>

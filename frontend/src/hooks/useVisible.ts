@@ -5,7 +5,10 @@
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
-export default function useVisible<T extends HTMLElement = HTMLElement>(): [RefObject<T | null>, boolean] {
+export default function useVisible<T extends HTMLElement = HTMLElement>(): [
+  RefObject<T | null>,
+  boolean,
+] {
   const ref = useRef<T>(null);
   const [visible, setVisible] = useState<boolean>(true); // assume visible until proven otherwise
 
@@ -23,7 +26,7 @@ export default function useVisible<T extends HTMLElement = HTMLElement>(): [RefO
         inViewport = entry.isIntersecting;
         update();
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     observer.observe(el);
 

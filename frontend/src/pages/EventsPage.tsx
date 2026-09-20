@@ -7,12 +7,23 @@
 import { useState, useEffect, useCallback, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { keyframes } from '@emotion/react';
-import { useAuth } from '../contexts/useAuth';
-import { Activity, ChevronLeft, ChevronRight, CircleAlert, Play, PersonStanding, User, UserPlus, X } from 'lucide-react';
-import { eventService } from '../services/events';
-import { cameraService } from '../services/cameras';
-import { faceService } from '../services/faces';
-import type { Camera, EventSummary, FacePerson, SecurityEvent, AddFaceResponse } from '../types';
+import { useAuth } from '@/contexts/useAuth';
+import {
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Play,
+  PersonStanding,
+  User,
+  UserPlus,
+  X,
+} from 'lucide-react';
+import { eventService } from '@/services/events';
+import { cameraService } from '@/services/cameras';
+import { faceService } from '@/services/faces';
+import { tokens } from '@/theme/designTokens';
+import type { Camera, EventSummary, FacePerson, SecurityEvent, AddFaceResponse } from '@/types';
 
 const evDrawerIn = keyframes`
   from { transform: translateX(24px); opacity: 0; }
@@ -24,7 +35,7 @@ const eventsEmptyStyles = {
   flexDirection: 'column' as const,
   alignItems: 'center',
   gap: '10px',
-  color: 'var(--text-3)',
+  color: tokens.colors.text.muted,
   padding: '80px 0',
 };
 
@@ -43,28 +54,28 @@ const evChipStyles = (active: boolean) => ({
   gap: '7px',
   height: '30px',
   padding: '0 12px',
-  borderRadius: '999px',
-  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-  color: active ? 'var(--text-1)' : 'var(--text-2)',
+  borderRadius: tokens.radii.full,
+  border: `1px solid ${active ? tokens.colors.accent.primary : tokens.colors.border.subtle}`,
+  color: active ? tokens.colors.text.primary : tokens.colors.text.secondary,
   background: active ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
   fontSize: '12.5px',
-  transition: 'color var(--transition), border-color var(--transition), background var(--transition)',
+  transition: `color ${tokens.transitions.default}, border-color ${tokens.transitions.default}, background ${tokens.transitions.default}`,
   '&:hover': {
-    color: 'var(--text-1)',
-    borderColor: 'var(--border-strong)',
+    color: tokens.colors.text.primary,
+    borderColor: tokens.colors.border.strong,
   },
 });
 
 const evChipCountStyles = {
-  fontSize: '11px',
-  color: 'var(--text-3)',
+  fontSize: tokens.fontSizes.xs,
+  color: tokens.colors.text.muted,
 };
 
 const evSelectStyles = {
-  background: 'var(--surface-2)',
-  color: 'var(--text-1)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
+  background: tokens.colors.surface.subtle,
+  color: tokens.colors.text.primary,
+  border: `1px solid ${tokens.colors.border.subtle}`,
+  borderRadius: tokens.radii.sm,
   height: '30px',
   padding: '0 8px',
   fontFamily: 'inherit',
@@ -74,20 +85,23 @@ const evSelectStyles = {
 
 const eventRowStyles = {
   display: 'flex',
-  gap: '12px',
+  gap: tokens.spacing.md,
   alignItems: 'center',
   padding: '10px 4px',
-  borderBottom: '1px solid var(--border)',
+  borderBottom: `1px solid ${tokens.colors.border.subtle}`,
   width: '100%',
   textAlign: 'left' as const,
-  '&:hover': { background: 'var(--surface)' },
-  '&:focus-visible': { outline: '2px solid var(--accent)', outlineOffset: '-2px' },
+  '&:hover': { background: tokens.colors.surface.default },
+  '&:focus-visible': {
+    outline: `2px solid ${tokens.colors.accent.primary}`,
+    outlineOffset: '-2px',
+  },
 };
 
 const eventRowThumbStyles = {
   width: '96px',
   aspectRatio: '16 / 9',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   objectFit: 'cover' as const,
   background: '#000',
   flexShrink: 0,
@@ -105,24 +119,29 @@ const eventRowTitleStyles = (tone: string) => ({
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
-  fontSize: '13px',
-  fontWeight: 500,
-  color: tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--text-1)',
+  fontSize: tokens.fontSizes.base,
+  fontWeight: tokens.fontWeights.medium,
+  color:
+    tone === 'alert'
+      ? tokens.colors.status.alert
+      : tone === 'warn'
+        ? tokens.colors.status.warning
+        : tokens.colors.text.primary,
 });
 
 const eventRowMetaStyles = {
   display: 'flex',
-  gap: '8px',
-  fontSize: '11px',
-  color: 'var(--text-3)',
+  gap: tokens.spacing.sm,
+  fontSize: tokens.fontSizes.xs,
+  color: tokens.colors.text.muted,
 };
 
 const eventRowPlayStyles = {
-  color: 'var(--text-3)',
+  color: tokens.colors.text.muted,
   marginLeft: 'auto',
   flexShrink: 0,
   '.event-row:hover &': {
-    color: 'var(--accent)',
+    color: tokens.colors.accent.primary,
   },
 };
 
@@ -137,13 +156,13 @@ const evDrawerStyles = {
   right: 0,
   bottom: 0,
   width: '380px',
-  background: 'var(--surface)',
-  borderLeft: '1px solid var(--border)',
+  background: tokens.colors.surface.default,
+  borderLeft: `1px solid ${tokens.colors.border.subtle}`,
   boxShadow: '-8px 0 32px rgba(0, 0, 0, 0.45)',
   zIndex: 60,
   display: 'flex',
   flexDirection: 'column' as const,
-  animation: `${evDrawerIn} var(--transition-slow) ease-out`,
+  animation: `${evDrawerIn} ${tokens.transitions.slow} ease-out`,
 };
 
 const evDrawerHeadStyles = {
@@ -151,7 +170,7 @@ const evDrawerHeadStyles = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '12px 16px',
-  borderBottom: '1px solid var(--border)',
+  borderBottom: `1px solid ${tokens.colors.border.subtle}`,
   flexShrink: 0,
 };
 
@@ -160,7 +179,7 @@ const evDrawerBodyStyles = {
   overflowY: 'auto' as const,
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '16px',
+  gap: tokens.spacing.lg,
 };
 
 const evDrawerThumbStyles = {
@@ -168,21 +187,21 @@ const evDrawerThumbStyles = {
   aspectRatio: '16 / 9',
   objectFit: 'contain' as const,
   background: '#000',
-  borderRadius: 'var(--radius)',
+  borderRadius: tokens.radii.default,
 };
 
 const evDrawerMetaStyles = {
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '8px',
+  gap: tokens.spacing.sm,
   '& > div': {
     display: 'flex',
     justifyContent: 'space-between',
-    gap: '12px',
+    gap: tokens.spacing.md,
     fontSize: '12.5px',
   },
-  '& dt': { color: 'var(--text-3)' },
-  '& dd': { color: 'var(--text-1)', textAlign: 'right' as const },
+  '& dt': { color: tokens.colors.text.muted },
+  '& dd': { color: tokens.colors.text.primary, textAlign: 'right' as const },
 };
 
 const evDrawerActionsStyles = {
@@ -192,7 +211,7 @@ const evDrawerActionsStyles = {
 };
 
 const evDrawerNameStyles = {
-  borderTop: '1px solid var(--border)',
+  borderTop: `1px solid ${tokens.colors.border.subtle}`,
   paddingTop: '14px',
   display: 'flex',
   flexDirection: 'column' as const,
@@ -202,10 +221,10 @@ const evDrawerNameStyles = {
 const evDrawerNameTitleStyles = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
-  fontSize: '13px',
-  fontWeight: 500,
-  color: 'var(--text-1)',
+  gap: tokens.spacing.sm,
+  fontSize: tokens.fontSizes.base,
+  fontWeight: tokens.fontWeights.medium,
+  color: tokens.colors.text.primary,
 };
 
 const evDrawerNameRowStyles = {
@@ -283,41 +302,55 @@ export default function EventsPage() {
   const [loaded, setLoaded] = useState(false);
 
   const [selected, setSelected] = useState<SecurityEvent | null>(null); // event in the drawer
-  const [naming, setNaming] = useState('');       // name input while enrolling
-  const [nameResult, setNameResult] = useState<AddFaceResponse | { status: string; detail?: string } | null>(null);
+  const [naming, setNaming] = useState(''); // name input while enrolling
+  const [nameResult, setNameResult] = useState<
+    AddFaceResponse | { status: string; detail?: string } | null
+  >(null);
 
   // Static-ish reference data
   useEffect(() => {
     if (!token) return;
-    eventService.getSummary()
-      .then(d => setSummary(d.summary || null)).catch(() => {});
-    cameraService.getCameras()
-      .then(d => setCameras(d.cameras || [])).catch(() => {});
-    faceService.getFaces()
-      .then(d => setPeople(d.faces || [])).catch(() => {});
+    eventService
+      .getSummary()
+      .then((d) => setSummary(d.summary || null))
+      .catch(() => {});
+    cameraService
+      .getCameras()
+      .then((d) => setCameras(d.cameras || []))
+      .catch(() => {});
+    faceService
+      .getFaces()
+      .then((d) => setPeople(d.faces || []))
+      .catch(() => {});
   }, [token]);
 
-  const loadEvents = useCallback((offset = 0) => {
-    if (!token) return;
-    const { start, end } = dayRange(date);
-    eventService.getEvents({
-      since: start.toISOString(),
-      until: end.toISOString(),
-      limit: 50,
-      offset,
-      eventType: typeFilter || undefined,
-      cameraId: cameraFilter || undefined,
-      personName: personFilter || undefined,
-    })
-      .then(d => {
-        setEvents(prev => (offset === 0 ? d.events || [] : [...prev, ...(d.events || [])]));
-        setTotal(d.total || 0);
-        setLoaded(true);
-      })
-      .catch(() => {});
-  }, [token, typeFilter, cameraFilter, personFilter, date]);
+  const loadEvents = useCallback(
+    (offset = 0) => {
+      if (!token) return;
+      const { start, end } = dayRange(date);
+      eventService
+        .getEvents({
+          since: start.toISOString(),
+          until: end.toISOString(),
+          limit: 50,
+          offset,
+          eventType: typeFilter || undefined,
+          cameraId: cameraFilter || undefined,
+          personName: personFilter || undefined,
+        })
+        .then((d) => {
+          setEvents((prev) => (offset === 0 ? d.events || [] : [...prev, ...(d.events || [])]));
+          setTotal(d.total || 0);
+          setLoaded(true);
+        })
+        .catch(() => {});
+    },
+    [token, typeFilter, cameraFilter, personFilter, date],
+  );
 
-  useEffect(() => { loadEvents(0); }, [loadEvents]);
+  useEffect(() => {
+    loadEvents(0);
+  }, [loadEvents]);
 
   const shiftDate = (delta: number) => {
     const d = new Date(date + 'T00:00:00Z');
@@ -326,7 +359,11 @@ export default function EventsPage() {
     if (next <= localDateStr()) setDate(next);
   };
 
-  const openEvent = (ev: SecurityEvent) => { setSelected(ev); setNaming(''); setNameResult(null); };
+  const openEvent = (ev: SecurityEvent) => {
+    setSelected(ev);
+    setNaming('');
+    setNameResult(null);
+  };
   const closeDrawer = () => setSelected(null);
 
   const playEvent = (ev: SecurityEvent) => {
@@ -345,7 +382,9 @@ export default function EventsPage() {
   };
 
   useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') closeDrawer(); };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') closeDrawer();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -363,33 +402,65 @@ export default function EventsPage() {
         <span className="page-header__title">Events</span>
 
         <div css={evChipsStyles}>
-          {chips.map(c => (
+          {chips.map((c) => (
             <button
               key={c.key}
               css={evChipStyles(typeFilter === c.key)}
               onClick={() => setTypeFilter(c.key)}
             >
               {c.label}
-              {typeof c.count === 'number' && <span css={evChipCountStyles} className="tnum">{c.count}</span>}
+              {typeof c.count === 'number' && (
+                <span css={evChipCountStyles} className="tnum">
+                  {c.count}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
         <span className="page-header__spacer" />
 
-        <select css={evSelectStyles} value={cameraFilter} onChange={e => setCameraFilter(e.target.value)} aria-label="Filter by camera">
+        <select
+          css={evSelectStyles}
+          value={cameraFilter}
+          onChange={(e) => setCameraFilter(e.target.value)}
+          aria-label="Filter by camera"
+        >
           <option value="">All cameras</option>
-          {cameras.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {cameras.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
         </select>
-        <select css={evSelectStyles} value={personFilter} onChange={e => setPersonFilter(e.target.value)} aria-label="Filter by person">
+        <select
+          css={evSelectStyles}
+          value={personFilter}
+          onChange={(e) => setPersonFilter(e.target.value)}
+          aria-label="Filter by person"
+        >
           <option value="">All people</option>
-          {people.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+          {people.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}
+            </option>
+          ))}
         </select>
         <div className="cd-date">
-          <button className="btn-ghost" onClick={() => shiftDate(-1)} aria-label="Previous day"><ChevronLeft size={14} /></button>
-          <input type="date" className="cd-date__input tnum" value={date} max={localDateStr()}
-            onChange={e => e.target.value && setDate(e.target.value)} aria-label="Events date" />
-          <button className="btn-ghost" onClick={() => shiftDate(1)} aria-label="Next day"><ChevronRight size={14} /></button>
+          <button className="btn-ghost" onClick={() => shiftDate(-1)} aria-label="Previous day">
+            <ChevronLeft size={14} />
+          </button>
+          <input
+            type="date"
+            className="cd-date__input tnum"
+            value={date}
+            max={localDateStr()}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            aria-label="Events date"
+          />
+          <button className="btn-ghost" onClick={() => shiftDate(1)} aria-label="Next day">
+            <ChevronRight size={14} />
+          </button>
         </div>
       </header>
 
@@ -402,11 +473,16 @@ export default function EventsPage() {
         )}
 
         <div css={eventRowsStyles}>
-          {events.map(ev => {
+          {events.map((ev) => {
             const meta = TYPE_META[ev.event_type] || TYPE_META.motion;
             const Icon = meta.icon;
             return (
-              <button key={ev.id} css={eventRowStyles} className="event-row" onClick={() => openEvent(ev)}>
+              <button
+                key={ev.id}
+                css={eventRowStyles}
+                className="event-row"
+                onClick={() => openEvent(ev)}
+              >
                 {ev.thumbnail_path && (
                   <img
                     css={eventRowThumbStyles}
@@ -426,14 +502,25 @@ export default function EventsPage() {
                     <span>{relTime(ev.timestamp)}</span>
                   </div>
                 </div>
-                {ev.playback && <Play size={14} strokeWidth={1.75} css={eventRowPlayStyles} className="event-row__play" />}
+                {ev.playback && (
+                  <Play
+                    size={14}
+                    strokeWidth={1.75}
+                    css={eventRowPlayStyles}
+                    className="event-row__play"
+                  />
+                )}
               </button>
             );
           })}
         </div>
 
         {events.length < total && (
-          <button className="btn-ghost" css={evLoadMoreStyles} onClick={() => loadEvents(events.length)}>
+          <button
+            className="btn-ghost"
+            css={evLoadMoreStyles}
+            onClick={() => loadEvents(events.length)}
+          >
             Load more ({events.length}/{total})
           </button>
         )}
@@ -443,7 +530,9 @@ export default function EventsPage() {
         <aside css={evDrawerStyles} role="dialog" aria-label="Event detail">
           <div css={evDrawerHeadStyles}>
             <span className="page-header__title">Event</span>
-            <button className="btn-ghost" onClick={closeDrawer} aria-label="Close"><X size={15} /></button>
+            <button className="btn-ghost" onClick={closeDrawer} aria-label="Close">
+              <X size={15} />
+            </button>
           </div>
 
           <div css={evDrawerBodyStyles}>
@@ -457,12 +546,31 @@ export default function EventsPage() {
             )}
 
             <dl css={evDrawerMetaStyles} className="tnum">
-              <div><dt>Type</dt><dd>{(TYPE_META[selected.event_type] || {}).label || selected.event_type}</dd></div>
-              <div><dt>Camera</dt><dd>{selected.camera_id}</dd></div>
-              <div><dt>Time</dt><dd>{new Date(selected.timestamp).toLocaleString()}</dd></div>
-              {selected.person_name && <div><dt>Person</dt><dd>{selected.person_name}</dd></div>}
+              <div>
+                <dt>Type</dt>
+                <dd>{(TYPE_META[selected.event_type] || {}).label || selected.event_type}</dd>
+              </div>
+              <div>
+                <dt>Camera</dt>
+                <dd>{selected.camera_id}</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{new Date(selected.timestamp).toLocaleString()}</dd>
+              </div>
+              {selected.person_name && (
+                <div>
+                  <dt>Person</dt>
+                  <dd>{selected.person_name}</dd>
+                </div>
+              )}
               {selected.playback && (
-                <div><dt>Recording</dt><dd>{selected.playback.file} @ {selected.playback.start_offset}s</dd></div>
+                <div>
+                  <dt>Recording</dt>
+                  <dd>
+                    {selected.playback.file} @ {selected.playback.start_offset}s
+                  </dd>
+                </div>
               )}
             </dl>
 
@@ -484,16 +592,20 @@ export default function EventsPage() {
                 <div css={evDrawerNameRowStyles}>
                   <input
                     value={naming}
-                    onChange={e => setNaming(e.target.value)}
+                    onChange={(e) => setNaming(e.target.value)}
                     placeholder="e.g. Alice"
                     aria-label="Person name"
-                    onKeyDown={e => e.key === 'Enter' && submitName()}
+                    onKeyDown={(e) => e.key === 'Enter' && submitName()}
                   />
-                  <button className="btn-primary" onClick={submitName} disabled={!naming.trim()}>Save</button>
+                  <button className="btn-primary" onClick={submitName} disabled={!naming.trim()}>
+                    Save
+                  </button>
                 </div>
                 {nameResult && (
                   <span css={evNameResultStyles(nameResult.status === 'ok')}>
-                    {nameResult.status === 'ok' ? 'Enrolled successfully!' : (nameResult.detail || 'Enrollment failed')}
+                    {nameResult.status === 'ok'
+                      ? 'Enrolled successfully!'
+                      : nameResult.detail || 'Enrollment failed'}
                   </span>
                 )}
               </div>

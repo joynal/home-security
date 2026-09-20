@@ -13,6 +13,11 @@
     "jsx": "react-jsx",
     "jsxImportSource": "@emotion/react",
 
+    /* Path aliases */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

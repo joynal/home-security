@@ -5,11 +5,11 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/useAuth';
-import CameraGrid from '../components/CameraGrid';
-import RecentEvents from '../components/RecentEvents';
-import { cameraService } from '../services/cameras';
-import type { Camera } from '../types';
+import { useAuth } from '@/contexts/useAuth';
+import CameraGrid from '@/components/CameraGrid';
+import RecentEvents from '@/components/RecentEvents';
+import { cameraService } from '@/services/cameras';
+import type { Camera } from '@/types';
 
 export default function LivePage() {
   const { token } = useAuth();
@@ -21,8 +21,9 @@ export default function LivePage() {
     if (!token) return;
     let cancelled = false;
     const fetchCameras = () => {
-      cameraService.getCameras()
-        .then(data => {
+      cameraService
+        .getCameras()
+        .then((data) => {
           if (cancelled || !data.cameras) return;
           setCameras(data.cameras);
         })
@@ -30,10 +31,13 @@ export default function LivePage() {
     };
     fetchCameras();
     const interval = setInterval(fetchCameras, 10000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [token]);
 
-  const online = cameras.filter(c => c.online).length;
+  const online = cameras.filter((c) => c.online).length;
 
   const openCamera = (cameraId: string) => {
     navigate(`/camera/${cameraId}`);
@@ -43,8 +47,12 @@ export default function LivePage() {
     <>
       <header className="page-header">
         <span className="page-header__title">Live</span>
-        <span className={`status-dot ${online === cameras.length && cameras.length > 0 ? 'status-dot--live' : 'status-dot--warn'}`} />
-        <span className="status-label tnum">{online}/{cameras.length} online</span>
+        <span
+          className={`status-dot ${online === cameras.length && cameras.length > 0 ? 'status-dot--live' : 'status-dot--warn'}`}
+        />
+        <span className="status-label tnum">
+          {online}/{cameras.length} online
+        </span>
         <span className="page-header__spacer" />
       </header>
 

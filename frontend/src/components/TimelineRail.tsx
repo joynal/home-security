@@ -6,8 +6,9 @@
  */
 import { useMemo, type KeyboardEvent, type MouseEvent, type ComponentType } from 'react';
 import { CircleAlert, PersonStanding, User } from 'lucide-react';
-import { eventService } from '../services/events';
-import type { SecurityEvent, TimelineHour } from '../types';
+import { eventService } from '@/services/events';
+import { tokens } from '@/theme/designTokens';
+import type { SecurityEvent, TimelineHour } from '@/types';
 
 export interface TimelineRailProps {
   date: string;
@@ -50,7 +51,7 @@ const scaleStyles = {
 
 const hourRowStyles = (top: number) => ({
   position: 'absolute' as const,
-  right: '8px',
+  right: tokens.spacing.sm,
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
@@ -60,7 +61,7 @@ const hourRowStyles = (top: number) => ({
 
 const hourLabelStyles = {
   fontSize: '10.5px',
-  color: 'var(--text-3)',
+  color: tokens.colors.text.muted,
   fontVariantNumeric: 'tabular-nums',
   whiteSpace: 'nowrap' as const,
 };
@@ -68,7 +69,7 @@ const hourLabelStyles = {
 const tickStyles = {
   width: '8px',
   height: '1px',
-  background: 'var(--border-strong)',
+  background: tokens.colors.border.strong,
 };
 
 const canvasStyles = (height: number) => ({
@@ -78,7 +79,7 @@ const canvasStyles = (height: number) => ({
   cursor: 'pointer',
   outline: 'none',
   '&:focus-visible': {
-    boxShadow: 'inset 0 0 0 1px var(--accent)',
+    boxShadow: `inset 0 0 0 1px ${tokens.colors.accent.primary}`,
   },
 });
 
@@ -88,7 +89,7 @@ const railTrackStyles = {
   width: '2px',
   top: `${TOP_PAD}px`,
   bottom: `${TOP_PAD}px`,
-  background: 'var(--border)',
+  background: tokens.colors.border.subtle,
 };
 
 const coverageBarStyles = (top: number, height: number) => ({
@@ -97,7 +98,7 @@ const coverageBarStyles = (top: number, height: number) => ({
   width: '2px',
   top,
   height,
-  background: 'var(--accent)',
+  background: tokens.colors.accent.primary,
   opacity: 0.85,
 });
 
@@ -114,16 +115,20 @@ const eventRowStyles = (top: number) => ({
 
 const blobStyles = (tone: string) => {
   const bg =
-    tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--live)';
+    tone === 'alert'
+      ? tokens.colors.status.alert
+      : tone === 'warn'
+        ? tokens.colors.status.warning
+        : tokens.colors.status.live;
   return {
     position: 'absolute' as const,
     left: '3px',
     width: '8px',
     height: '8px',
-    borderRadius: '50%',
+    borderRadius: tokens.radii.full,
     background: bg,
     transform: 'translateX(-50%)',
-    boxShadow: `0 0 0 2px var(--surface), 0 0 6px ${bg}`,
+    boxShadow: `0 0 0 2px ${tokens.colors.surface.default}, 0 0 6px ${bg}`,
   };
 };
 
@@ -132,12 +137,16 @@ const connectorStyles = {
   left: '8px',
   width: '12px',
   height: '1px',
-  background: 'var(--border-strong)',
+  background: tokens.colors.border.strong,
 };
 
 const iconWrapperStyles = (tone: string) => {
   const color =
-    tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--live)';
+    tone === 'alert'
+      ? tokens.colors.status.alert
+      : tone === 'warn'
+        ? tokens.colors.status.warning
+        : tokens.colors.status.live;
   return {
     marginLeft: '22px',
     display: 'flex',
@@ -153,17 +162,17 @@ const iconWrapperStyles = (tone: string) => {
 const thumbStyles = {
   width: '56px',
   aspectRatio: '16 / 9',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   objectFit: 'cover' as const,
   background: '#000',
-  border: '1px solid var(--border)',
+  border: `1px solid ${tokens.colors.border.subtle}`,
   flexShrink: 0,
   marginLeft: '4px',
   cursor: 'pointer',
   transition: 'transform 0.12s, border-color 0.12s',
   '&:hover': {
     transform: 'scale(1.08)',
-    borderColor: 'var(--accent)',
+    borderColor: tokens.colors.accent.primary,
     zIndex: 5,
   },
 };
@@ -171,21 +180,21 @@ const thumbStyles = {
 const thumbEmptyStyles = {
   width: '56px',
   aspectRatio: '16 / 9',
-  borderRadius: 'var(--radius-sm)',
-  border: '1px solid var(--border)',
+  borderRadius: tokens.radii.sm,
+  border: `1px solid ${tokens.colors.border.subtle}`,
   flexShrink: 0,
   marginLeft: '4px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'var(--surface-2)',
-  color: 'var(--text-3)',
+  background: tokens.colors.surface.subtle,
+  color: tokens.colors.text.muted,
   fontSize: '10px',
 };
 
 const whenStyles = {
   fontSize: '10px',
-  color: 'var(--text-3)',
+  color: tokens.colors.text.muted,
   marginLeft: '7px',
 };
 
@@ -194,7 +203,7 @@ const playheadStyles = (top: number) => ({
   left: 0,
   right: 0,
   height: 0,
-  borderTop: '2px solid var(--accent)',
+  borderTop: `2px solid ${tokens.colors.accent.primary}`,
   pointerEvents: 'none' as const,
   top,
 });
@@ -203,12 +212,12 @@ const playheadBadgeStyles = {
   position: 'absolute' as const,
   left: '2px',
   top: '-11px',
-  background: 'var(--accent)',
-  color: '#fff',
+  background: tokens.colors.accent.primary,
+  color: tokens.colors.text.primary,
   fontSize: '10px',
-  fontWeight: 600,
+  fontWeight: tokens.fontWeights.semibold,
   padding: '2px 7px',
-  borderRadius: '4px',
+  borderRadius: tokens.radii.sm,
 };
 
 function dayStartEpoch(date: string): number {
@@ -232,7 +241,7 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }: Ti
 
   const positioned = useMemo(() => {
     return events
-      .map(ev => {
+      .map((ev) => {
         const ts = new Date(ev.timestamp).getTime() / 1000;
         const off = ts - day0;
         if (off < 0 || off > 86400) return null;
@@ -293,19 +302,21 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }: Ti
                 key={i}
                 css={coverageBarStyles(
                   TOP_PAD + i * HOUR_PX + 2,
-                  Math.max(3, (h.segment_minutes / 60) * (HOUR_PX - 4))
+                  Math.max(3, (h.segment_minutes / 60) * (HOUR_PX - 4)),
                 )}
               />
-            ) : null
+            ) : null,
           )}
         </div>
 
         {/* Event blobs + connector + thumbnail rows */}
-        {positioned.map(ev => (
+        {positioned.map((ev) => (
           <div key={ev.id} css={eventRowStyles(ev.top)}>
             <span css={blobStyles(ev.tone)} />
             <span css={connectorStyles} />
-            <span css={iconWrapperStyles(ev.tone)}><ev.icon size={11} strokeWidth={2} /></span>
+            <span css={iconWrapperStyles(ev.tone)}>
+              <ev.icon size={11} strokeWidth={2} />
+            </span>
             {ev.thumbnail_path ? (
               <img
                 css={thumbStyles}
@@ -313,14 +324,25 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }: Ti
                 crossOrigin="use-credentials"
                 alt=""
                 loading="lazy"
-                onClick={e => { e.stopPropagation(); onSeek(ev.ts); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSeek(ev.ts);
+                }}
               />
             ) : (
-              <span css={thumbEmptyStyles} onClick={e => { e.stopPropagation(); onSeek(ev.ts); }}>
+              <span
+                css={thumbEmptyStyles}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSeek(ev.ts);
+                }}
+              >
                 {fmtTime(ev.ts)}
               </span>
             )}
-            <span css={whenStyles} className="tnum">{fmtTime(ev.ts)}</span>
+            <span css={whenStyles} className="tnum">
+              {fmtTime(ev.ts)}
+            </span>
           </div>
         ))}
 

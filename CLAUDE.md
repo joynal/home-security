@@ -103,28 +103,28 @@ home-security/
 │   └── set_password.py              # CLI to create/update admin credentials (bcrypt)
 │
 ├── frontend/
-│   ├── package.json                 # React 19, react-router-dom 6, Vite 8, @emotion/react, typescript
+│   ├── package.json                 # React 19, react-router-dom 6, Vite 8, @emotion/react, typescript, prettier
 │   ├── tsconfig.json                # Project references to tsconfig.app.json & tsconfig.node.json
-│   ├── tsconfig.app.json            # React + Emotion jsxImportSource configuration
+│   ├── tsconfig.app.json            # React + Emotion jsxImportSource + @/* path alias
 │   ├── tsconfig.node.json           # Node configuration for vite.config.ts
-│   ├── vite.config.ts               # Vite + @vitejs/plugin-react (jsxImportSource: @emotion/react)
+│   ├── vite.config.ts               # Vite + @vitejs/plugin-react (@ alias support)
 │   ├── index.html                   # SPA shell pointing to /src/main.tsx
+│   ├── .prettierrc                  # Single quotes, semi, 2 spaces, trailing commas
 │   └── src/
-│       ├── main.tsx                 # React root — BrowserRouter + AuthProvider + conditional render
-│       ├── App.tsx                  # App shell with navigation rail (AppRail), routes
-│       ├── LoginPage.tsx            # Login form with shield SVG art (Emotion styles)
-│       ├── RegisterModal.tsx        # 5-step guided face registration wizard with pose detection (Emotion styles)
+│       ├── main.tsx                 # React root — ErrorBoundary + BrowserRouter + AuthProvider + ToastProvider
+│       ├── App.tsx                  # App shell with navigation rail (AppRail) + ErrorBoundary
 │       ├── config.ts                # Frontend config: API URL from VITE_API_URL || 'http://localhost:8000'
 │       ├── index.css                # Global styles: tokens, resets, fonts, shell layout
 │       ├── vite-env.d.ts            # Ambient type declarations for Vite and @emotion/react/types/css-prop
 │       ├── types/                   # Centralized domain TypeScript definitions (index.ts)
-│       ├── components/              # AppRail, CameraGrid, CameraTile, ImportModal, RecentEvents, TimelineRail
-│       ├── pages/                   # CameraDetailPage, EventsPage, FacesPage, LivePage
+│       ├── theme/                   # Typed design tokens (designTokens.ts)
+│       ├── components/              # AppRail, CameraGrid, CameraTile, ImportModal, RecentEvents, TimelineRail, RegisterModal, common/ErrorBoundary
+│       ├── pages/                   # LoginPage, LivePage, CameraDetailPage, EventsPage, FacesPage
 │       ├── services/                # API service layer (core apiFetch, auth, cameras, events, faces, recordings, register)
-│       ├── hooks/                   # useFetch, useVisible
+│       ├── hooks/                   # useFetch, useVisible, useToast, useAuth
 │       └── contexts/
 │           ├── AuthContext.tsx      # React Context: token/username in localStorage, login/logout
-│           └── useAuth.tsx          # Custom hook for consuming AuthContext
+│           └── ToastContext.tsx     # Toast notification state and floating alert container
 │
 ├── docs/
 │   ├── architecture.jpg             # System architecture diagram
@@ -247,6 +247,7 @@ uv run ruff check .              # Python lint
 uv run ruff format .             # Python format
 cd frontend && npm run lint      # TS/TSX lint
 cd frontend && npm run build     # TS typecheck & Vite build
+cd frontend && npm run format    # Prettier formatting
 ```
 
 ## API Endpoints

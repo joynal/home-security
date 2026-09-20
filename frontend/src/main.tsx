@@ -2,10 +2,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import './index.css';
-import App from './App';
-import LoginPage from './LoginPage';
-import { AuthProvider } from './contexts/AuthContext';
-import { useAuth } from './contexts/useAuth';
+import App from '@/App';
+import LoginPage from '@/pages/LoginPage';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
+
+import { ToastProvider } from '@/contexts/ToastContext';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 export default function Root() {
   const { token } = useAuth();
@@ -19,10 +22,14 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <Root />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <Root />
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 );

@@ -7,12 +7,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, PanelRightClose, Radio } from 'lucide-react';
-import { useAuth } from '../contexts/useAuth';
-import TimelineRail from '../components/TimelineRail';
-import { cameraService } from '../services/cameras';
-import { eventService } from '../services/events';
-import { recordingService } from '../services/recordings';
-import type { Camera, SecurityEvent, TimelineResponse } from '../types';
+import { useAuth } from '@/contexts/useAuth';
+import TimelineRail from '@/components/TimelineRail';
+import { cameraService } from '@/services/cameras';
+import { eventService } from '@/services/events';
+import { recordingService } from '@/services/recordings';
+import { tokens } from '@/theme/designTokens';
+import type { Camera, SecurityEvent, TimelineResponse } from '@/types';
 
 interface PlaybackMode {
   url: string;
@@ -27,35 +28,35 @@ const headerStyles = {
 };
 
 const cameraSelectStyles = {
-  background: 'var(--surface-2)',
-  color: 'var(--text-1)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
+  background: tokens.colors.surface.subtle,
+  color: tokens.colors.text.primary,
+  border: `1px solid ${tokens.colors.border.subtle}`,
+  borderRadius: tokens.radii.sm,
   height: '30px',
   padding: '0 8px',
   fontFamily: 'inherit',
-  fontSize: '13px',
+  fontSize: tokens.fontSizes.base,
 };
 
 const dateContainerStyles = {
   display: 'flex',
   alignItems: 'center',
   gap: '2px',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
+  border: `1px solid ${tokens.colors.border.subtle}`,
+  borderRadius: tokens.radii.sm,
   padding: '0 2px',
   height: '30px',
 };
 
 const dateInputStyles = {
   background: 'transparent',
-  color: 'var(--text-1)',
+  color: tokens.colors.text.primary,
   border: 'none',
   fontFamily: 'inherit',
   fontSize: '12.5px',
   padding: '0 4px',
   width: '128px',
-  '&:focus': { outline: 'none', color: 'var(--accent-hover)' },
+  '&:focus': { outline: 'none', color: tokens.colors.accent.hover },
 };
 
 const modeLiveStyles = {
@@ -64,10 +65,10 @@ const modeLiveStyles = {
   gap: '7px',
   height: '30px',
   padding: '0 12px',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   fontSize: '12.5px',
-  fontWeight: 500,
-  color: 'var(--live)',
+  fontWeight: tokens.fontWeights.medium,
+  color: tokens.colors.status.live,
 };
 
 const modePlaybackStyles = {
@@ -76,11 +77,11 @@ const modePlaybackStyles = {
   gap: '7px',
   height: '30px',
   padding: '0 12px',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   fontSize: '12.5px',
-  fontWeight: 500,
-  color: 'var(--text-1)',
-  background: 'var(--surface-3)',
+  fontWeight: tokens.fontWeights.medium,
+  color: tokens.colors.text.primary,
+  background: tokens.colors.surface.raised,
 };
 
 const bodyStyles = {
@@ -110,19 +111,19 @@ const playerStyles = {
 };
 
 const playerEmptyStyles = {
-  color: 'var(--text-3)',
-  fontSize: '13px',
+  color: tokens.colors.text.muted,
+  fontSize: tokens.fontSizes.base,
 };
 
 const railStyles = {
   display: 'flex',
   flexDirection: 'column' as const,
-  borderLeft: '1px solid var(--border)',
+  borderLeft: `1px solid ${tokens.colors.border.subtle}`,
   minHeight: 0,
-  background: 'var(--surface)',
+  background: tokens.colors.surface.default,
   '@media (max-width: 900px)': {
     borderLeft: 'none',
-    borderTop: '1px solid var(--border)',
+    borderTop: `1px solid ${tokens.colors.border.subtle}`,
   },
 };
 
@@ -131,10 +132,10 @@ const railHeadStyles = {
   alignItems: 'center',
   gap: '7px',
   padding: '10px 14px',
-  borderBottom: '1px solid var(--border)',
-  color: 'var(--text-2)',
-  fontSize: '12px',
-  fontWeight: 600,
+  borderBottom: `1px solid ${tokens.colors.border.subtle}`,
+  color: tokens.colors.text.secondary,
+  fontSize: tokens.fontSizes.sm,
+  fontWeight: tokens.fontWeights.semibold,
   flexShrink: 0,
   '& span:last-child': {
     marginLeft: 'auto',
@@ -187,35 +188,39 @@ export default function CameraDetailPage() {
   // ── Data loading ────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
-    cameraService.getCameras()
-      .then(d => setCameras(d.cameras || []))
+    cameraService
+      .getCameras()
+      .then((d) => setCameras(d.cameras || []))
       .catch(() => {});
-    recordingService.getSummary()
-      .then(d => setDays(d.days || []))
+    recordingService
+      .getSummary()
+      .then((d) => setDays(d.days || []))
       .catch(() => {});
   }, [token]);
 
   useEffect(() => {
     if (!token || !cameraId) return;
-    recordingService.getTimeline(cameraId, date)
-      .then(d => setTimeline({ hours: d.hours || [], segments: d.segments || [] }))
+    recordingService
+      .getTimeline(cameraId, date)
+      .then((d) => setTimeline({ hours: d.hours || [], segments: d.segments || [] }))
       .catch(() => setTimeline({ hours: [], segments: [] }));
 
     const { start, end } = dayRange(date);
-    eventService.getEvents({
-      cameraId,
-      since: start.toISOString(),
-      until: end.toISOString(),
-      limit: 300,
-    })
-      .then(d => setEvents(d.events || []))
+    eventService
+      .getEvents({
+        cameraId,
+        since: start.toISOString(),
+        until: end.toISOString(),
+        limit: 300,
+      })
+      .then((d) => setEvents(d.events || []))
       .catch(() => setEvents([]));
   }, [token, cameraId, date]);
 
   // ── Playback control ────────────────────────────────────
   const onSeek = (epochS: number) => {
     const seg = timeline.segments.find(
-      s => epochS >= s.start_epoch && epochS < s.start_epoch + s.duration_seconds
+      (s) => epochS >= s.start_epoch && epochS < s.start_epoch + s.duration_seconds,
     );
     if (!seg || !cameraId) {
       setPlayTs(epochS);
@@ -253,8 +258,11 @@ export default function CameraDetailPage() {
     setPlayTs(current);
 
     // Auto-advance: within 0.5s of end, jump to next segment if one exists
-    if (videoRef.current.duration && videoRef.current.currentTime >= videoRef.current.duration - 0.5) {
-      const idx = timeline.segments.findIndex(s => s.filename === mode.filename);
+    if (
+      videoRef.current.duration &&
+      videoRef.current.currentTime >= videoRef.current.duration - 0.5
+    ) {
+      const idx = timeline.segments.findIndex((s) => s.filename === mode.filename);
       if (idx >= 0 && idx + 1 < timeline.segments.length) {
         const next = timeline.segments[idx + 1];
         const url = recordingService.getRecordingUrl(cameraId, next.filename);
@@ -275,10 +283,8 @@ export default function CameraDetailPage() {
     setSearchParams({ date: localDateStr(next) });
   };
 
-  const camera = cameras.find(c => c.id === cameraId);
-  const liveFeedUrl = camera?.online && cameraId
-    ? cameraService.getVideoFeedUrl(cameraId)
-    : null;
+  const camera = cameras.find((c) => c.id === cameraId);
+  const liveFeedUrl = camera?.online && cameraId ? cameraService.getVideoFeedUrl(cameraId) : null;
 
   return (
     <>
@@ -289,10 +295,14 @@ export default function CameraDetailPage() {
         <select
           css={cameraSelectStyles}
           value={cameraId || ''}
-          onChange={e => navigate(`/camera/${e.target.value}`)}
+          onChange={(e) => navigate(`/camera/${e.target.value}`)}
           aria-label="Switch camera"
         >
-          {cameras.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {cameras.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
         </select>
 
         <span className="page-header__spacer" />
@@ -307,7 +317,9 @@ export default function CameraDetailPage() {
             className="tnum"
             value={date}
             max={localDateStr()}
-            onChange={e => { if (e.target.value) setSearchParams({ date: e.target.value }); }}
+            onChange={(e) => {
+              if (e.target.value) setSearchParams({ date: e.target.value });
+            }}
             aria-label="Timeline date"
             title={days.length ? `Days with recordings: ${days.join(', ')}` : 'No recordings yet'}
           />
@@ -319,7 +331,9 @@ export default function CameraDetailPage() {
         {mode === 'live' ? (
           <span css={modeLiveStyles}>
             <span className="status-dot status-dot--live" /> Live
-            {camera?.fps !== undefined && camera.fps > 0 && <span className="tnum">· {Math.round(camera.fps)} fps</span>}
+            {camera?.fps !== undefined && camera.fps > 0 && (
+              <span className="tnum">· {Math.round(camera.fps)} fps</span>
+            )}
           </span>
         ) : (
           <button css={modePlaybackStyles} onClick={goLive}>
@@ -332,7 +346,11 @@ export default function CameraDetailPage() {
         <div css={playerStyles}>
           {mode === 'live' ? (
             liveFeedUrl ? (
-              <img src={liveFeedUrl} crossOrigin="use-credentials" alt={`${camera?.name ?? cameraId} live`} />
+              <img
+                src={liveFeedUrl}
+                crossOrigin="use-credentials"
+                alt={`${camera?.name ?? cameraId} live`}
+              />
             ) : (
               <div css={playerEmptyStyles}>Camera offline</div>
             )

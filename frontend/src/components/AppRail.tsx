@@ -1,34 +1,35 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, Cctv, LogOut, ScanFace, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../contexts/useAuth';
+import { useAuth } from '@/contexts/useAuth';
+import { tokens } from '@/theme/designTokens';
 
 const railStyles = {
   width: '56px',
   flexShrink: 0,
-  background: 'var(--surface)',
-  borderRight: '1px solid var(--border)',
+  background: tokens.colors.surface.default,
+  borderRight: `1px solid ${tokens.colors.border.subtle}`,
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: 'center',
-  padding: '12px 0',
-  gap: '8px',
+  padding: `${tokens.spacing.md} 0`,
+  gap: tokens.spacing.sm,
 };
 
 const logoStyles = {
-  color: 'var(--text-1)',
+  color: tokens.colors.text.primary,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   width: '36px',
   height: '36px',
-  marginBottom: '8px',
+  marginBottom: tokens.spacing.sm,
 };
 
 const navStyles = {
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '4px',
+  gap: tokens.spacing.xs,
   flex: 1,
 };
 
@@ -36,22 +37,22 @@ const railItemStyles = {
   position: 'relative' as const,
   width: '36px',
   height: '36px',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: 'var(--text-3)',
-  transition: 'color var(--transition), background var(--transition)',
+  color: tokens.colors.text.muted,
+  transition: `color ${tokens.transitions.default}, background ${tokens.transitions.default}`,
   '&:hover': {
-    color: 'var(--text-1)',
-    background: 'var(--surface-2)',
+    color: tokens.colors.text.primary,
+    background: tokens.colors.surface.subtle,
   },
   '&:focus-visible': {
-    outline: '2px solid var(--accent)',
+    outline: `2px solid ${tokens.colors.accent.primary}`,
     outlineOffset: '1px',
   },
   '&.active': {
-    color: 'var(--accent)',
+    color: tokens.colors.accent.primary,
     '&::before': {
       content: '""',
       position: 'absolute' as const,
@@ -60,7 +61,7 @@ const railItemStyles = {
       bottom: '8px',
       width: '2px',
       borderRadius: '1px',
-      background: 'var(--accent)',
+      background: tokens.colors.accent.primary,
     },
   },
 };
@@ -68,11 +69,11 @@ const railItemStyles = {
 const avatarStyles = {
   width: '26px',
   height: '26px',
-  borderRadius: '50%',
-  background: 'var(--surface-3)',
-  color: 'var(--text-1)',
-  fontSize: '12px',
-  fontWeight: 600,
+  borderRadius: tokens.radii.full,
+  background: tokens.colors.surface.raised,
+  color: tokens.colors.text.primary,
+  fontSize: tokens.fontSizes.sm,
+  fontWeight: tokens.fontWeights.semibold,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -86,35 +87,35 @@ const menuStyles = {
   position: 'absolute' as const,
   bottom: '44px',
   left: '48px',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius)',
-  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+  background: tokens.colors.surface.raised,
+  border: `1px solid ${tokens.colors.border.subtle}`,
+  borderRadius: tokens.radii.default,
+  boxShadow: tokens.shadows.menu,
   padding: '6px',
   minWidth: '150px',
   zIndex: 50,
 };
 
 const menuUserStyles = {
-  fontSize: '12px',
-  fontWeight: 600,
-  color: 'var(--text-1)',
+  fontSize: tokens.fontSizes.sm,
+  fontWeight: tokens.fontWeights.semibold,
+  color: tokens.colors.text.primary,
   padding: '6px 8px 8px',
-  borderBottom: '1px solid var(--border)',
-  marginBottom: '4px',
+  borderBottom: `1px solid ${tokens.colors.border.subtle}`,
+  marginBottom: tokens.spacing.xs,
 };
 
 const menuItemStyles = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: tokens.spacing.sm,
   width: '100%',
   padding: '7px 8px',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   fontSize: '12.5px',
-  color: 'var(--text-2)',
+  color: tokens.colors.text.secondary,
   '&:hover': {
-    color: 'var(--text-1)',
+    color: tokens.colors.text.primary,
     background: 'rgba(255, 255, 255, 0.06)',
   },
 };
@@ -140,45 +141,68 @@ export default function AppRail() {
     navigate('/login');
   };
 
-  return (
-    <nav css={railStyles} aria-label="Main navigation">
-      <NavLink to="/" css={logoStyles} aria-label="Aegis Vision — home">
-        <ShieldCheck size={20} strokeWidth={1.75} />
-      </NavLink>
+  const initial = (username || 'A')[0].toUpperCase();
 
-      <div css={navStyles}>
-        <NavLink to="/" end css={railItemStyles} aria-label="Live cameras" title="Live">
-          <Cctv size={18} strokeWidth={1.75} />
-        </NavLink>
-        <NavLink to="/events" css={railItemStyles} aria-label="Events" title="Events">
-          <Bell size={18} strokeWidth={1.75} />
-        </NavLink>
-        <NavLink to="/faces" css={railItemStyles} aria-label="Known people" title="People">
-          <ScanFace size={18} strokeWidth={1.75} />
-        </NavLink>
+  return (
+    <aside css={railStyles} aria-label="Main Navigation">
+      <div css={logoStyles} title="Aegis Vision">
+        <ShieldCheck size={22} strokeWidth={2.2} color={tokens.colors.accent.primary} />
       </div>
+
+      <nav css={navStyles}>
+        <NavLink
+          to="/"
+          end
+          css={railItemStyles}
+          className={({ isActive }) => (isActive ? 'active' : '')}
+          title="Live grid"
+          aria-label="Live grid"
+        >
+          <Cctv size={19} strokeWidth={1.8} />
+        </NavLink>
+
+        <NavLink
+          to="/events"
+          css={railItemStyles}
+          className={({ isActive }) => (isActive ? 'active' : '')}
+          title="Events"
+          aria-label="Events"
+        >
+          <Bell size={19} strokeWidth={1.8} />
+        </NavLink>
+
+        <NavLink
+          to="/faces"
+          css={railItemStyles}
+          className={({ isActive }) => (isActive ? 'active' : '')}
+          title="Known people"
+          aria-label="Known people"
+        >
+          <ScanFace size={19} strokeWidth={1.8} />
+        </NavLink>
+      </nav>
 
       <div css={footerStyles} ref={menuRef}>
         <button
+          onClick={() => setMenuOpen((o) => !o)}
           css={railItemStyles}
-          onClick={() => setMenuOpen(o => !o)}
-          aria-label={`Account: ${username ?? ''}`}
-          aria-haspopup="menu"
+          title={username ? `Signed in as ${username}` : 'Account'}
+          aria-label="User menu"
           aria-expanded={menuOpen}
-          title={username ?? undefined}
         >
-          <span css={avatarStyles}>{username?.[0]?.toUpperCase() ?? '?'}</span>
+          <div css={avatarStyles}>{initial}</div>
         </button>
 
         {menuOpen && (
           <div css={menuStyles} role="menu">
-            <div css={menuUserStyles}>{username}</div>
+            <div css={menuUserStyles}>@{username || 'admin'}</div>
             <button css={menuItemStyles} onClick={handleLogout} role="menuitem">
-              <LogOut size={14} strokeWidth={1.75} /> Sign out
+              <LogOut size={14} />
+              Sign out
             </button>
           </div>
         )}
       </div>
-    </nav>
+    </aside>
   );
 }

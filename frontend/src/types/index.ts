@@ -15,12 +15,7 @@ export interface CamerasResponse {
   cameras: Camera[];
 }
 
-export type EventType =
-  | 'unknown_face'
-  | 'known_face'
-  | 'loitering'
-  | 'person_detected'
-  | 'motion';
+export type EventType = 'unknown_face' | 'known_face' | 'loitering' | 'person_detected' | 'motion';
 
 export interface PlaybackInfo {
   file: string;

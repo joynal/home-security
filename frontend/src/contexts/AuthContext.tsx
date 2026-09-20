@@ -32,7 +32,9 @@ export interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(getStoredToken);
-  const [username, setUsername] = useState<string | null>(() => localStorage.getItem('aegis_user') || null);
+  const [username, setUsername] = useState<string | null>(
+    () => localStorage.getItem('aegis_user') || null,
+  );
 
   const logout = useCallback(() => {
     authService.logout().catch(() => {});
@@ -57,10 +59,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /** Convenience: returns headers object with Authorization bearer */
-  const authHeaders = useCallback(
-    () => ({ Authorization: `Bearer ${token}` }),
-    [token],
-  );
+  const authHeaders = useCallback(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ token, username, login, logout, authHeaders }),

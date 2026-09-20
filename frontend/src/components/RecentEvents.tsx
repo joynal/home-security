@@ -4,9 +4,10 @@
  * Horizontal scroll of recent event thumbnails; severity = bottom border only.
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/useAuth';
-import { eventService } from '../services/events';
-import type { SecurityEvent } from '../types';
+import { useAuth } from '@/contexts/useAuth';
+import { eventService } from '@/services/events';
+import { tokens } from '@/theme/designTokens';
+import type { SecurityEvent } from '@/types';
 
 export interface RecentEventsProps {
   limit?: number;
@@ -14,17 +15,17 @@ export interface RecentEventsProps {
 
 const stripStyles = {
   display: 'flex',
-  gap: '8px',
+  gap: tokens.spacing.sm,
   overflowX: 'auto' as const,
-  paddingBottom: '4px',
-  marginBottom: '8px',
+  paddingBottom: tokens.spacing.xs,
+  marginBottom: tokens.spacing.sm,
   scrollbarWidth: 'thin' as const,
 };
 
 const getBorderColor = (type: string) => {
-  if (type === 'unknown_face') return 'var(--alert)';
-  if (type === 'loitering') return 'var(--warn)';
-  if (type === 'known_face') return 'var(--live)';
+  if (type === 'unknown_face') return tokens.colors.status.danger;
+  if (type === 'loitering') return tokens.colors.status.warning;
+  if (type === 'known_face') return tokens.colors.status.live;
   return 'transparent';
 };
 
@@ -33,9 +34,9 @@ const cardStyles = (eventType: string) => ({
   flexShrink: 0,
   width: '150px',
   aspectRatio: '16 / 9',
-  borderRadius: 'var(--radius-sm)',
+  borderRadius: tokens.radii.sm,
   overflow: 'hidden',
-  background: 'var(--surface-2)',
+  background: tokens.colors.surface.subtle,
   borderBottom: `2px solid ${getBorderColor(eventType)}`,
   '& img': {
     width: '100%',
@@ -46,7 +47,7 @@ const cardStyles = (eventType: string) => ({
 
 const timeStyles = {
   position: 'absolute' as const,
-  bottom: '4px',
+  bottom: tokens.spacing.xs,
   right: '6px',
   fontSize: '10.5px',
   color: '#fff',
@@ -71,20 +72,26 @@ export default function RecentEvents({ limit = 10 }: RecentEventsProps) {
     if (!token) return;
     let cancelled = false;
     const load = () => {
-      eventService.getEvents({ limit })
-        .then(d => { if (!cancelled) setEvents(d.events || []); })
+      eventService
+        .getEvents({ limit })
+        .then((d) => {
+          if (!cancelled) setEvents(d.events || []);
+        })
         .catch(() => {});
     };
     load();
     const interval = setInterval(load, 15000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [token, limit]);
 
   if (events.length === 0) return null;
 
   return (
     <div css={stripStyles} aria-label="Recent activity">
-      {events.map(ev => (
+      {events.map((ev) => (
         <div
           key={ev.id}
           css={cardStyles(ev.event_type)}
@@ -98,7 +105,9 @@ export default function RecentEvents({ limit = 10 }: RecentEventsProps) {
               loading="lazy"
             />
           )}
-          <span css={timeStyles} className="tnum">{relTime(ev.timestamp)}</span>
+          <span css={timeStyles} className="tnum">
+            {relTime(ev.timestamp)}
+          </span>
         </div>
       ))}
     </div>

@@ -83,16 +83,13 @@ Loads `.env`, defines `BASE_DIR`, `DATA_DIR`, `KNOWN_FACES_DIR`, `SECRET_KEY`, `
 
 | File | Role |
 |------|------|
-| `main.tsx` | Root: `BrowserRouter` → `AuthProvider` → conditional `App` or `LoginPage` |
-| `contexts/AuthContext.tsx` | React Context: `{ token, username, login, logout, authHeaders }`, persists in localStorage |
-| `contexts/useAuth.tsx` | Typed convenience hook for `AuthContext` |
-| `App.tsx` | App shell with navigation rail (`AppRail`), routes: `/` (Live), `/events` (`EventsPage`), `/faces` (`FacesPage`), `/camera/:cameraId` (`CameraDetailPage`) |
-| `LoginPage.tsx` | Login form with shield SVG illustration (Emotion styles) |
-| `RegisterModal.tsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold (Emotion styles) |
-| `components/` | Modular UI components (`AppRail`, `CameraGrid`, `CameraTile`, `ImportModal`, `RecentEvents`, `TimelineRail`) with co-located Emotion styles |
-| `pages/` | Page components (`CameraDetailPage`, `EventsPage`, `FacesPage`, `LivePage`) with co-located Emotion styles |
+| `main.tsx` | Root: `ErrorBoundary` → `BrowserRouter` → `AuthProvider` → `ToastProvider` → conditional `App` or `LoginPage` |
+| `contexts/` | `AuthContext.tsx` (auth state), `ToastContext.tsx` (app notifications) |
+| `hooks/` | Custom hooks: `useAuth.tsx`, `useToast.ts`, `useFetch.ts` (data fetching with abort control), `useVisible.ts` |
+| `theme/` | `designTokens.ts` (typed colors, spacing, radii, shadows, status colors for Emotion) |
+| `components/` | Modular UI components (`AppRail`, `CameraGrid`, `CameraTile`, `ImportModal`, `RecentEvents`, `TimelineRail`, `RegisterModal`, `common/ErrorBoundary`) |
+| `pages/` | Routed pages (`LivePage`, `LoginPage`, `CameraDetailPage`, `EventsPage`, `FacesPage`) |
 | `services/` | Typed API abstraction layer (`core.ts` with `apiFetch`, plus `auth`, `cameras`, `events`, `faces`, `recordings`, `register`) |
-| `hooks/` | Custom hooks: `useFetch.ts` (data fetching with abort control), `useVisible.ts` (viewport visibility) |
 | `types/` | Domain TypeScript interfaces and types (`index.ts`) |
 | `config.ts` | Frontend config: exports `API` based on `VITE_API_URL` |
 | `index.css` | Global stylesheet: design tokens (`:root`), base resets, font declarations, and common layout shell classes (`.app-shell`, `.page-header`, `.page-body`) |
@@ -148,9 +145,10 @@ uv run scripts/set_password.py        # Create admin password
 uv run main.py                        # Backend on :8000
 cd frontend && npm run dev            # Frontend on :5173
 
-# Lint & Build
+# Lint & Build & Format
 uv run ruff check . && uv run ruff format .
 cd frontend && npm run lint && npm run build
+cd frontend && npm run format         # Prettier formatting
 ```
 
 ## Learnings

@@ -44,10 +44,19 @@
 }
 
 /* Tabular numerals for every timestamp/counter */
-.tnum { font-feature-settings: 'tnum' 1; font-variant-numeric: tabular-nums; }
+.tnum {
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ─── Reset ─────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   font-family: 'Inter', sans-serif;
@@ -58,9 +67,16 @@ body {
   font-size: 14px;
 }
 
-button { background: none; border: none; cursor: pointer; color: inherit; }
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
 
-img { display: block; }
+img {
+  display: block;
+}
 
 /* ─── Shared status primitives ────────────────────────── */
 /* Status = dot + word, color never alone. One pulse max on a screen. */
@@ -73,9 +89,15 @@ img { display: block; }
   flex-shrink: 0;
 }
 
-.status-dot--live { background: var(--live); }
-.status-dot--warn { background: var(--warn); }
-.status-dot--alert { background: var(--alert); }
+.status-dot--live {
+  background: var(--live);
+}
+.status-dot--warn {
+  background: var(--warn);
+}
+.status-dot--alert {
+  background: var(--alert);
+}
 
 .status-label {
   font-size: 12px;
@@ -98,8 +120,13 @@ img { display: block; }
   transition: background var(--transition);
 }
 
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 1px; }
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-primary:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 1px;
+}
 
 .btn-ghost {
   display: inline-flex;
@@ -112,7 +139,10 @@ img { display: block; }
   font-size: 13px;
 }
 
-.btn-ghost:hover { color: var(--text-1); background: var(--surface-2); }
+.btn-ghost:hover {
+  color: var(--text-1);
+  background: var(--surface-2);
+}
 
 /* ─── Live page ───────────────────────────────────────── */
 .live-body {
@@ -170,7 +200,9 @@ img { display: block; }
   color: var(--text-1);
 }
 
-.page-header__spacer { flex: 1; }
+.page-header__spacer {
+  flex: 1;
+}
 
 .page-body {
   flex: 1;
@@ -200,13 +232,20 @@ img { display: block; }
   width: 128px;
 }
 
-.cd-date__input:focus { outline: none; color: var(--accent-hover); }
+.cd-date__input:focus {
+  outline: none;
+  color: var(--accent-hover);
+}
 
 /* ─── Live page wrapper ─────────────────────────────── */
-.live-page { padding: 12px 14px; }
+.live-page {
+  padding: 12px 14px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
