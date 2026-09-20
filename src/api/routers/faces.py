@@ -12,15 +12,17 @@ Manage known faces:
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated
 
 import cv2
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 import src.api.state as state
 from src.api.auth import get_current_user, verify_token_param
 from src.api.enroll_jobs import submit_job
+from src.api.photo_import import crop_face, load_photo_for_enrollment, save_reference_crop
 from src.config import KNOWN_FACES_DIR
 
 router = APIRouter(prefix='/faces')
@@ -147,6 +149,49 @@ def add_from_event(name: str, body: AddFromEventBody, _: str = Depends(get_curre
     state.person_store.add_image(person_id, crop_path, source='event')
 
   return {'status': 'enrolled', 'file': str(crop_path), 'verdict': verdict}
+
+
+@router.post('/import')
+async def import_faces(
+  name: Annotated[str, Form()],
+  files: Annotated[list[UploadFile], File()],
+  _: str = Depends(get_current_user),
+):
+  """
+  Enroll a person from existing photos (multipart: name + files[]).
+  Per-file verdicts; successful files are saved as EXIF-free face crops and
+  embedded live via the inference-thread queue.
+  """
+  if not files:
+    raise HTTPException(status_code=422, detail='No files uploaded')
+
+  results = []
+  for upload in files[:20]:  # sane batch cap
+    raw = await upload.read()
+    frame = load_photo_for_enrollment(raw)
+    if frame is None:
+      results.append({'file': upload.filename, 'status': 'unreadable'})
+      continue
+
+    verdict = submit_job(name, frame, timeout=5.0)
+    if not verdict.get('ok'):
+      results.append({'file': upload.filename, 'status': 'rejected',
+                      'reason': verdict.get('reason', 'unknown')})
+      continue
+
+    crop = crop_face(frame, verdict['bbox'])
+    path = save_reference_crop(faces_dir, name, crop)
+    if state.person_store is not None:
+      person_id = state.person_store.get_or_create(name)
+      state.person_store.add_image(person_id, path, source='photo_import')
+
+    entry = {'file': upload.filename, 'status': 'enrolled', 'saved': path.name}
+    if verdict.get('multiple_faces'):
+      entry['note'] = 'multiple faces — used the largest'
+    results.append(entry)
+
+  enrolled = sum(1 for r in results if r['status'] == 'enrolled')
+  return {'name': name, 'enrolled': enrolled, 'total': len(results), 'results': results}
 
 
 @router.get('/{name}/img/{filename}')

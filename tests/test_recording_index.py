@@ -88,8 +88,13 @@ def test_segment_covering(index):
   idx, rec_dir = index
   cam = rec_dir / 'front_door'
   cam.mkdir()
-  _mkseg(cam, '20260919_100000.mp4')
-  _mkseg(cam, '20260919_101500.mp4')
+  seg1 = _mkseg(cam, '20260919_100000.mp4')
+  seg2 = _mkseg(cam, '20260919_101500.mp4')
+  # Pin mtimes — newest segment's end derives from mtime (determinism)
+  t1 = datetime(2026, 9, 19, 10, 15, tzinfo=UTC).timestamp()
+  t2 = datetime(2026, 9, 19, 10, 30, tzinfo=UTC).timestamp()
+  os.utime(seg1, (t1, t1))
+  os.utime(seg2, (t2, t2))
   idx.scan_directory()
 
   hit = idx.segment_covering('front_door', datetime(2026, 9, 19, 10, 7, tzinfo=UTC))
