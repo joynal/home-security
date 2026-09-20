@@ -188,6 +188,17 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Verified**: 108 tests green, ruff clean. 8 new tests: dir backfill (idempotent, dotfiles skipped), event person_id links + rename survives (display names updated, ids stable), person_images path rewrite on rename, rename endpoint (disk+DB+live model, 409 on collision), add-from-event (enrolls + saves crop, source='event'; gates-rejected leaves no dir), inference helper attaches person_id. Live: user's real "Joynal" (5 wizard poses) backfilled — id=1, sightings=0 (B5.1 postdates their test session).
 - **Deviations**: (1) `events.person_id` ALTER lives in `EventDatabase._init_db` (schema owner), not PersonStore — initially placed in PersonStore, which broke every EventDatabase-only test fixture. (2) Rename updates the denormalized `events.person_name` too (display convenience) while `person_id` remains the stable link — slightly more than "one row", still one transaction. (3) Caught + fixed an ordering bug: old name captured after the UPDATE made the image-path REPLACE a no-op.
 
+### Task B12.1 + B7.1 — photo import + live snapshot
+- **Status**: ✅
+- **Commit**: 3450278 + 4bd53e1
+- **Verified**: 118 tests green, ruff clean. Photo import: EXIF-orientation transpose verified pixel-level, downscale ≤1280, corrupt bytes → unreadable verdict, saved crops carry zero EXIF (GPS stripped — asserted via PIL getexif), crop pad+clamp, endpoint batch verdicts (enrolled/rejected/unreadable per file, source='photo_import'). Snapshot: JPEG bytes, 404 unknown cam, 503 no-frame; live 200 with a real webcam frame (camera permission now granted).
+- **Deviations**: EXIF built via PIL `Image.Exif()` (hand-crafted TIFF bytes were malformed); multipart params use `Annotated[...]` style (B008); pillow + python-multipart deps added; pinned a second latent time-of-day flake in recording-index tests.
+
+### Session 5 — 2026-09-20 (Phase B execution)
+- **Phase B COMPLETE** (B0→B1→B2→B3→B5→B6→B12→B7.1; B7.2 clip-extraction deferred until ffmpeg installed). 118 tests green, ruff clean, every task live-verified where the environment allows.
+- One API-quota blip mid-run (permission classifier) — resumed without loss; per-task commits held throughout.
+- **Next: Phase U (frontend)** — U1 tokens → U2 rail → U3 grid+story strip → U4 player+timeline-rail flagship (B2/B3 APIs all present) → U5 events → U6 faces (import backend ready) → U7 polish. Two user live-checks for the next camera session: known-face sightings populate (B5.1), photo import with real photos (B12.1).
+
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅
 - **Commit**: (this commit)
