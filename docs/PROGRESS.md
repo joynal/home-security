@@ -60,8 +60,8 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | B5.1 | Known-face events + person filter | B0 | ✅ | (this commit) | 60s per-person/camera throttle |
 | B6.1 | Request-response enrollment queue | — | ✅ | 7f87217 | gates: size/blur/brightness |
 | B6.2 | Person store + management API | B6.1 | ✅ | (this commit) | rename keeps person_id history |
-| B12.1 | Photo import | B6.1 | ⬜ | | |
-| B7.1 | Live snapshot endpoint | — | ⬜ | | |
+| B12.1 | Photo import | B6.1 | ✅ | 3450278 | EXIF transpose+strip, ≤1280px, face crops |
+| B7.1 | Live snapshot endpoint | — | ✅ | (this commit) | live-verified with real webcam frame |
 | B7.2 | Clip extraction (ffmpeg) | B1.2 | ⬜ | | deferred until ffmpeg installed |
 
 ### Phase U — Frontend: Scrypted layout (plan v2)

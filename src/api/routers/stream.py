@@ -123,6 +123,27 @@ def video_feed_camera(camera_id: str, token: str = Query(...)):
   )
 
 
+@router.get('/cameras/{camera_id}/snapshot.jpg')
+def camera_snapshot(camera_id: str, token: str = Query(...)):
+  """
+  Current still frame from a camera's latest annotated frame.
+  Cheap alternative to the MJPEG stream for grid tiles and notifications.
+  """
+  verify_token_param(token)
+  if not any(c.id == camera_id for c in CAMERAS):
+    raise HTTPException(status_code=404, detail=f'Unknown camera: {camera_id}')
+  with state.frames_lock:
+    frame = state.latest_frames.get(camera_id)
+  if frame is None:
+    raise HTTPException(status_code=503, detail='No frame yet')
+  ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+  if not ret:
+    raise HTTPException(status_code=500, detail='Encode failed')
+  from fastapi.responses import Response
+
+  return Response(content=buf.tobytes(), media_type='image/jpeg')
+
+
 @router.get('/diagnostics/pipeline')
 def pipeline_stats(_: str = Depends(get_current_user)):
   """Return detection pipeline performance stats per camera."""
