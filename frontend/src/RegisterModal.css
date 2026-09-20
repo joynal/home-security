@@ -201,7 +201,7 @@
   background: linear-gradient(135deg, #2563eb, #6366f1);
   font-size: 15px; font-weight: 600; font-family: inherit;
   color: white; border: none; cursor: pointer;
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+  
   transition: opacity 0.15s, transform 0.1s;
 }
 .rm-cta:hover { opacity: 0.88; transform: translateY(-1px); }
@@ -262,22 +262,22 @@
   transform: translate(-50%, -52%);
   width: 42%; aspect-ratio: 3/4;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  border: none;
   overflow: hidden;
   transition: border-color 0.3s;
 }
-.rm-oval--ok   { border-color: #22d3a5; box-shadow: 0 0 24px rgba(34, 211, 165, 0.5); }
+.rm-oval--ok   { border-color: #22d3a5;  }
 .rm-oval--warn { border-color: rgba(248, 113, 113, 0.5); }
 
 .rm-oval__scan {
   position: absolute;
   left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #22d3a5, transparent);
-  animation: rm-oval-scan 2.5s ease-in-out infinite;
+  background: var(--live);
+  animation: none;
   opacity: 0.7;
 }
-.rm-oval--ok .rm-oval__scan { background: linear-gradient(90deg, transparent, #22d3a5, transparent); }
+.rm-oval--ok .rm-oval__scan { background: var(--live); }
 @keyframes rm-oval-scan {
   0%   { top: 0%;   opacity: 0.3; }
   50%  { top: 100%; opacity: 0.9; }

@@ -2,33 +2,6 @@ import { useState } from 'react';
 import { useAuth } from './contexts/useAuth';
 import './LoginPage.css';
 
-/* ── Shield / lock SVG illustration ───────────────────── */
-function ShieldArt() {
-  return (
-    <svg className="lp-shield" viewBox="0 0 160 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Shield body */}
-      <path
-        d="M80 12 L144 36 L144 90 C144 128 80 168 80 168 C80 168 16 128 16 90 L16 36 Z"
-        className="lp-shield__body"
-      />
-      {/* Inner shield stroke */}
-      <path
-        d="M80 28 L132 48 L132 90 C132 118 80 152 80 152 C80 152 28 118 28 90 L28 48 Z"
-        className="lp-shield__inner"
-      />
-      {/* Lock body */}
-      <rect x="62" y="92" width="36" height="28" rx="5" className="lp-lock__body"/>
-      {/* Lock shackle */}
-      <path d="M70 92 L70 82 C70 72 90 72 90 82 L90 92" className="lp-lock__shackle"/>
-      {/* Keyhole */}
-      <circle cx="80" cy="104" r="4" className="lp-lock__hole"/>
-      <rect x="78" y="104" width="4" height="8" rx="1" className="lp-lock__hole"/>
-      {/* Scan ring */}
-      <circle cx="80" cy="90" r="68" className="lp-ring" />
-    </svg>
-  );
-}
-
 export default function LoginPage() {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
@@ -51,12 +24,8 @@ export default function LoginPage() {
 
   return (
     <div className="lp-root">
-      {/* Ambient blobs */}
-      <div className="lp-blob lp-blob--a" />
-      <div className="lp-blob lp-blob--b" />
 
       <div className="lp-card">
-        <ShieldArt />
 
         <div className="lp-copy">
           <h1 className="lp-title">Aegis Vision</h1>

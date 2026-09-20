@@ -10,26 +10,6 @@
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ── Ambient gradient blobs ────────────────────────────── */
-.lp-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  pointer-events: none;
-  opacity: 0.18;
-}
-.lp-blob--a {
-  width: 460px; height: 460px;
-  background: radial-gradient(circle, #2563eb, transparent 70%);
-  top: -120px; left: -100px;
-  animation: lp-drift-a 12s ease-in-out infinite alternate;
-}
-.lp-blob--b {
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, #6366f1, transparent 70%);
-  bottom: -100px; right: -80px;
-  animation: lp-drift-b 15s ease-in-out infinite alternate;
-}
 @keyframes lp-drift-a { to { transform: translate(60px, 40px); } }
 @keyframes lp-drift-b { to { transform: translate(-40px, -30px); } }
 
