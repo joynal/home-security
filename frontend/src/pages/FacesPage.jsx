@@ -4,7 +4,7 @@
  * for now: gallery, register wizard, update, delete.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { ImagePlus, UserPlus, Users } from 'lucide-react';
 import RegisterModal from '../RegisterModal';
 import ImportModal from '../components/ImportModal';

@@ -4,9 +4,10 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import LoginPage from './LoginPage.jsx'
-import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
+import { AuthProvider } from './contexts/AuthContext.jsx'
+import { useAuth } from './contexts/useAuth.jsx'
 
-function Root() {
+export default function Root() {
   const { token } = useAuth()
   return token ? <App /> : <LoginPage />
 }

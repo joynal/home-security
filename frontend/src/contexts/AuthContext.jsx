@@ -6,12 +6,13 @@
  * All API calls should read `token` from this context and pass it as a Bearer header
  * (or ?token= query param for img src endpoints like /video_feed).
  */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 const API = 'http://localhost:8000';
 const STORAGE_KEY = 'aegis_token';
 
-const AuthContext = createContext(null);
+import { useCallback, useMemo, useState } from 'react';
+import { AuthContext } from './useAuth.jsx';
+
 
 export function AuthProvider({ children }) {
   const [token,    setToken]    = useState(() => localStorage.getItem(STORAGE_KEY) || null);
@@ -57,8 +58,3 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
-  return ctx;
-}

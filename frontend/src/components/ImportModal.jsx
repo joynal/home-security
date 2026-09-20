@@ -6,7 +6,7 @@
  *        onClose(), onDone()
  */
 import { useState, useRef, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { CheckCircle2, CircleAlert, ImagePlus, Upload, X } from 'lucide-react';
 import './ImportModal.css';
 

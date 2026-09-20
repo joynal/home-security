@@ -4,7 +4,7 @@
  * Horizontal scroll of recent event thumbnails; severity = bottom border only.
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import './RecentEvents.css';
 
 const API = 'http://localhost:8000';

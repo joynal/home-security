@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './RegisterModal.css';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/useAuth';
 
 const API = 'http://localhost:8000';
 
@@ -120,7 +120,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
       isCapturing.current = false;
       setCapturing(false);
     }
-  }, []);
+  }, [authHeaders]);
 
   /* ── Polling ─────────────────────────────────────────── */
   useEffect(() => {
@@ -135,14 +135,13 @@ export default function RegisterModal({ onClose, onSuccess }) {
       }
     }, 350);
     return () => clearInterval(pollingRef.current);
-  }, [phase]);
+  }, [phase, authHeaders]);
 
   /* ── Auto-capture countdown ─────────────────────────── */
   useEffect(() => {
     if (phase !== 'capture') return;
     if (isCorrectPose && !isCapturing.current) {
       let tick = 2;
-      setCountdown(tick);
       countdownRef.current = setInterval(() => {
         tick -= 1;
         if (tick <= 0) {
@@ -155,7 +154,8 @@ export default function RegisterModal({ onClose, onSuccess }) {
       }, 1000);
     } else if (!isCorrectPose) {
       clearInterval(countdownRef.current);
-      setCountdown(null);
+      // deferred out of the effect body (react-hooks/set-state-in-effect)
+      setTimeout(() => setCountdown(null), 0);
     }
     return () => clearInterval(countdownRef.current);
   }, [isCorrectPose, phase, doCapture]);

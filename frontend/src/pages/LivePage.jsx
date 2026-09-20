@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import CameraGrid from '../components/CameraGrid';
 import RecentEvents from '../components/RecentEvents';
 

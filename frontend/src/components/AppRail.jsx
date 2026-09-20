@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, Cctv, ChevronUp, LogOut, ScanFace, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import './AppRail.css';
 
 export default function AppRail() {
