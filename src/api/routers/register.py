@@ -12,7 +12,9 @@ from datetime import datetime
 from pathlib import Path
 
 import cv2
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
 
 import src.api.state as state
 from src.api.auth import get_current_user
@@ -45,16 +47,10 @@ def capture_face(name: str, step: str, _: str = Depends(get_current_user)):
   The frame is saved to disk and queued for incremental embedding (no restart needed).
   """
   with state.raw_frame_lock:
-    frame = (
-      state.latest_raw_frame.copy()
-      if state.latest_raw_frame is not None
-      else None
-    )
+    frame = state.latest_raw_frame.copy() if state.latest_raw_frame is not None else None
 
   if frame is None:
-    raise HTTPException(
-      status_code=503, detail='No camera frame available yet.'
-    )
+    raise HTTPException(status_code=503, detail='No camera frame available yet.')
 
   # Persist to disk
   person_dir = Path(KNOWN_FACES_DIR) / name

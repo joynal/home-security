@@ -1,6 +1,8 @@
 """Daily summary generation tests."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 
 from src.alerts.summary import generate_daily_summary
 from src.events.database import EventDatabase
@@ -9,19 +11,9 @@ from src.events.models import DetectionEvent
 
 def _seed(db: EventDatabase) -> None:
   now = datetime.now(UTC)
-  db.insert(
-    DetectionEvent(
-      camera_id='front_door', event_type='unknown_face', timestamp=now
-    )
-  )
-  db.insert(
-    DetectionEvent(
-      camera_id='front_door', event_type='unknown_face', timestamp=now
-    )
-  )
-  db.insert(
-    DetectionEvent(camera_id='front_door', event_type='motion', timestamp=now)
-  )
+  db.insert(DetectionEvent(camera_id='front_door', event_type='unknown_face', timestamp=now))
+  db.insert(DetectionEvent(camera_id='front_door', event_type='unknown_face', timestamp=now))
+  db.insert(DetectionEvent(camera_id='front_door', event_type='motion', timestamp=now))
   db.insert(
     DetectionEvent(
       camera_id='backyard',
@@ -30,12 +22,8 @@ def _seed(db: EventDatabase) -> None:
       timestamp=now,
     )
   )
-  db.insert(
-    DetectionEvent(camera_id='backyard', event_type='loitering', timestamp=now)
-  )
-  db.insert(
-    DetectionEvent(camera_id='porch', event_type='motion', timestamp=now)
-  )
+  db.insert(DetectionEvent(camera_id='backyard', event_type='loitering', timestamp=now))
+  db.insert(DetectionEvent(camera_id='porch', event_type='motion', timestamp=now))
   # Old event — outside the 24h window, must not be counted
   db.insert(
     DetectionEvent(

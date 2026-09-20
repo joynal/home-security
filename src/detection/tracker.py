@@ -14,9 +14,7 @@ import time
 import warnings
 
 with warnings.catch_warnings():
-  warnings.filterwarnings(
-    'ignore', message='.*ByteTrack.*deprecated.*', category=FutureWarning
-  )
+  warnings.filterwarnings('ignore', message='.*ByteTrack.*deprecated.*', category=FutureWarning)
   from supervision.tracker import ByteTrack
 
 
@@ -35,9 +33,7 @@ class PersonTracker:
     )
     # Cache: track_id → {"name": str, "is_known": bool, "last_recognized": float}
     self.identity_cache: dict[int, dict] = {}
-    self.recognition_cooldown = (
-      recognition_cooldown  # Re-run recognition after N seconds
-    )
+    self.recognition_cooldown = recognition_cooldown  # Re-run recognition after N seconds
 
   def update(self, detections):
     """Update tracker with new detections. Returns tracked detections with IDs."""
@@ -67,10 +63,6 @@ class PersonTracker:
     """Remove cache entries for tracks that no longer exist."""
     # ByteTrack doesn't expose active IDs easily, so we prune by age
     cutoff = time.time() - (self.recognition_cooldown * 3)
-    stale = [
-      tid
-      for tid, info in self.identity_cache.items()
-      if info['last_recognized'] < cutoff
-    ]
+    stale = [tid for tid, info in self.identity_cache.items() if info['last_recognized'] < cutoff]
     for tid in stale:
       del self.identity_cache[tid]

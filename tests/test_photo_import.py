@@ -10,7 +10,9 @@ from fastapi import UploadFile
 from PIL import Image
 
 import src.api.state as state
-from src.api.photo_import import crop_face, load_photo_for_enrollment, save_reference_crop
+from src.api.photo_import import crop_face
+from src.api.photo_import import load_photo_for_enrollment
+from src.api.photo_import import save_reference_crop
 from src.events.database import EventDatabase
 from src.persons.store import PersonStore
 
@@ -46,6 +48,7 @@ def _exif_orientation(value: int):
 
 
 # ── photo preprocessing ───────────────────────────────────────
+
 
 def test_load_photo_applies_exif_orientation():
   # Asymmetric image: bright block top-left
@@ -92,6 +95,7 @@ def test_crop_face_pads_and_clamps():
 
 # ── the endpoint ──────────────────────────────────────────────
 
+
 def _upload(arr, filename='photo.jpg', exif=None):
   return UploadFile(file=io.BytesIO(_jpeg_bytes(arr, exif=exif)), filename=filename)
 
@@ -108,9 +112,9 @@ def test_import_endpoint_enrolls_good_photo(env, monkeypatch):
     lambda name, img, timeout=5.0: {'ok': True, 'bbox': [100, 80, 300, 320]},
   )
 
-  out = asyncio.run(faces_router.import_faces(
-    name='dad', files=[_upload(photo, 'dad1.jpg')], _='user'
-  ))
+  out = asyncio.run(
+    faces_router.import_faces(name='dad', files=[_upload(photo, 'dad1.jpg')], _='user')
+  )
   assert out['enrolled'] == 1 and out['total'] == 1
   saved = list((faces_dir / 'dad').glob('import_*.jpg'))
   assert len(saved) == 1
@@ -125,19 +129,24 @@ def test_import_endpoint_mixed_batch(env, monkeypatch):
   faces_dir, store = env
   good = np.clip(np.random.default_rng(4).normal(128, 12, (480, 400, 3)), 0, 255).astype(np.uint8)
 
-  verdicts = iter([
-    {'ok': True, 'bbox': [100, 80, 300, 320]},
-    {'ok': False, 'reason': 'no_face'},
-  ])
+  verdicts = iter(
+    [
+      {'ok': True, 'bbox': [100, 80, 300, 320]},
+      {'ok': False, 'reason': 'no_face'},
+    ]
+  )
   monkeypatch.setattr(
     'src.api.routers.faces.submit_job', lambda name, img, timeout=5.0: next(verdicts)
   )
 
   bad_file = UploadFile(file=io.BytesIO(b'garbage'), filename='broken.jpg')
-  out = asyncio.run(faces_router.import_faces(
-    name='mom', files=[_upload(good, 'mom1.jpg'), _upload(good, 'mom2.jpg'), bad_file],
-    _='user',
-  ))
+  out = asyncio.run(
+    faces_router.import_faces(
+      name='mom',
+      files=[_upload(good, 'mom1.jpg'), _upload(good, 'mom2.jpg'), bad_file],
+      _='user',
+    )
+  )
   assert out['total'] == 3 and out['enrolled'] == 1
   by_file = {r['file']: r['status'] for r in out['results']}
   assert by_file == {'mom1.jpg': 'enrolled', 'mom2.jpg': 'rejected', 'broken.jpg': 'unreadable'}

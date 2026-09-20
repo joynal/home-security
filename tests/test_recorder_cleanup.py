@@ -38,9 +38,7 @@ LOW = (100 << 30, 98 << 30, 2 << 30)  # free = 2 GB
 def disk_usage(monkeypatch):
   """Control reported disk space; tests set the tuple via holder.value."""
   holder = {'value': PLENTY}
-  monkeypatch.setattr(
-    'src.recording.recorder.shutil.disk_usage', lambda _p: holder['value']
-  )
+  monkeypatch.setattr('src.recording.recorder.shutil.disk_usage', lambda _p: holder['value'])
   return holder
 
 
@@ -78,9 +76,7 @@ def test_oldest_purged_first_when_disk_low(tmp_path, disk_usage):
 
   assert not (rec.output_dir / 'a_oldest.mp4').exists()  # oldest purged
   assert (rec.output_dir / 'b_middle.mp4').exists()  # camera now under cap —
-  assert (
-    rec.output_dir / 'c_newest.mp4'
-  ).exists()  # volume pressure stops here
+  assert (rec.output_dir / 'c_newest.mp4').exists()  # volume pressure stops here
 
 
 def test_purge_respects_free_space_threshold(tmp_path, disk_usage):
@@ -151,9 +147,7 @@ def test_manager_skips_disabled_cameras(tmp_path):
 
   cams = [
     _camera(),
-    CameraConfig(
-      id='mac', name='Mac', type='macbook', record={'enabled': False}
-    ),
+    CameraConfig(id='mac', name='Mac', type='macbook', record={'enabled': False}),
   ]
   mgr = RecordingManager(cams, recordings_dir=tmp_path)
   assert list(mgr.recorders.keys()) == ['front_door']

@@ -12,9 +12,7 @@ import numpy as np
 class MotionDetector:
   """Background subtraction-based motion detector."""
 
-  def __init__(
-    self, threshold: int = 25, min_area: int = 500, history: int = 500
-  ):
+  def __init__(self, threshold: int = 25, min_area: int = 500, history: int = 500):
     self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
       history=history, varThreshold=threshold, detectShadows=False
     )
@@ -34,9 +32,7 @@ class MotionDetector:
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
     # Find contours
-    contours, _ = cv2.findContours(
-      mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     regions = []
     for contour in contours:

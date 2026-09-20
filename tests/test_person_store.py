@@ -56,11 +56,13 @@ def test_events_get_person_id_links_and_rename_survives(env):
   person = store.get_person(name='joynal')
 
   # Event logged with the name (as inference does)
-  db.insert(DetectionEvent(camera_id='cam', event_type='known_face',
-                           person_name='joynal', person_id=person['id']))
+  db.insert(
+    DetectionEvent(
+      camera_id='cam', event_type='known_face', person_name='joynal', person_id=person['id']
+    )
+  )
   # An older event with a name but no link (pre-migration)
-  db.insert(DetectionEvent(camera_id='cam', event_type='known_face',
-                           person_name='joynal'))
+  db.insert(DetectionEvent(camera_id='cam', event_type='known_face', person_name='joynal'))
   assert store.backfill_event_links() == 1
 
   # Rename via the store
@@ -90,8 +92,9 @@ def test_rename_endpoint_moves_everything(env, monkeypatch):
   _person_dir(faces_dir, 'joynal')
   store.backfill_from_directory()
   pid = store.get_person(name='joynal')['id']
-  db.insert(DetectionEvent(camera_id='cam', event_type='known_face',
-                           person_name='joynal', person_id=pid))
+  db.insert(
+    DetectionEvent(camera_id='cam', event_type='known_face', person_name='joynal', person_id=pid)
+  )
 
   class FakeRecognizer:
     def rename_person(self, old, new):
@@ -134,8 +137,9 @@ def test_add_from_event_enrolls_and_saves_crop(env, monkeypatch):
   thumb_path = faces_dir.parent / 'thumbs' / 'ev1.jpg'
   thumb_path.parent.mkdir(parents=True, exist_ok=True)
   cv2.imwrite(str(thumb_path), thumb)
-  eid = db.insert(DetectionEvent(camera_id='cam', event_type='unknown_face',
-                                 thumbnail_path=str(thumb_path)))
+  eid = db.insert(
+    DetectionEvent(camera_id='cam', event_type='unknown_face', thumbnail_path=str(thumb_path))
+  )
 
   monkeypatch.setattr(
     'src.api.routers.faces.submit_job',
@@ -157,8 +161,9 @@ def test_add_from_event_rejected_by_gates(env, monkeypatch):
   thumb_path = faces_dir.parent / 'thumbs' / 'ev2.jpg'
   thumb_path.parent.mkdir(parents=True, exist_ok=True)
   cv2.imwrite(str(thumb_path), np.full((240, 200, 3), 128, dtype=np.uint8))  # blurry
-  eid = db.insert(DetectionEvent(camera_id='cam', event_type='unknown_face',
-                                 thumbnail_path=str(thumb_path)))
+  eid = db.insert(
+    DetectionEvent(camera_id='cam', event_type='unknown_face', thumbnail_path=str(thumb_path))
+  )
 
   monkeypatch.setattr(
     'src.api.routers.faces.submit_job',
@@ -179,8 +184,12 @@ def test_known_event_logs_person_id(env, monkeypatch):
 
   monkeypatch.setattr('src.api.inference.THUMBNAILS_DIR', faces_dir.parent / 'thumbs')
   _log_detection_event(
-    'cam', np.zeros((120, 160, 3), dtype=np.uint8), {},
-    'known_face', throttle_key='known:cam:joynal', person_name='joynal',
+    'cam',
+    np.zeros((120, 160, 3), dtype=np.uint8),
+    {},
+    'known_face',
+    throttle_key='known:cam:joynal',
+    person_name='joynal',
   )
   row = db.query()[0]
   assert row['person_name'] == 'joynal'

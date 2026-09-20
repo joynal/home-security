@@ -5,15 +5,16 @@ POST /auth/login  — exchange username+password for a JWT
 GET  /auth/me     — verify token and return current user info
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import status
 from pydantic import BaseModel
 
-from src.api.auth import (
-  create_access_token,
-  get_current_user,
-  get_username,
-  verify_password,
-)
+from src.api.auth import create_access_token
+from src.api.auth import get_current_user
+from src.api.auth import get_username
+from src.api.auth import verify_password
 
 router = APIRouter(prefix='/auth')
 

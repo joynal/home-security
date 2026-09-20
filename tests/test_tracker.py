@@ -39,9 +39,7 @@ def test_new_track_after_disappearance():
     if len(tracked):
       ids.append(int(tracked.tracker_id[0]))
   assert ids, 're-entrant person should be tracked again'
-  assert all(i != id1 for i in ids), (
-    f're-entrant person should get a NEW track ID: {ids}'
-  )
+  assert all(i != id1 for i in ids), f're-entrant person should get a NEW track ID: {ids}'
 
 
 def test_needs_recognition_for_new_track():

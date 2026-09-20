@@ -1,8 +1,10 @@
 """Tests for the one-time events.db → aegis.db consolidation (Task B0)."""
 
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 
-from src.events.database import EventDatabase, migrate_legacy_db
+from src.events.database import EventDatabase
+from src.events.database import migrate_legacy_db
 from src.events.models import DetectionEvent
 
 

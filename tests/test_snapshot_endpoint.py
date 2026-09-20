@@ -18,7 +18,9 @@ def cam(monkeypatch):
 
 
 def test_snapshot_returns_jpeg(cam, monkeypatch):
-  monkeypatch.setattr(state, 'latest_frames', {'test_clip': np.full((60, 80, 3), 200, dtype=np.uint8)})
+  monkeypatch.setattr(
+    state, 'latest_frames', {'test_clip': np.full((60, 80, 3), 200, dtype=np.uint8)}
+  )
   resp = camera_snapshot('test_clip', token='t')
   assert resp.media_type == 'image/jpeg'
   assert resp.body[:2] == b'\xff\xd8'  # JPEG SOI

@@ -14,7 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import src.api.state as state
 from src.api.inference import inference_loop
-from src.api.routers import faces, register, stream
+from src.api.routers import faces
+from src.api.routers import register
+from src.api.routers import stream
 from src.api.routers.auth_router import router as auth_router
 from src.api.routers.events import router as events_router
 from src.api.routers.recordings import router as recordings_router
@@ -22,63 +24,70 @@ from src.api.routers.recordings import router as recordings_router
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    import asyncio
+  import asyncio
 
-    from src.config import CAMERAS, KNOWN_FACES_DIR, RECORDINGS_DIR
-    from src.events.database import EventDatabase
-    from src.go2rtc import start_go2rtc, stop_go2rtc
-    from src.persons.store import PersonStore
-    from src.recording.index import RecordingIndex
-    from src.recording.recorder import RecordingManager
+  from src.config import CAMERAS
+  from src.config import KNOWN_FACES_DIR
+  from src.config import RECORDINGS_DIR
+  from src.events.database import EventDatabase
+  from src.go2rtc import start_go2rtc
+  from src.go2rtc import stop_go2rtc
+  from src.persons.store import PersonStore
+  from src.recording.index import RecordingIndex
+  from src.recording.recorder import RecordingManager
 
-    # Capture the main FastAPI event loop so background threads can schedule async tasks safely
-    state.main_loop = asyncio.get_running_loop()
+  # Capture the main FastAPI event loop so background threads can schedule async tasks safely
+  state.main_loop = asyncio.get_running_loop()
 
-    # go2rtc stream proxy — required for RTSP cameras (single connection per camera)
-    go2rtc_proc = start_go2rtc()
+  # go2rtc stream proxy — required for RTSP cameras (single connection per camera)
+  go2rtc_proc = start_go2rtc()
 
-    # Shared app database (events now; recordings index; person metadata later)
-    # + segment index backfilled from disk — for ALL cameras, so footage stays
-    # browsable even for cameras with recording currently disabled.
-    state.event_db = EventDatabase()
-    state.recording_index = RecordingIndex(
-      state.event_db._conn, state.event_db._lock, RECORDINGS_DIR  # noqa: SLF001 — shared by design
-    )
-    state.recording_index.scan_directory()
+  # Shared app database (events now; recordings index; person metadata later)
+  # + segment index backfilled from disk — for ALL cameras, so footage stays
+  # browsable even for cameras with recording currently disabled.
+  state.event_db = EventDatabase()
+  state.recording_index = RecordingIndex(
+    state.event_db._conn,
+    state.event_db._lock,
+    RECORDINGS_DIR,  # noqa: SLF001 — shared by design
+  )
+  state.recording_index.scan_directory()
 
-    # Person metadata: backfill from data/known_faces/ + link existing events
-    state.person_store = PersonStore(
-      state.event_db._conn, state.event_db._lock, KNOWN_FACES_DIR  # noqa: SLF001 — shared by design
-    )
-    state.person_store.backfill_from_directory()
-    state.person_store.backfill_event_links()
+  # Person metadata: backfill from data/known_faces/ + link existing events
+  state.person_store = PersonStore(
+    state.event_db._conn,
+    state.event_db._lock,
+    KNOWN_FACES_DIR,  # noqa: SLF001 — shared by design
+  )
+  state.person_store.backfill_from_directory()
+  state.person_store.backfill_event_links()
 
-    # Recording manager — FFmpeg per camera, retention piggybacked on rotation
-    recording_manager = RecordingManager(CAMERAS, index=state.recording_index)
-    recording_manager.cleanup_all()  # startup sweep for stragglers from downtime
-    recording_manager.start_all()
-    state.recording_manager = recording_manager
+  # Recording manager — FFmpeg per camera, retention piggybacked on rotation
+  recording_manager = RecordingManager(CAMERAS, index=state.recording_index)
+  recording_manager.cleanup_all()  # startup sweep for stragglers from downtime
+  recording_manager.start_all()
+  state.recording_manager = recording_manager
 
-    # Start the AI inference loop in a background daemon thread
-    thread = threading.Thread(target=inference_loop, daemon=True, name="inference")
-    thread.start()
-    yield
-    # Graceful shutdown
-    print("\nShutting down cameras…")
-    recording_manager.stop_all()
-    for s in state.active_streams.values():
-        s.stop()
-    stop_go2rtc(go2rtc_proc)
+  # Start the AI inference loop in a background daemon thread
+  thread = threading.Thread(target=inference_loop, daemon=True, name='inference')
+  thread.start()
+  yield
+  # Graceful shutdown
+  print('\nShutting down cameras…')
+  recording_manager.stop_all()
+  for s in state.active_streams.values():
+    s.stop()
+  stop_go2rtc(go2rtc_proc)
 
 
-app = FastAPI(title="Aegis Vision AI", lifespan=lifespan)
+app = FastAPI(title='Aegis Vision AI', lifespan=lifespan)
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # tighten in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=['*'],  # tighten in production
+  allow_credentials=True,
+  allow_methods=['*'],
+  allow_headers=['*'],
 )
 
 app.include_router(auth_router)
@@ -89,5 +98,5 @@ app.include_router(events_router)
 app.include_router(recordings_router)
 
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+if __name__ == '__main__':
+  uvicorn.run(app, host='0.0.0.0', port=8000, log_level='info')

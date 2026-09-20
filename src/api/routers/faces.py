@@ -10,19 +10,29 @@ Manage known faces:
 """
 
 import shutil
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
 import cv2
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import File
+from fastapi import Form
+from fastapi import HTTPException
+from fastapi import UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 import src.api.state as state
-from src.api.auth import get_current_user, verify_token_param
+from src.api.auth import get_current_user
+from src.api.auth import verify_token_param
 from src.api.enroll_jobs import submit_job
-from src.api.photo_import import crop_face, load_photo_for_enrollment, save_reference_crop
+from src.api.photo_import import crop_face
+from src.api.photo_import import load_photo_for_enrollment
+from src.api.photo_import import save_reference_crop
 from src.config import KNOWN_FACES_DIR
 
 router = APIRouter(prefix='/faces')
@@ -175,8 +185,9 @@ async def import_faces(
 
     verdict = submit_job(name, frame, timeout=5.0)
     if not verdict.get('ok'):
-      results.append({'file': upload.filename, 'status': 'rejected',
-                      'reason': verdict.get('reason', 'unknown')})
+      results.append(
+        {'file': upload.filename, 'status': 'rejected', 'reason': verdict.get('reason', 'unknown')}
+      )
       continue
 
     crop = crop_face(frame, verdict['bbox'])
@@ -223,9 +234,7 @@ def delete_face(name: str, _: str = Depends(get_current_user)):
   try:
     shutil.rmtree(person_dir)
   except Exception as e:
-    raise HTTPException(
-      status_code=500, detail=f'Failed to delete directory: {e}'
-    ) from e
+    raise HTTPException(status_code=500, detail=f'Failed to delete directory: {e}') from e
 
   # 2. Remove from live recognizer
   if state.recognizer:

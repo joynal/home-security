@@ -3,13 +3,16 @@ a fake recognizer stands in, so these test the plumbing: gates, verdicts,
 timeouts, and concurrency."""
 
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 
 import numpy as np
 import pytest
 
 import src.api.state as state
-from src.api.enroll_jobs import drain_jobs, quality_check, submit_job
+from src.api.enroll_jobs import drain_jobs
+from src.api.enroll_jobs import quality_check
+from src.api.enroll_jobs import submit_job
 
 
 @dataclass

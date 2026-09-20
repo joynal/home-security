@@ -15,11 +15,15 @@ Route order matters: static paths (/grid) are declared before the
 import time
 
 import cv2
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import Query
 from fastapi.responses import StreamingResponse
 
 import src.api.state as state
-from src.api.auth import get_current_user, verify_token_param
+from src.api.auth import get_current_user
+from src.api.auth import verify_token_param
 from src.config import CAMERAS
 
 router = APIRouter()
@@ -32,9 +36,7 @@ def _frame_generator():
       frame = state.latest_grid_frame.copy()
     ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
     if ret:
-      yield (
-        b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n'
-      )
+      yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
     time.sleep(0.05)  # ~20 FPS cap to reduce network load
 
 
@@ -44,9 +46,7 @@ def _camera_frame_generator(camera_id: str):
     with state.frames_lock:
       jpeg_bytes = state.latest_jpeg_bytes.get(camera_id)
     if jpeg_bytes is not None:
-      yield (
-        b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpeg_bytes + b'\r\n'
-      )
+      yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpeg_bytes + b'\r\n')
     time.sleep(0.05)
 
 
@@ -148,8 +148,5 @@ def camera_snapshot(camera_id: str, token: str = Query(...)):
 def pipeline_stats(_: str = Depends(get_current_user)):
   """Return detection pipeline performance stats per camera."""
   return {
-    'pipelines': {
-      cam_id: pipeline.get_stats()
-      for cam_id, pipeline in state.pipelines.items()
-    }
+    'pipelines': {cam_id: pipeline.get_stats() for cam_id, pipeline in state.pipelines.items()}
   }

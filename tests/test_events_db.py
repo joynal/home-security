@@ -1,6 +1,8 @@
 """Tests for the SQLite event database — runs on in-memory SQLite, no cameras."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 
 import pytest
 
@@ -34,14 +36,8 @@ def test_get_by_id_missing(db):
 
 def test_query_filters(db):
   db.insert(_event(camera_id='front_door', event_type='unknown_face'))
-  db.insert(
-    _event(camera_id='backyard', event_type='known_face', person_name='joynal')
-  )
-  db.insert(
-    _event(
-      camera_id='front_door', event_type='known_face', person_name='joynal'
-    )
-  )
+  db.insert(_event(camera_id='backyard', event_type='known_face', person_name='joynal'))
+  db.insert(_event(camera_id='front_door', event_type='known_face', person_name='joynal'))
 
   assert db.count() == 3
   assert db.count(camera_id='front_door') == 2
@@ -99,9 +95,7 @@ def test_delete_older_than_thumbnail_cascade(db, tmp_path):
   assert not thumb.exists()  # orphaned thumbnail unlinked
 
 
-def test_delete_older_than_skipped_when_disk_has_space(
-  db, monkeypatch, tmp_path
-):
+def test_delete_older_than_skipped_when_disk_has_space(db, monkeypatch, tmp_path):
   # Simulate a volume with plenty of free space
   monkeypatch.setattr(
     'src.events.database.shutil.disk_usage',
@@ -111,9 +105,7 @@ def test_delete_older_than_skipped_when_disk_has_space(
   disk_db = EventDatabase(db_path=db_file)
   disk_db.insert(_event(timestamp=datetime.now(UTC) - timedelta(days=90)))
 
-  deleted = disk_db.delete_older_than(
-    days=30, only_if_disk_full=True, min_disk_free_gb=10.0
-  )
+  deleted = disk_db.delete_older_than(days=30, only_if_disk_full=True, min_disk_free_gb=10.0)
   assert deleted == 0
   assert disk_db.count() == 1  # preserved — space available
 
@@ -129,9 +121,7 @@ def test_delete_older_than_runs_when_disk_low(db, monkeypatch, tmp_path):
   disk_db.insert(_event(timestamp=datetime.now(UTC) - timedelta(days=90)))
   disk_db.insert(_event(timestamp=datetime.now(UTC)))
 
-  deleted = disk_db.delete_older_than(
-    days=30, only_if_disk_full=True, min_disk_free_gb=10.0
-  )
+  deleted = disk_db.delete_older_than(days=30, only_if_disk_full=True, min_disk_free_gb=10.0)
   assert deleted == 1
   assert disk_db.count() == 1
 

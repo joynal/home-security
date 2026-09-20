@@ -8,7 +8,8 @@ timestamp, so clock-aligned filenames make stale entries near-impossible.
 """
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 
 import cv2

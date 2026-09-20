@@ -1,7 +1,9 @@
 """Event data models."""
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
 
 
 @dataclass

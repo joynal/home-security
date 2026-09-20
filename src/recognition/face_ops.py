@@ -26,9 +26,7 @@ class FaceRecognizer:
 
     try:
       # buffalo_l is the default model pack containing RetinaFace (det) and ArcFace (rec)
-      self.app = FaceAnalysis(
-        name='buffalo_l', providers=['CPUExecutionProvider']
-      )
+      self.app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
       # ctx_id=0 uses CPU by default, det_size sets input size for detection
       self.app.prepare(ctx_id=0, det_size=(640, 640))
     finally:
@@ -97,9 +95,7 @@ class FaceRecognizer:
     self.known_embeddings.append(embedding)
     self.known_names.append(name)
     self.is_trained = True
-    print(
-      f'[add_embedding] Added embedding for \'{name}\'. Total: {len(self.known_embeddings)}.'
-    )
+    print(f"[add_embedding] Added embedding for '{name}'. Total: {len(self.known_embeddings)}.")
 
   def add_face_embedding(self, name: str, image_frame) -> bool:
     """
@@ -112,9 +108,7 @@ class FaceRecognizer:
       print(f"[add_face_embedding] No face detected in frame for '{name}'.")
       return False
 
-    face = max(
-      faces, key=lambda f: float((f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
-    )
+    face = max(faces, key=lambda f: float((f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])))
     self.add_embedding(name, face.embedding)
     return True
 

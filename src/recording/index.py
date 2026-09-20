@@ -9,7 +9,9 @@ directory at query time.
 
 import re
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 # Clock-aligned segment filenames: YYYYMMDD_HHMMSS.mp4
@@ -125,9 +127,7 @@ class RecordingIndex:
 
   def _known_paths(self) -> dict[str, int]:
     with self._lock:
-      rows = self._conn.execute(
-        'SELECT path, size_bytes FROM recordings'
-      ).fetchall()
+      rows = self._conn.execute('SELECT path, size_bytes FROM recordings').fetchall()
       return {r['path']: r['size_bytes'] for r in rows}
 
   # ── Reads ──────────────────────────────────────────────
@@ -181,8 +181,6 @@ class RecordingIndex:
   def delete_for_camera(self, camera_id: str) -> int:
     """Drop all index rows for a camera (call when purging its recordings)."""
     with self._lock:
-      cursor = self._conn.execute(
-        'DELETE FROM recordings WHERE camera_id = ?', (camera_id,)
-      )
+      cursor = self._conn.execute('DELETE FROM recordings WHERE camera_id = ?', (camera_id,))
       self._conn.commit()
       return cursor.rowcount

@@ -28,9 +28,7 @@ def test_known_person_never_triggers():
   with patch('src.detection.behaviors.time.time', return_value=1000.0):
     det.update(1, 'porch', is_known=False)  # starts as unknown
   with patch('src.detection.behaviors.time.time', return_value=1000.0 + 121.0):
-    assert (
-      det.update(1, 'porch', is_known=True) is False
-    )  # recognized meanwhile
+    assert det.update(1, 'porch', is_known=True) is False  # recognized meanwhile
   assert 1 not in det.presence  # evicted from tracking
 
 

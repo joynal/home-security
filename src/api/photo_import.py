@@ -11,12 +11,14 @@ carry their original GPS/camera metadata into data/known_faces/.
 """
 
 import io
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image
+from PIL import ImageOps
 
 MAX_DIMENSION = 1280
 CROP_PAD_FRACTION = 0.25  # context around the face, relative to face size

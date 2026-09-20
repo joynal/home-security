@@ -52,7 +52,5 @@ class PersonDetector:
     """Return detections in supervision.Detections format for tracker integration."""
     import supervision as sv
 
-    results = self.model(
-      frame, classes=[self.person_class], conf=self.confidence, verbose=False
-    )
+    results = self.model(frame, classes=[self.person_class], conf=self.confidence, verbose=False)
     return sv.Detections.from_ultralytics(results[0])

@@ -21,9 +21,7 @@ class VideoFileCamera(CameraSource):
 
   def __init__(self, path: str, realtime: bool = True):
     self.path = path
-    self.realtime = (
-      realtime  # Pace reads to native FPS (False = as fast as possible)
-    )
+    self.realtime = realtime  # Pace reads to native FPS (False = as fast as possible)
     self.cap = None
     self._delay = 0.0
 

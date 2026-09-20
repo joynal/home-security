@@ -13,7 +13,8 @@ from pathlib import Path
 
 import yaml
 
-from src.config import BASE_DIR, CAMERAS
+from src.config import BASE_DIR
+from src.config import CAMERAS
 
 GO2RTC_CONFIG = BASE_DIR / 'go2rtc.yaml'
 
@@ -27,15 +28,9 @@ def generate_go2rtc_config() -> Path:
 
   config = {
     'streams': streams,
-    'rtsp': {
-      'listen': '127.0.0.1:8554'
-    },  # Local proxy feed for recorder + detection
-    'webrtc': {
-      'listen': '127.0.0.1:8555'
-    },  # Bind to localhost — proxy via FastAPI
-    'api': {
-      'listen': '127.0.0.1:1984'
-    },  # Bind to localhost to prevent unauthenticated access
+    'rtsp': {'listen': '127.0.0.1:8554'},  # Local proxy feed for recorder + detection
+    'webrtc': {'listen': '127.0.0.1:8555'},  # Bind to localhost — proxy via FastAPI
+    'api': {'listen': '127.0.0.1:1984'},  # Bind to localhost to prevent unauthenticated access
   }
   GO2RTC_CONFIG.write_text(yaml.dump(config, default_flow_style=False))
   return GO2RTC_CONFIG
@@ -53,18 +48,12 @@ def check_go2rtc_available() -> bool:
 def start_go2rtc() -> subprocess.Popen | None:
   """Generate config and start go2rtc. Returns the process, or None if unavailable."""
   if not check_go2rtc_available():
-    print(
-      "[WARN] go2rtc not found — recording and multi-stream won't work for RTSP cameras"
-    )
-    print(
-      '       Install: https://github.com/AlexxIT/go2rtc (brew install go2rtc)'
-    )
+    print("[WARN] go2rtc not found — recording and multi-stream won't work for RTSP cameras")
+    print('       Install: https://github.com/AlexxIT/go2rtc (brew install go2rtc)')
     return None
 
   config_path = generate_go2rtc_config()
-  has_streams = any(
-    cam.type in ('tapo', 'rtsp') and cam.rtsp_url for cam in CAMERAS
-  )
+  has_streams = any(cam.type in ('tapo', 'rtsp') and cam.rtsp_url for cam in CAMERAS)
   if not has_streams:
     print('[go2rtc] No RTSP cameras configured — not started')
     return None

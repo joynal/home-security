@@ -1,13 +1,15 @@
 """Tests for recorder ↔ recordings-index wiring (Task B1.2). No ffmpeg needed."""
 
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 
 import pytest
 
 from src.events.database import EventDatabase
 from src.models import CameraConfig
 from src.recording.index import RecordingIndex
-from src.recording.recorder import CameraRecorder, RecordingManager
+from src.recording.recorder import CameraRecorder
+from src.recording.recorder import RecordingManager
 
 
 def _camera(**record_overrides):
@@ -49,9 +51,14 @@ def test_start_backfills_index_from_disk(env, monkeypatch):
   rec.start()  # ffmpeg absent → only the backfill scan runs
 
   assert idx.days_with_recordings() == ['2026-09-19']
-  assert len(idx.segments_between(
-    'front_door', datetime(2026, 9, 19, tzinfo=UTC), datetime(2026, 9, 20, tzinfo=UTC)
-  )) == 2
+  assert (
+    len(
+      idx.segments_between(
+        'front_door', datetime(2026, 9, 19, tzinfo=UTC), datetime(2026, 9, 20, tzinfo=UTC)
+      )
+    )
+    == 2
+  )
 
 
 def test_rescan_picks_up_new_rotation(env):

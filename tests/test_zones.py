@@ -4,9 +4,7 @@ from src.detection.zones import ZoneFilter
 
 
 def test_point_inside_zone():
-  zones = [
-    {'name': 'porch', 'coordinates': [[0, 0], [100, 0], [100, 100], [0, 100]]}
-  ]
+  zones = [{'name': 'porch', 'coordinates': [[0, 0], [100, 0], [100, 100], [0, 100]]}]
   zf = ZoneFilter(zones)
   in_zone, name = zf.is_in_zone([10, 10, 20, 20])  # center = (20, 20)
   assert in_zone is True
@@ -14,9 +12,7 @@ def test_point_inside_zone():
 
 
 def test_point_outside_zone():
-  zones = [
-    {'name': 'porch', 'coordinates': [[0, 0], [100, 0], [100, 100], [0, 100]]}
-  ]
+  zones = [{'name': 'porch', 'coordinates': [[0, 0], [100, 0], [100, 100], [0, 100]]}]
   zf = ZoneFilter(zones)
   in_zone, _ = zf.is_in_zone([200, 200, 20, 20])  # center = (210, 210)
   assert in_zone is False
@@ -43,9 +39,7 @@ def test_multiple_zones_matched_in_order():
 
 
 def test_filter_detections_tags_zone():
-  zones = [
-    {'name': 'porch', 'coordinates': [[0, 0], [100, 0], [100, 100], [0, 100]]}
-  ]
+  zones = [{'name': 'porch', 'coordinates': [[0, 0], [100, 0], [100, 100], [0, 100]]}]
   zf = ZoneFilter(zones)
   detections = [
     {'bbox': [10, 10, 20, 20], 'name': 'joynal'},  # inside

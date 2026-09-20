@@ -32,10 +32,7 @@ class ZoneFilter:
     center_y = y + h // 2
 
     for polygon, zone_config in zip(self.polygons, self.zones, strict=True):
-      if (
-        cv2.pointPolygonTest(polygon, (float(center_x), float(center_y)), False)
-        >= 0
-      ):
+      if cv2.pointPolygonTest(polygon, (float(center_x), float(center_y)), False) >= 0:
         return True, zone_config['name']
 
     return False, None

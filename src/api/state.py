@@ -25,9 +25,7 @@ frame_lock = threading.Lock()
 # ── Per-camera frames ───────────────────────────────────────
 # The inference loop encodes each camera's JPEG ONCE per iteration; MJPEG
 # generators serve these cached bytes — never encode per connected client.
-latest_frames: dict[
-  str, np.ndarray
-] = {}  # camera_id → latest annotated frame (BGR)
+latest_frames: dict[str, np.ndarray] = {}  # camera_id → latest annotated frame (BGR)
 latest_jpeg_bytes: dict[str, bytes] = {}  # camera_id → pre-encoded JPEG bytes
 frames_lock = threading.Lock()  # Single lock guarding both dicts
 

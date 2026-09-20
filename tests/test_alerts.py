@@ -21,9 +21,7 @@ def test_different_people_not_cross_suppressed(capsys):
   """The old global-cooldown bug: person B silent because person A just alerted."""
   alert = ConsoleAlert(cooldown_seconds=30.0)
   alert.send_alert('msg', person_key='unknown#1')
-  alert.send_alert(
-    'msg', person_key='unknown#2'
-  )  # different person — MUST fire
+  alert.send_alert('msg', person_key='unknown#2')  # different person — MUST fire
   out = capsys.readouterr().out
   assert out.count('ALERT') == 2
   assert '[unknown#2]' in out

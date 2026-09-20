@@ -10,7 +10,8 @@ offline in state.camera_status without crashing the loop for the others.
 
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -23,13 +24,11 @@ from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
 from src.camera.video_file import VideoFileCamera
 from src.camera.webcam import MacbookWebcam
-from src.config import (
-  ACTIVE_ALERT,
-  CAMERAS,
-  TELEGRAM_BOT_TOKEN,
-  TELEGRAM_CHAT_ID,
-  THUMBNAILS_DIR,
-)
+from src.config import ACTIVE_ALERT
+from src.config import CAMERAS
+from src.config import TELEGRAM_BOT_TOKEN
+from src.config import TELEGRAM_CHAT_ID
+from src.config import THUMBNAILS_DIR
 from src.detection.pipeline import DetectionPipeline
 from src.events.database import EventDatabase
 from src.events.models import DetectionEvent
@@ -51,9 +50,7 @@ def build_camera(config: CameraConfig):
     return TapoCamera(rtsp_url=config.rtsp_url)
   if config.type == 'file':
     if not config.rtsp_url:
-      raise ValueError(
-        f"Camera '{config.id}' (type file) requires rtsp_url=<video file path>"
-      )
+      raise ValueError(f"Camera '{config.id}' (type file) requires rtsp_url=<video file path>")
     return VideoFileCamera(path=config.rtsp_url)
   raise ValueError(f'Unknown camera type: {config.type}')
 
@@ -89,9 +86,7 @@ def stack_frames(frames: list[np.ndarray]) -> np.ndarray:
   resized = []
   for f in frames:
     h, w = f.shape[:2]
-    resized.append(
-      cv2.resize(f, (int(w * min_h / h), min_h)) if h != min_h else f
-    )
+    resized.append(cv2.resize(f, (int(w * min_h / h), min_h)) if h != min_h else f)
   return np.hstack(resized)
 
 
@@ -140,9 +135,7 @@ EVENT_RETENTION_SWEEP_SECONDS = 900.0
 THUMBNAIL_PAD_PX = 20
 
 
-def _save_thumbnail(
-  camera_id: str, frame: np.ndarray, bbox: list[int] | None
-) -> str:
+def _save_thumbnail(camera_id: str, frame: np.ndarray, bbox: list[int] | None) -> str:
   """Save a (optionally bbox-cropped, padded) JPEG thumbnail. Returns its path."""
   if bbox is not None:
     x, y, w, h = bbox
@@ -156,9 +149,7 @@ def _save_thumbnail(
   # (the /events/{id}/thumbnail endpoint validates paths against it)
   thumb_dir = THUMBNAILS_DIR / camera_id
   thumb_dir.mkdir(parents=True, exist_ok=True)
-  thumb_path = (
-    thumb_dir / f'{datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")}.jpg'
-  )
+  thumb_path = thumb_dir / f'{datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")}.jpg'
   cv2.imwrite(str(thumb_path), frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
   return str(thumb_path)
 
@@ -221,9 +212,7 @@ def inference_loop() -> None:
   alert_manager = build_alert()
 
   # The first enabled camera is the registration camera (pose wizard + capture)
-  state.registration_camera_id = next(
-    (c.id for c in CAMERAS if c.enabled), None
-  )
+  state.registration_camera_id = next((c.id for c in CAMERAS if c.enabled), None)
 
   fps_counters: dict[str, _FpsCounter] = {}
 
@@ -232,9 +221,7 @@ def inference_loop() -> None:
       print(f'  · Camera disabled, skipping: {cam_config.id}')
       continue
     try:
-      stream = CameraStreamWrapper(
-        camera=build_camera(cam_config), name=cam_config.name
-      )
+      stream = CameraStreamWrapper(camera=build_camera(cam_config), name=cam_config.name)
     except Exception as exc:
       print(f'  ✗ Camera config invalid: {cam_config.id}: {exc}')
       with state.camera_status_lock:
@@ -314,9 +301,7 @@ def inference_loop() -> None:
           frame = stream.get_latest_frame()
           if frame is None:
             with state.camera_status_lock:
-              state.camera_status[cam_id]['fps'] = fps_counters[
-                cam_id
-              ].stale_fps()
+              state.camera_status[cam_id]['fps'] = fps_counters[cam_id].stale_fps()
             continue
 
           fps_counters[cam_id].tick()
@@ -378,9 +363,7 @@ def inference_loop() -> None:
               label += f' [{det["zone"]}]'
             if det.get('loitering'):
               label += ' ⏳LOITERING'
-            cv2.putText(
-              frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2
-            )
+            cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             if det['landmarks'] is not None:
               for lx, ly in det['landmarks']:
                 cv2.circle(frame, (int(lx), int(ly)), 2, (0, 255, 255), -1)
@@ -430,9 +413,7 @@ def inference_loop() -> None:
 
           # Encode each camera's JPEG once per loop — MJPEG generators
           # serve these cached bytes instead of re-encoding per client.
-          ret, buf = cv2.imencode(
-            '.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-          )
+          ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
           with state.frames_lock:
             state.latest_frames[cam_id] = frame
             if ret:
@@ -453,9 +434,7 @@ def inference_loop() -> None:
         alert_manager.send_alert(
           'Unknown person detected!',
           image_frame=trigger_frame,
-          person_key=f'unknown#{event_track_id}'
-          if event_track_id is not None
-          else None,
+          person_key=f'unknown#{event_track_id}' if event_track_id is not None else None,
         )
         if trigger_frame is not None and event_camera_id is not None:
           _log_detection_event(
@@ -473,9 +452,7 @@ def inference_loop() -> None:
         and time.time() - last_retention_sweep > EVENT_RETENTION_SWEEP_SECONDS
       ):
         last_retention_sweep = time.time()
-        state.event_db.delete_older_than(
-          days=30, only_if_disk_full=True, min_disk_free_gb=10.0
-        )
+        state.event_db.delete_older_than(days=30, only_if_disk_full=True, min_disk_free_gb=10.0)
 
       if display_frames:
         with state.frame_lock:

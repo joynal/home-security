@@ -12,7 +12,9 @@ offsets. Convert to local time only in the frontend display layer.
 import shutil
 import sqlite3
 import threading
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 from src.config import DATA_DIR
@@ -23,9 +25,7 @@ LEGACY_DB_PATH = DATA_DIR / 'events.db'
 LEGACY_MIGRATED_SUFFIX = '.migrated'
 
 
-def migrate_legacy_db(
-  legacy_path: Path = LEGACY_DB_PATH, target_path: Path = DB_PATH
-) -> bool:
+def migrate_legacy_db(legacy_path: Path = LEGACY_DB_PATH, target_path: Path = DB_PATH) -> bool:
   """
   One-time: fold the old events.db into aegis.db. Idempotent — no-op when the
   legacy file is absent or the target already exists. Returns True if migrated.
@@ -75,24 +75,16 @@ class EventDatabase:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-      self._conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_events_camera ON events(camera_id)'
-      )
-      self._conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)'
-      )
-      self._conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)'
-      )
+      self._conn.execute('CREATE INDEX IF NOT EXISTS idx_events_camera ON events(camera_id)')
+      self._conn.execute('CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)')
+      self._conn.execute('CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)')
       # B6.2 migration: stable person link (added for pre-existing databases;
       # fresh ones get it via CREATE TABLE above only if listed there — keep
       # the ALTER for both paths' safety)
       cols = [r['name'] for r in self._conn.execute('PRAGMA table_info(events)')]
       if 'person_id' not in cols:
         self._conn.execute('ALTER TABLE events ADD COLUMN person_id INTEGER')
-        self._conn.execute(
-          'CREATE INDEX IF NOT EXISTS idx_events_person ON events(person_id)'
-        )
+        self._conn.execute('CREATE INDEX IF NOT EXISTS idx_events_person ON events(person_id)')
       self._conn.commit()
 
   def close(self) -> None:
@@ -131,9 +123,7 @@ class EventDatabase:
     offset: int = 0,
   ) -> list[dict]:
     """Query events with optional filters. newest first."""
-    conditions, params = self._build_filters(
-      camera_id, event_type, person_name, since, until
-    )
+    conditions, params = self._build_filters(camera_id, event_type, person_name, since, until)
     where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
     with self._lock:
@@ -151,15 +141,11 @@ class EventDatabase:
     since: datetime | None = None,
     until: datetime | None = None,
   ) -> int:
-    conditions, params = self._build_filters(
-      camera_id, event_type, person_name, since, until
-    )
+    conditions, params = self._build_filters(camera_id, event_type, person_name, since, until)
     where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
     with self._lock:
-      return self._conn.execute(
-        f'SELECT COUNT(*) FROM events {where}', params
-      ).fetchone()[0]
+      return self._conn.execute(f'SELECT COUNT(*) FROM events {where}', params).fetchone()[0]
 
   @staticmethod
   def _build_filters(
@@ -190,9 +176,7 @@ class EventDatabase:
   def get_by_id(self, event_id: int) -> dict | None:
     """Fetch a single event by ID."""
     with self._lock:
-      row = self._conn.execute(
-        'SELECT * FROM events WHERE id = ?', (event_id,)
-      ).fetchone()
+      row = self._conn.execute('SELECT * FROM events WHERE id = ?', (event_id,)).fetchone()
       return dict(row) if row else None
 
   def query_raw(self, sql: str, params: list | tuple = ()) -> list[dict]:
@@ -228,9 +212,7 @@ class EventDatabase:
         'SELECT thumbnail_path FROM events WHERE timestamp < ? AND thumbnail_path IS NOT NULL',
         (cutoff,),
       ).fetchall()
-      cursor = self._conn.execute(
-        'DELETE FROM events WHERE timestamp < ?', (cutoff,)
-      )
+      cursor = self._conn.execute('DELETE FROM events WHERE timestamp < ?', (cutoff,))
       self._conn.commit()
       deleted = cursor.rowcount
     for (thumb_path,) in thumbs:

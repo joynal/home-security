@@ -5,16 +5,15 @@ from pathlib import Path
 import numpy as np
 
 import src.api.state as state
-from src.api.inference import _log_detection_event, _save_thumbnail
+from src.api.inference import _log_detection_event
+from src.api.inference import _save_thumbnail
 from src.events.database import EventDatabase
 from src.events.models import DetectionEvent
 
 
 def _frame() -> np.ndarray:
   frame = np.zeros((120, 160, 3), dtype=np.uint8)
-  frame[40:80, 60:100] = (
-    255  # white box so the crop differs from the whole frame
-  )
+  frame[40:80, 60:100] = 255  # white box so the crop differs from the whole frame
   return frame
 
 
@@ -24,9 +23,7 @@ def test_unknown_face_event_logged_with_thumbnail(tmp_path, monkeypatch):
   monkeypatch.setattr('src.api.inference.THUMBNAILS_DIR', tmp_path / 'thumbs')
 
   last_event_at: dict[str, float] = {}
-  _log_detection_event(
-    'front_door', _frame(), last_event_at, 'unknown_face', track_id=3
-  )
+  _log_detection_event('front_door', _frame(), last_event_at, 'unknown_face', track_id=3)
 
   events = db.query(camera_id='front_door', event_type='unknown_face')
   assert len(events) == 1
@@ -40,9 +37,7 @@ def test_thumbnail_cropped_to_bbox_with_padding(tmp_path, monkeypatch):
   monkeypatch.setattr('src.api.inference.THUMBNAILS_DIR', tmp_path / 'thumbs')
   frame = _frame()  # white box at y 40:80, x 60:100
 
-  path = Path(
-    _save_thumbnail('cam', frame, bbox=[60, 40, 40, 40])
-  )  # +20px pad each side
+  path = Path(_save_thumbnail('cam', frame, bbox=[60, 40, 40, 40]))  # +20px pad each side
   thumb = __import__('cv2').imread(str(path))
   h, w = thumb.shape[:2]
   # 40px box + 2*20 pad = 80, but clamped to frame edges stays 80 here
@@ -105,16 +100,26 @@ def test_known_face_event_logged_per_person(tmp_path, monkeypatch):
   frame = _frame()
   for _ in range(50):  # would flood without throttling
     _log_detection_event(
-      'front_door', frame, last_event_at, 'known_face',
-      track_id=1, bbox=[10, 10, 50, 50],
-      throttle_key='known:front_door:joynal', person_name='joynal',
+      'front_door',
+      frame,
+      last_event_at,
+      'known_face',
+      track_id=1,
+      bbox=[10, 10, 50, 50],
+      throttle_key='known:front_door:joynal',
+      person_name='joynal',
     )
   assert db.count(event_type='known_face', person_name='joynal') == 1
 
   # A different person the same minute is NOT suppressed
   _log_detection_event(
-    'front_door', frame, last_event_at, 'known_face',
-    track_id=2, throttle_key='known:front_door:alice', person_name='alice',
+    'front_door',
+    frame,
+    last_event_at,
+    'known_face',
+    track_id=2,
+    throttle_key='known:front_door:alice',
+    person_name='alice',
   )
   assert db.count(event_type='known_face', person_name='alice') == 1
 

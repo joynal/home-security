@@ -39,9 +39,7 @@ class DetectionPipeline:
     self.recognizer = recognizer
     self.zone_filter = ZoneFilter(zones or [])
     self.loitering_detector = (
-      LoiteringDetector(threshold_seconds=loitering_threshold_seconds)
-      if zones
-      else None
+      LoiteringDetector(threshold_seconds=loitering_threshold_seconds) if zones else None
     )
 
     # Stats
@@ -115,9 +113,7 @@ class DetectionPipeline:
                 'is_known': is_known,
                 'track_id': int(track_id),
                 'confidence': (
-                  float(tracked.confidence[i])
-                  if tracked.confidence is not None
-                  else 0.0
+                  float(tracked.confidence[i]) if tracked.confidence is not None else 0.0
                 ),
                 'landmarks': landmarks,
                 'source': 'recognized',
@@ -133,9 +129,7 @@ class DetectionPipeline:
                 'is_known': False,
                 'track_id': int(track_id),
                 'confidence': (
-                  float(tracked.confidence[i])
-                  if tracked.confidence is not None
-                  else 0.0
+                  float(tracked.confidence[i]) if tracked.confidence is not None else 0.0
                 ),
                 'landmarks': None,
                 'source': 'recognized',
@@ -151,11 +145,7 @@ class DetectionPipeline:
             'name': cached['name'],
             'is_known': cached['is_known'],
             'track_id': int(track_id),
-            'confidence': (
-              float(tracked.confidence[i])
-              if tracked.confidence is not None
-              else 0.0
-            ),
+            'confidence': (float(tracked.confidence[i]) if tracked.confidence is not None else 0.0),
             'landmarks': None,
             'source': 'cached',
           }
@@ -194,8 +184,7 @@ class DetectionPipeline:
       'cache_hit_rate': (
         self.stats['recognition_skipped_cached']
         / max(
-          self.stats['recognition_calls']
-          + self.stats['recognition_skipped_cached'],
+          self.stats['recognition_calls'] + self.stats['recognition_skipped_cached'],
           1,
         )
         * 100

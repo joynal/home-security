@@ -11,15 +11,22 @@ Users must run set_password.py to set up authentication before starting the appl
 """
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import status
+from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
+from jose import JWTError
+from jose import jwt
 from passlib.context import CryptContext
 
-from src.config import DATA_DIR, SECRET_KEY
+from src.config import DATA_DIR
+from src.config import SECRET_KEY
 
 # ──────────────────────────────────────────────────────────
 # Constants

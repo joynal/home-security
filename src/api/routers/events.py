@@ -10,11 +10,15 @@ Event log API:
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import Query
 from fastapi.responses import FileResponse
 
 import src.api.state as state
-from src.api.auth import get_current_user, verify_token_param
+from src.api.auth import get_current_user
+from src.api.auth import verify_token_param
 from src.config import THUMBNAILS_DIR
 
 router = APIRouter(prefix='/events')
@@ -41,7 +45,7 @@ def _attach_playback(events: list[dict]) -> list[dict]:
       continue
     ev['playback'] = {
       'file': Path(seg['path']).name,
-      'url': f"/recordings/{ev['camera_id']}/{Path(seg['path']).name}",
+      'url': f'/recordings/{ev["camera_id"]}/{Path(seg["path"]).name}',
       'start_offset': round((ts - datetime.fromisoformat(seg['start_time'])).total_seconds(), 1),
     }
   return events

@@ -55,9 +55,7 @@ class CameraRecorder:
     self.index = index
     # go2rtc proxy (single connection per camera — see src/go2rtc.py).
     # record.source_url overrides for dev testing (ffmpeg testsrc, looped mp4).
-    self.source_url = (
-      config.record.source_url or f'rtsp://{GO2RTC_RTSP_HOST}/{config.id}'
-    )
+    self.source_url = config.record.source_url or f'rtsp://{GO2RTC_RTSP_HOST}/{config.id}'
 
   def start(self):
     """Start FFmpeg recording process."""
@@ -71,9 +69,7 @@ class CameraRecorder:
     self._rescan_index()
 
     if not _check_ffmpeg_available():
-      print(
-        f'[Recorder] ERROR: ffmpeg binary not found — cannot record {self.config.id}'
-      )
+      print(f'[Recorder] ERROR: ffmpeg binary not found — cannot record {self.config.id}')
       return
 
     self.is_running = True
@@ -135,9 +131,7 @@ class CameraRecorder:
       try:
         # stderr=DEVNULL prevents pipe deadlock: with PIPE + wait(),
         # a full stderr pipe blocks ffmpeg and wait() never returns.
-        self.process = subprocess.Popen(
-          cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
+        self.process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         # Poll instead of blocking wait(): each pass re-indexes the output
         # directory, so rotated segments land in the index within ~a minute
         # and the in-progress segment's size/end-time stay fresh.
@@ -145,10 +139,7 @@ class CameraRecorder:
           time.sleep(INDEX_POLL_SECONDS)
           self._rescan_index()
         if self.is_running:
-          print(
-            f'[Recorder] FFmpeg exited for {self.config.id} '
-            f'(code={self.process.returncode})'
-          )
+          print(f'[Recorder] FFmpeg exited for {self.config.id} (code={self.process.returncode})')
       except Exception as e:
         print(f'[Recorder] FFmpeg error for {self.config.id}: {e}')
 
@@ -178,9 +169,7 @@ class CameraRecorder:
     if not self.output_dir.exists():
       return
 
-    segments = sorted(
-      self.output_dir.glob('*.mp4'), key=lambda f: f.stat().st_mtime
-    )
+    segments = sorted(self.output_dir.glob('*.mp4'), key=lambda f: f.stat().st_mtime)
     if not segments:
       return
 
@@ -216,9 +205,7 @@ class CameraRecorder:
       for segment in segments:
         if free_gb >= cfg.min_disk_free_gb:
           break
-        if (
-          cfg.max_disk_usage_gb is not None and cam_gb <= cfg.max_disk_usage_gb
-        ):
+        if cfg.max_disk_usage_gb is not None and cam_gb <= cfg.max_disk_usage_gb:
           break
         try:
           size = segment.stat().st_size
@@ -301,9 +288,7 @@ class RecordingManager:
   def get_status(self) -> dict:
     return {
       cam_id: {
-        'recording': rec.is_running
-        and rec.process is not None
-        and rec.process.poll() is None,
+        'recording': rec.is_running and rec.process is not None and rec.process.poll() is None,
         'output_dir': str(rec.output_dir),
       }
       for cam_id, rec in self.recorders.items()

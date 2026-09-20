@@ -21,9 +21,7 @@ class TapoCamera(CameraSource):
     if rtsp_url:
       self.rtsp_url = rtsp_url
     else:
-      self.rtsp_url = (
-        f'rtsp://{username}:{password}@{ip_address}:{port}/stream{stream}'
-      )
+      self.rtsp_url = f'rtsp://{username}:{password}@{ip_address}:{port}/stream{stream}'
     self.cap = None
 
   def start(self):

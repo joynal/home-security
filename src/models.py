@@ -4,7 +4,8 @@ src/models.py
 Pydantic models for typed configuration validation.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 
 class DetectConfig(BaseModel):
@@ -21,12 +22,8 @@ class RecordConfig(BaseModel):
   delete_only_if_disk_full: bool = (
     True  # If True, never delete if disk has space; only prune oldest when low
   )
-  min_disk_free_gb: float = (
-    10.0  # Minimum free disk space (GB) on volume before purging oldest
-  )
-  max_disk_usage_gb: float | None = (
-    None  # Optional per-camera max disk usage cap (GB)
-  )
+  min_disk_free_gb: float = 10.0  # Minimum free disk space (GB) on volume before purging oldest
+  max_disk_usage_gb: float | None = None  # Optional per-camera max disk usage cap (GB)
   # Dev/testing override for recording input (looped MP4, ffmpeg testsrc, …).
   # MUST be declared here: Pydantic silently drops unknown keys from cameras.json,
   # so without this field the recorder's fallback could never activate.

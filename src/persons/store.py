@@ -13,7 +13,8 @@ denormalized person_name for display, refreshed on rename so history never break
 """
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 
 
@@ -98,9 +99,7 @@ class PersonStore:
 
   def get_or_create(self, name: str) -> int:
     with self._lock:
-      row = self._conn.execute(
-        'SELECT id FROM persons WHERE name = ?', (name,)
-      ).fetchone()
+      row = self._conn.execute('SELECT id FROM persons WHERE name = ?', (name,)).fetchone()
       if row:
         return row['id']
       cursor = self._conn.execute(
@@ -109,8 +108,9 @@ class PersonStore:
       self._conn.commit()
       return cursor.lastrowid
 
-  def add_image(self, person_id: int, path: Path, source: str = 'wizard',
-                quality: float | None = None) -> None:
+  def add_image(
+    self, person_id: int, path: Path, source: str = 'wizard', quality: float | None = None
+  ) -> None:
     with self._lock:
       self._conn.execute(
         """INSERT OR IGNORE INTO person_images (person_id, path, source, quality, created_at)
@@ -153,9 +153,7 @@ class PersonStore:
 
   def set_cover(self, person_id: int, path: str) -> None:
     with self._lock:
-      self._conn.execute(
-        'UPDATE persons SET cover_image = ? WHERE id = ?', (path, person_id)
-      )
+      self._conn.execute('UPDATE persons SET cover_image = ? WHERE id = ?', (path, person_id))
       self._conn.commit()
 
   # ── Reads ───────────────────────────────────────────────
@@ -176,13 +174,9 @@ class PersonStore:
       return None
     with self._lock:
       if person_id is not None:
-        row = self._conn.execute(
-          'SELECT * FROM persons WHERE id = ?', (person_id,)
-        ).fetchone()
+        row = self._conn.execute('SELECT * FROM persons WHERE id = ?', (person_id,)).fetchone()
       else:
-        row = self._conn.execute(
-          'SELECT * FROM persons WHERE name = ?', (name,)
-        ).fetchone()
+        row = self._conn.execute('SELECT * FROM persons WHERE name = ?', (name,)).fetchone()
       return dict(row) if row else None
 
   def images_for(self, person_id: int) -> list[dict]:

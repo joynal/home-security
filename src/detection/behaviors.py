@@ -15,9 +15,7 @@ class LoiteringDetector:
     # track_id → {"first_seen": float, "zone": str, "alerted": bool}
     self.presence: dict[int, dict] = {}
 
-  def update(
-    self, track_id: int, zone_name: str | None, is_known: bool
-  ) -> bool:
+  def update(self, track_id: int, zone_name: str | None, is_known: bool) -> bool:
     """
     Update presence tracking. Returns True if loitering alert should fire.
     Known persons don't trigger loitering alerts.

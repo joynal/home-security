@@ -1,12 +1,15 @@
 """Tests for the timeline + summary APIs (Tasks B2.1/B2.2). No ffmpeg, no server."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 import src.api.state as state
-from src.api.routers.recordings import camera_timeline, recordings_summary
+from src.api.routers.recordings import camera_timeline
+from src.api.routers.recordings import recordings_summary
 from src.events.database import EventDatabase
 from src.events.models import DetectionEvent
 from src.recording.index import RecordingIndex
@@ -41,17 +44,35 @@ def _seed_day(db, rec_dir, idx):
   idx.scan_directory()
 
   base = datetime(2026, 9, 19, tzinfo=UTC)
-  db.insert(DetectionEvent(camera_id='front_door', event_type='unknown_face',
-                           timestamp=base.replace(hour=10, minute=2)))
-  db.insert(DetectionEvent(camera_id='front_door', event_type='unknown_face',
-                           timestamp=base.replace(hour=10, minute=9)))
-  db.insert(DetectionEvent(camera_id='front_door', event_type='known_face', person_name='joynal',
-                           timestamp=base.replace(hour=11, minute=30)))
-  db.insert(DetectionEvent(camera_id='front_door', event_type='loitering',
-                           timestamp=base.replace(hour=11, minute=45)))
+  db.insert(
+    DetectionEvent(
+      camera_id='front_door', event_type='unknown_face', timestamp=base.replace(hour=10, minute=2)
+    )
+  )
+  db.insert(
+    DetectionEvent(
+      camera_id='front_door', event_type='unknown_face', timestamp=base.replace(hour=10, minute=9)
+    )
+  )
+  db.insert(
+    DetectionEvent(
+      camera_id='front_door',
+      event_type='known_face',
+      person_name='joynal',
+      timestamp=base.replace(hour=11, minute=30),
+    )
+  )
+  db.insert(
+    DetectionEvent(
+      camera_id='front_door', event_type='loitering', timestamp=base.replace(hour=11, minute=45)
+    )
+  )
   # Other camera's events must not leak in
-  db.insert(DetectionEvent(camera_id='backyard', event_type='unknown_face',
-                           timestamp=base.replace(hour=10, minute=5)))
+  db.insert(
+    DetectionEvent(
+      camera_id='backyard', event_type='unknown_face', timestamp=base.replace(hour=10, minute=5)
+    )
+  )
 
 
 def test_timeline_buckets_and_segments(env):

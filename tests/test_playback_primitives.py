@@ -1,6 +1,8 @@
 """Tests for playback primitives (Tasks B3.1/B3.2): event→segment, frame-at-time."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import cv2
@@ -46,11 +48,11 @@ def _write_numbered_video(path: Path, seconds=4, fps=10):
 
 # ── B3.1: event → playable segment ────────────────────────────
 
+
 def test_attach_playback_links_event_to_segment(env):
   db, rec_dir, idx, _ = env
   start = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
-  idx.index_segment('cam', Path('/x/20260919_100000.mp4'), start,
-                    start + timedelta(minutes=15))
+  idx.index_segment('cam', Path('/x/20260919_100000.mp4'), start, start + timedelta(minutes=15))
 
   events = [
     {'camera_id': 'cam', 'timestamp': (start + timedelta(minutes=7, seconds=3)).isoformat()},
@@ -79,17 +81,22 @@ def test_events_endpoint_includes_playback(env):
 
   db, rec_dir, idx, _ = env
   start = datetime(2026, 9, 19, 10, 0, tzinfo=UTC)
-  idx.index_segment('cam', Path('/x/20260919_100000.mp4'), start,
-                    start + timedelta(minutes=15))
-  db.insert(DetectionEvent(camera_id='cam', event_type='unknown_face',
-                           timestamp=start + timedelta(minutes=2)))
+  idx.index_segment('cam', Path('/x/20260919_100000.mp4'), start, start + timedelta(minutes=15))
+  db.insert(
+    DetectionEvent(
+      camera_id='cam', event_type='unknown_face', timestamp=start + timedelta(minutes=2)
+    )
+  )
 
-  out = list_events(camera_id='cam', limit=10)  # limit passed explicitly: Query default breaks direct calls
+  out = list_events(
+    camera_id='cam', limit=10
+  )  # limit passed explicitly: Query default breaks direct calls
   assert out['total'] == 1
   assert out['events'][0]['playback']['start_offset'] == 120.0
 
 
 # ── B3.2: frame at time ────────────────────────────────────────
+
 
 def test_extract_frame_seeks_accurately(env):
   _, _, _, tmp = env

@@ -49,7 +49,7 @@ def quality_check(frame: np.ndarray, bbox) -> tuple[bool, str | None]:
   if min(w, h) < MIN_FACE_SIZE_PX:
     return False, 'too_small'
 
-  crop = frame[max(0, top):bottom, max(0, left):right]
+  crop = frame[max(0, top) : bottom, max(0, left) : right]
   if crop.size == 0:
     return False, 'no_pixels'
 
@@ -67,8 +67,9 @@ def quality_check(frame: np.ndarray, bbox) -> tuple[bool, str | None]:
   return True, None
 
 
-def submit_job(name: str, frame: np.ndarray, timeout: float = 2.0,
-               apply_gates: bool = True) -> dict:
+def submit_job(
+  name: str, frame: np.ndarray, timeout: float = 2.0, apply_gates: bool = True
+) -> dict:
   """Queue an enrollment job and wait for the inference loop's verdict."""
   job = EnrollJob(name, frame, apply_gates=apply_gates)
   with state.pending_lock:

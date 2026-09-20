@@ -2,13 +2,16 @@
 
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 from src.events.database import EventDatabase
-from src.recording.index import RecordingIndex, parse_segment_start
+from src.recording.index import RecordingIndex
+from src.recording.index import parse_segment_start
 
 
 @pytest.fixture
@@ -131,9 +134,12 @@ def test_segments_between_overlap_semantics(index):
   )
   assert len(segs) == 2
   # Window entirely after → none
-  assert idx.segments_between(
-    'cam', datetime(2026, 9, 19, 12, 0, tzinfo=UTC), datetime(2026, 9, 19, 13, 0, tzinfo=UTC)
-  ) == []
+  assert (
+    idx.segments_between(
+      'cam', datetime(2026, 9, 19, 12, 0, tzinfo=UTC), datetime(2026, 9, 19, 13, 0, tzinfo=UTC)
+    )
+    == []
+  )
 
 
 def test_days_with_recordings(index):
