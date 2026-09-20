@@ -37,7 +37,7 @@ export default function LivePage() {
   const online = cameras.filter(c => c.online).length;
 
   const openCamera = (cameraId) => {
-    navigate(`?cam=${cameraId}`); // camera detail (U4) reads this
+    navigate(`/camera/${cameraId}`);
   };
 
   return (

@@ -8,6 +8,7 @@ import './index.css';
 import LivePage from './pages/LivePage';
 import EventsPage from './pages/EventsPage';
 import FacesPage from './pages/FacesPage';
+import CameraDetailPage from './pages/CameraDetailPage';
 import AppRail from './components/AppRail';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
       <main className="app-shell__main">
         <Routes>
           <Route path="/" element={<LivePage />} />
+          <Route path="/camera/:cameraId" element={<CameraDetailPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/faces" element={<FacesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
