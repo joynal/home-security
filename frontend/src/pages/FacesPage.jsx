@@ -5,8 +5,9 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Users } from 'lucide-react';
+import { ImagePlus, UserPlus, Users } from 'lucide-react';
 import RegisterModal from '../RegisterModal';
+import ImportModal from '../components/ImportModal';
 import '../ManageFacesPage.css';
 
 const API = 'http://localhost:8000';
@@ -17,6 +18,7 @@ export default function FacesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalName, setModalName] = useState(null); // null | '' (new) | name (update)
+  const [importFor, setImportFor] = useState(undefined); // undefined=closed | ''=new | name
 
   const fetchFaces = useCallback(async () => {
     setLoading(true);
@@ -66,10 +68,21 @@ export default function FacesPage() {
         <span className="page-header__title">People</span>
         <span className="page-header__spacer" />
         <span className="status-label tnum">{faces.length} registered</span>
+        <button className="btn-ghost" onClick={() => setImportFor('')}>
+          <ImagePlus size={14} strokeWidth={1.75} /> Import photos
+        </button>
         <button className="btn-primary" onClick={() => setModalName('')}>
-          <UserPlus size={14} strokeWidth={1.75} /> Register person
+          <UserPlus size={14} strokeWidth={1.75} /> Register with camera
         </button>
       </header>
+
+      {importFor !== undefined && (
+        <ImportModal
+          fixedName={importFor || null}
+          onClose={() => setImportFor(undefined)}
+          onDone={() => { setImportFor(undefined); fetchFaces(); }}
+        />
+      )}
 
       <div className="page-body">
         <div className="mf-page">
@@ -118,6 +131,9 @@ export default function FacesPage() {
                   <div className="mf-card__actions">
                     <button className="mf-btn mf-btn--update" onClick={() => setModalName(face.name)}>
                       Update
+                    </button>
+                    <button className="mf-btn mf-btn--update" onClick={() => setImportFor(face.name)}>
+                      Add photos
                     </button>
                     <button className="mf-btn mf-btn--delete" onClick={() => handleDelete(face.name)}>
                       Delete
