@@ -5,8 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/useAuth';
-
-const API = 'http://localhost:8000';
+import { eventService } from '../services/events';
 
 const stripStyles = {
   display: 'flex',
@@ -60,22 +59,21 @@ function relTime(iso) {
 }
 
 export default function RecentEvents({ limit = 10 }) {
-  const { token, authHeaders } = useAuth();
+  const { token } = useAuth();
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
     const load = () => {
-      fetch(`${API}/events?limit=${limit}`, { headers: authHeaders() })
-        .then(r => r.json())
+      eventService.getEvents({ limit })
         .then(d => { if (!cancelled) setEvents(d.events || []); })
         .catch(() => {});
     };
     load();
     const interval = setInterval(load, 15000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [token, authHeaders, limit]);
+  }, [token, limit]);
 
   if (events.length === 0) return null;
 
@@ -89,7 +87,7 @@ export default function RecentEvents({ limit = 10 }) {
         >
           {ev.thumbnail_path && (
             <img
-              src={`${API}/events/${ev.id}/thumbnail`}
+              src={eventService.getThumbnailUrl(ev.id)}
               crossOrigin="use-credentials"
               alt=""
               loading="lazy"

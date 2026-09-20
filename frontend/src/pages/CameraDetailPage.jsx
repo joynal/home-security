@@ -9,8 +9,9 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, PanelRightClose, Radio } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 import TimelineRail from '../components/TimelineRail';
-
-const API = 'http://localhost:8000';
+import { cameraService } from '../services/cameras';
+import { eventService } from '../services/events';
+import { recordingService } from '../services/recordings';
 
 const headerStyles = {
   gap: '6px',
@@ -152,7 +153,7 @@ function dayRange(date) {
 
 export default function CameraDetailPage() {
   const { cameraId } = useParams();
-  const { token, authHeaders } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -176,32 +177,30 @@ export default function CameraDetailPage() {
   // ── Data loading ────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
-    fetch(`${API}/cameras`, { headers: authHeaders() })
-      .then(r => r.json())
+    cameraService.getCameras()
       .then(d => setCameras(d.cameras || []))
       .catch(() => {});
-    fetch(`${API}/recordings/summary`, { headers: authHeaders() })
-      .then(r => r.json())
+    recordingService.getSummary()
       .then(d => setDays(d.days || []))
       .catch(() => {});
-  }, [token, authHeaders]);
+  }, [token]);
 
   useEffect(() => {
     if (!token || !cameraId) return;
-    fetch(`${API}/recordings/${cameraId}/timeline?date=${date}`, { headers: authHeaders() })
-      .then(r => r.json())
+    recordingService.getTimeline(cameraId, date)
       .then(d => setTimeline({ hours: d.hours || [], segments: d.segments || [] }))
       .catch(() => setTimeline({ hours: [], segments: [] }));
 
     const { start, end } = dayRange(date);
-    fetch(
-      `${API}/events?camera_id=${cameraId}&since=${start.toISOString()}&until=${end.toISOString()}&limit=300`,
-      { headers: authHeaders() }
-    )
-      .then(r => r.json())
+    eventService.getEvents({
+      cameraId,
+      since: start.toISOString(),
+      until: end.toISOString(),
+      limit: 300,
+    })
       .then(d => setEvents(d.events || []))
       .catch(() => setEvents([]));
-  }, [token, authHeaders, cameraId, date]);
+  }, [token, cameraId, date]);
 
   // ── Playback control ────────────────────────────────────
   const onSeek = (epochS) => {
@@ -213,7 +212,7 @@ export default function CameraDetailPage() {
       return;
     }
     const offset = Math.max(0, epochS - seg.start_epoch);
-    const url = `${API}/recordings/${cameraId}/${seg.filename}`;
+    const url = recordingService.getRecordingUrl(cameraId, seg.filename);
     setMode({ url, startEpoch: seg.start_epoch, filename: seg.filename });
     setPlayTs(epochS);
     setTimeout(() => {
@@ -248,7 +247,7 @@ export default function CameraDetailPage() {
       const idx = timeline.segments.findIndex(s => s.filename === mode.filename);
       if (idx >= 0 && idx + 1 < timeline.segments.length) {
         const next = timeline.segments[idx + 1];
-        const url = `${API}/recordings/${cameraId}/${next.filename}`;
+        const url = recordingService.getRecordingUrl(cameraId, next.filename);
         setMode({ url, startEpoch: next.start_epoch, filename: next.filename });
         setTimeout(() => {
           if (videoRef.current) {
@@ -268,7 +267,7 @@ export default function CameraDetailPage() {
 
   const camera = cameras.find(c => c.id === cameraId);
   const liveFeedUrl = camera?.online
-    ? `${API}/video_feed/${cameraId}`
+    ? cameraService.getVideoFeedUrl(cameraId)
     : null;
 
   return (

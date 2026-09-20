@@ -37,10 +37,10 @@ Use `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to schedule async 
 
 FastAPI sets an `HttpOnly` session cookie (`access_token`) upon login (`POST /auth/login`). When the browser renders `<img src="/video_feed/..." crossOrigin="use-credentials">` or `<video src="/recordings/..." crossOrigin="use-credentials">`, the browser automatically includes the cookie in the HTTP `Cookie:` header. The backend checks `Authorization: Bearer` first, falls back to `request.cookies.get("access_token")`, and keeps `?token=` only as an optional legacy fallback. This keeps all access logs clean with zero token leakage.
 
-### Hardcoded API URL
-> `const API = 'http://localhost:8000'` appears in 4 files.
+### Frontend Service Layer & API Abstraction
+> Direct `fetch` calls and raw `API` base URLs scattered across components created tight coupling, duplicated header/auth logic, and repetitive error handling.
 
-Files: `App.jsx`, `FacesPage.jsx`, `RegisterModal.jsx`, `AuthContext.jsx`. If the API URL needs to change, all four must be updated. Consider centralizing to an env variable or shared constant.
+Abstracted all API calls into domain services under `src/services/` (`auth`, `cameras`, `events`, `faces`, `recordings`, `register`) powered by a central `apiFetch` in `src/services/core.js`. `apiFetch` handles Bearer tokens, `credentials: 'include'`, default Content-Type, 401 unauthorization auto-logout, and FastAPI error decoding. Reusable `useFetch` hook (`src/hooks/useFetch.js`) provides `{ data, loading, error, refetch }` with abort safety. Media URLs (`getVideoFeedUrl`, `getThumbnailUrl`, `getRecordingUrl`, `getFaceImageUrl`) are provided by services, ensuring components never concatenate API URLs or import `API` directly.
 
 ### Component Styling Co-location with @emotion/react
 > Separate `.css` files per component created unmanageable orphaned stylesheets upon refactoring or deletion.

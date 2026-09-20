@@ -9,8 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { keyframes } from '@emotion/react';
 import { useAuth } from '../contexts/useAuth';
 import { Activity, ChevronLeft, ChevronRight, CircleAlert, Play, PersonStanding, User, UserPlus, X } from 'lucide-react';
-
-const API = 'http://localhost:8000';
+import { eventService } from '../services/events';
+import { cameraService } from '../services/cameras';
+import { faceService } from '../services/faces';
 
 const evDrawerIn = keyframes`
   from { transform: translateX(24px); opacity: 0; }
@@ -259,7 +260,7 @@ function relTime(iso) {
 }
 
 export default function EventsPage() {
-  const { token, authHeaders } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
 
   const [typeFilter, setTypeFilter] = useState('');
@@ -281,36 +282,33 @@ export default function EventsPage() {
   // Static-ish reference data
   useEffect(() => {
     if (!token) return;
-    fetch(`${API}/events/summary`, { headers: authHeaders() })
-      .then(r => r.json()).then(d => setSummary(d.summary || null)).catch(() => {});
-    fetch(`${API}/cameras`, { headers: authHeaders() })
-      .then(r => r.json()).then(d => setCameras(d.cameras || [])).catch(() => {});
-    fetch(`${API}/faces`, { headers: authHeaders() })
-      .then(r => r.json()).then(d => setPeople(d.faces || [])).catch(() => {});
-  }, [token, authHeaders]);
+    eventService.getSummary()
+      .then(d => setSummary(d.summary || null)).catch(() => {});
+    cameraService.getCameras()
+      .then(d => setCameras(d.cameras || [])).catch(() => {});
+    faceService.getFaces()
+      .then(d => setPeople(d.faces || [])).catch(() => {});
+  }, [token]);
 
   const loadEvents = useCallback((offset = 0) => {
     if (!token) return;
     const { start, end } = dayRange(date);
-    const params = new URLSearchParams({
+    eventService.getEvents({
       since: start.toISOString(),
       until: end.toISOString(),
       limit: 50,
       offset,
-    });
-    if (typeFilter) params.set('event_type', typeFilter);
-    if (cameraFilter) params.set('camera_id', cameraFilter);
-    if (personFilter) params.set('person_name', personFilter);
-
-    fetch(`${API}/events?${params}`, { headers: authHeaders() })
-      .then(r => r.json())
+      eventType: typeFilter || undefined,
+      cameraId: cameraFilter || undefined,
+      personName: personFilter || undefined,
+    })
       .then(d => {
         setEvents(prev => (offset === 0 ? d.events || [] : [...prev, ...(d.events || [])]));
         setTotal(d.total || 0);
         setLoaded(true);
       })
       .catch(() => {});
-  }, [token, authHeaders, typeFilter, cameraFilter, personFilter, date]);
+  }, [token, typeFilter, cameraFilter, personFilter, date]);
 
   useEffect(() => { loadEvents(0); }, [loadEvents]);
 
@@ -332,15 +330,10 @@ export default function EventsPage() {
   const submitName = async () => {
     if (!naming.trim() || !selected) return;
     try {
-      const res = await fetch(`${API}/faces/${encodeURIComponent(naming.trim())}/add`, {
-        method: 'POST',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event_id: selected.id }),
-      });
-      const data = await res.json();
-      setNameResult(res.ok ? data : { status: 'error', detail: data.detail });
+      const data = await faceService.addFaceFromEvent(naming.trim(), selected.id);
+      setNameResult(data);
     } catch (e) {
-      setNameResult({ status: 'error', detail: String(e) });
+      setNameResult({ status: 'error', detail: String(e.message || e) });
     }
   };
 
@@ -410,7 +403,7 @@ export default function EventsPage() {
                 {ev.thumbnail_path && (
                   <img
                     css={eventRowThumbStyles}
-                    src={`${API}/events/${ev.id}/thumbnail`}
+                    src={eventService.getThumbnailUrl(ev.id)}
                     crossOrigin="use-credentials"
                     alt=""
                     loading="lazy"
@@ -450,7 +443,7 @@ export default function EventsPage() {
             {selected.thumbnail_path && (
               <img
                 css={evDrawerThumbStyles}
-                src={`${API}/events/${selected.id}/thumbnail`}
+                src={eventService.getThumbnailUrl(selected.id)}
                 crossOrigin="use-credentials"
                 alt=""
               />

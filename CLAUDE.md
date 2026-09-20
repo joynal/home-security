@@ -111,9 +111,12 @@ home-security/
 │       ├── App.jsx                  # App shell with navigation rail (AppRail), routes
 │       ├── LoginPage.jsx            # Login form with shield SVG art (Emotion styles)
 │       ├── RegisterModal.jsx        # 5-step face registration wizard with pose detection (Emotion styles)
+│       ├── config.js                # Frontend config: API URL from VITE_API_URL || 'http://localhost:8000'
 │       ├── index.css                # Global styles: tokens, resets, fonts, shell layout
 │       ├── components/              # AppRail, CameraGrid, CameraTile, ImportModal, RecentEvents, TimelineRail
 │       ├── pages/                   # CameraDetailPage, EventsPage, FacesPage
+│       ├── services/                # API service layer (core apiFetch, auth, cameras, events, faces, recordings, register)
+│       ├── hooks/                   # useFetch, useVisible
 │       └── contexts/
 │           └── AuthContext.jsx      # React Context: token/username in localStorage, login/logout
 │
@@ -270,7 +273,7 @@ cd frontend && npm run lint      # JS lint
 - **ONNX calls are single-threaded** — enrollment goes through the pending queue, never call `app.get()` from multiple threads.
 - **The `data/` directory is gitignored** — credentials, face images, events.db, recordings, dev `cameras.json`.
 - **Ruff config**: line-length 100, target Python 3.13, single quotes, 2-space indentation, single-line imports. Note: no nested double quotes inside triple-quoted f-strings (CPython rejects them).
-- **Frontend**: hardcoded `API = 'http://localhost:8000'` — no env-based API URL.
+- **Frontend**: All API communication is routed through domain services (`frontend/src/services/`) and `apiFetch` in `core.js` (with `useFetch` hook). Configured via `VITE_API_URL` in `frontend/src/config.js` (defaults to `'http://localhost:8000'`). Components never import `API` directly.
 - **CSS / Styling**: All component and page styling is co-located directly inside JSX files using `@emotion/react` (`css` prop). Never create separate `.css` files per component; only `src/index.css` is retained for global design tokens (`:root`), base resets, font declarations, and layout shell classes.
 - **Detection pipeline**: one `DetectionPipeline` per camera; the registration camera bypasses the motion gate and runs raw InsightFace (see `src/api/inference.py`).
 - **Recording source**: always via go2rtc (`rtsp://$GO2RTC_HOST/{camera_id}`), never the camera directly.

@@ -6,10 +6,8 @@
  *        onClose(), onDone()
  */
 import { useState, useRef, useCallback } from 'react';
-import { useAuth } from '../contexts/useAuth';
 import { CheckCircle2, CircleAlert, ImagePlus, Upload, X } from 'lucide-react';
-
-const API = 'http://localhost:8000';
+import { faceService } from '../services/faces';
 
 const REASON_LABELS = {
   no_face: 'No face found',
@@ -188,7 +186,6 @@ const footStyles = {
 };
 
 export default function ImportModal({ fixedName, onClose, onDone }) {
-  const { authHeaders } = useAuth();
   const [name, setName] = useState(fixedName || '');
   const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
@@ -215,19 +212,8 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
     setBusy(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append('name', name.trim());
-      files.forEach(f => form.append('files', f, f.name));
-      const res = await fetch(`${API}/faces/import`, {
-        method: 'POST',
-        headers: { ...authHeaders() },
-        body: form,
-      });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || `Import failed (${res.status})`);
-      }
-      setResults(await res.json());
+      const data = await faceService.importFaces(name.trim(), files);
+      setResults(data);
     } catch (e) {
       setError(String(e.message || e));
     } finally {

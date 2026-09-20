@@ -5,12 +5,10 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { css } from '@emotion/react';
-import { useAuth } from '../contexts/useAuth';
 import { ImagePlus, UserPlus, Users } from 'lucide-react';
 import RegisterModal from '../RegisterModal';
 import ImportModal from '../components/ImportModal';
-
-const API = 'http://localhost:8000';
+import { faceService } from '../services/faces';
 
 const facesStyles = css`
   max-width: 1080px;
@@ -160,7 +158,6 @@ const facesStyles = css`
 `;
 
 export default function FacesPage() {
-  const { authHeaders } = useAuth();
   const [faces, setFaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -170,16 +167,14 @@ export default function FacesPage() {
   const fetchFaces = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/faces`, { headers: authHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch faces');
-      const data = await res.json();
+      const data = await faceService.getFaces();
       setFaces(data.faces);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [authHeaders]);
+  }, []);
 
   useEffect(() => { fetchFaces(); }, [fetchFaces]);
 
@@ -188,11 +183,7 @@ export default function FacesPage() {
       return;
     }
     try {
-      const res = await fetch(`${API}/faces/${encodeURIComponent(name)}`, {
-        method: 'DELETE',
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error('Failed to delete person');
+      await faceService.deleteFace(name);
       setFaces(prev => prev.filter(f => f.name !== name));
     } catch (err) {
       alert(`Error deleting: ${err.message}`);
@@ -253,7 +244,7 @@ export default function FacesPage() {
                         <div key={filename} className="mf-card__img-wrap" title={filename.split('_')[0]}>
                           <img
                             className="mf-card__img"
-                            src={`${API}/faces/${encodeURIComponent(face.name)}/img/${encodeURIComponent(filename)}`}
+                            src={faceService.getFaceImageUrl(face.name, filename)}
                             crossOrigin="use-credentials"
                             alt={`${face.name} ${filename}`}
                             onError={e => {

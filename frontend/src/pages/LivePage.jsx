@@ -8,11 +8,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import CameraGrid from '../components/CameraGrid';
 import RecentEvents from '../components/RecentEvents';
-
-const API = 'http://localhost:8000';
+import { cameraService } from '../services/cameras';
 
 export default function LivePage() {
-  const { token, authHeaders } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [cameras, setCameras] = useState([]);
 
@@ -21,8 +20,7 @@ export default function LivePage() {
     if (!token) return;
     let cancelled = false;
     const fetchCameras = () => {
-      fetch(`${API}/cameras`, { headers: authHeaders() })
-        .then(r => r.json())
+      cameraService.getCameras()
         .then(data => {
           if (cancelled || !data.cameras) return;
           setCameras(data.cameras);
@@ -32,7 +30,7 @@ export default function LivePage() {
     fetchCameras();
     const interval = setInterval(fetchCameras, 10000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [token, authHeaders]);
+  }, [token]);
 
   const online = cameras.filter(c => c.online).length;
 

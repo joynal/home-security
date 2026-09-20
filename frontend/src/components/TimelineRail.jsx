@@ -9,8 +9,7 @@
  */
 import { useMemo } from 'react';
 import { CircleAlert, PersonStanding, User } from 'lucide-react';
-
-const API = 'http://localhost:8000';
+import { eventService } from '../services/events';
 const HOUR_PX = 56; // vertical scale: px per hour
 const TOP_PAD = 12;
 
@@ -274,7 +273,7 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }) {
             {ev.thumbnail_path ? (
               <img
                 css={thumbStyles}
-                src={`${API}/events/${ev.id}/thumbnail`}
+                src={eventService.getThumbnailUrl(ev.id)}
                 crossOrigin="use-credentials"
                 alt=""
                 loading="lazy"

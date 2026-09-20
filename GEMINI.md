@@ -90,6 +90,9 @@ Loads `.env`, defines `BASE_DIR`, `DATA_DIR`, `KNOWN_FACES_DIR`, `SECRET_KEY`, `
 | `RegisterModal.jsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold (Emotion styles) |
 | `components/` | Modular UI components (`AppRail`, `CameraGrid`, `CameraTile`, `ImportModal`, `RecentEvents`, `TimelineRail`) with co-located Emotion styles |
 | `pages/` | Page components (`CameraDetailPage`, `EventsPage`, `FacesPage`) with co-located Emotion styles |
+| `services/` | API abstraction layer (`core.js` with `apiFetch`, plus `auth`, `cameras`, `events`, `faces`, `recordings`, `register`) |
+| `hooks/` | Custom hooks: `useFetch.js` (data fetching with abort control), `useVisible.js` (viewport visibility) |
+| `config.js` | Frontend config: exports `API` based on `VITE_API_URL` |
 | `index.css` | Global stylesheet: design tokens (`:root`), base resets, font declarations, and common layout shell classes (`.app-shell`, `.page-header`, `.page-body`) |
 
 ## Architecture Pattern
@@ -125,7 +128,7 @@ React SPA (Vite :5173)  ───HTTP───▶  FastAPI (:8000)
 3. **Cookie / Header Authentication for Media**: Media endpoints (`/video_feed`, `/faces/{name}/img`, `/events/{id}/thumbnail`, `/recordings/...`) authenticate via `HttpOnly` session cookies (or `Authorization: Bearer` header) so JWT tokens are never leaked in URL query strings, server logs, or browser history. `?token=` is retained only as an optional fallback.
 4. **Async from sync thread**: `TelegramAlert` uses `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to post from the inference thread.
 5. **Testing**: Hardware-free pytest test suite in `tests/` (`uv run pytest tests/`).
-6. **Hardcoded API URL**: Frontend uses `const API = 'http://localhost:8000'` in multiple files.
+6. **Frontend Service Layer & API Abstraction**: Frontend abstracts all backend interaction behind a domain service layer (`src/services/`) and a generic `apiFetch` client in `src/services/core.js` (with a reusable `useFetch` hook). UI components never import `API` directly, and URL helpers provide media links for `<img>` and `<video>` tags.
 7. **Data directory gitignored**: `data/` (credentials, face images) is not tracked.
 8. **Component Styling with Emotion**: All component and page styling MUST be embedded directly in JSX using `@emotion/react` (`css` prop or objects). Do NOT create separate `.css` files. Only global tokens, resets, and layout shell classes belong in `src/index.css`.
 

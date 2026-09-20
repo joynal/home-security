@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { css } from '@emotion/react';
-import { useAuth } from './contexts/useAuth';
-
-const API = 'http://localhost:8000';
+import { registerService } from './services/register';
+import { cameraService } from './services/cameras';
 
 const modalStyles = css`
   position: fixed;
@@ -467,8 +466,6 @@ export default function RegisterModal({ onClose, onSuccess }) {
   useEffect(() => { stepIdxRef.current = stepIdx; }, [stepIdx]);
   useEffect(() => { nameRef.current    = name;    }, [name]);
 
-  const { authHeaders } = useAuth();
-
   const currentStep   = STEPS[stepIdx];
   const isCorrectPose = faceStatus.face_found && faceStatus.pose === currentStep?.id;
 
@@ -483,52 +480,41 @@ export default function RegisterModal({ onClose, onSuccess }) {
     const currentName = nameRef.current.trim();
 
     try {
-      const res = await fetch(
-        `${API}/register/capture?name=${encodeURIComponent(currentName)}&step=${step.id}`,
-        { method: 'POST', headers: authHeaders() },
-      );
-      if (res.ok) {
-        setFlashSuccess(true);
-        setCompletedSteps(prev => [...prev, step.id]);
-        setTimeout(() => {
-          setFlashSuccess(false);
-          const nextIdx = stepIdxRef.current + 1;
-          if (nextIdx >= STEPS.length) {
-            clearInterval(pollingRef.current);
-            setPhase('success');
-          } else {
-            setStepIdx(nextIdx);
-          }
-          isCapturing.current = false;
-          setCapturing(false);
-        }, 700);
-      } else {
-        const body = await res.text();
-        setCaptureError(`Server error ${res.status}: ${body}`);
+      await registerService.captureStep(currentName, step.id);
+      setFlashSuccess(true);
+      setCompletedSteps(prev => [...prev, step.id]);
+      setTimeout(() => {
+        setFlashSuccess(false);
+        const nextIdx = stepIdxRef.current + 1;
+        if (nextIdx >= STEPS.length) {
+          clearInterval(pollingRef.current);
+          setPhase('success');
+        } else {
+          setStepIdx(nextIdx);
+        }
         isCapturing.current = false;
         setCapturing(false);
-      }
+      }, 700);
     } catch (err) {
-      setCaptureError(`Network error: ${err.message}`);
+      setCaptureError(err.message || String(err));
       isCapturing.current = false;
       setCapturing(false);
     }
-  }, [authHeaders]);
+  }, []);
 
   /* ── Polling ─────────────────────────────────────────── */
   useEffect(() => {
     if (phase !== 'capture') return;
     pollingRef.current = setInterval(async () => {
       try {
-        const res  = await fetch(`${API}/register/face_status`, { headers: authHeaders() });
-        const data = await res.json();
+        const data = await registerService.getFaceStatus();
         setFaceStatus(data);
       } catch {
         setFaceStatus({ face_found: false, pose: 'none' });
       }
     }, 350);
     return () => clearInterval(pollingRef.current);
-  }, [phase, authHeaders]);
+  }, [phase]);
 
   /* ── Auto-capture countdown ─────────────────────────── */
   useEffect(() => {
@@ -645,7 +631,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
 
             {/* Video */}
             <div className={`rm-video-wrap ${isCorrectPose ? 'rm-video-wrap--ok' : ''} ${flashSuccess ? 'rm-video-wrap--flash' : ''}`}>
-              <img src={`${API}/video_feed`} crossOrigin="use-credentials" alt="live" className="rm-video" />
+              <img src={cameraService.getVideoFeedUrl()} crossOrigin="use-credentials" alt="live" className="rm-video" />
 
               {/* Face guide oval */}
               <div className={`rm-oval ${isCorrectPose ? 'rm-oval--ok' : ''} ${!faceStatus.face_found ? 'rm-oval--warn' : ''}`}>

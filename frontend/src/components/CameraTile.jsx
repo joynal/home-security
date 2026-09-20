@@ -7,8 +7,7 @@
 import { useState } from 'react';
 import { VideoOff } from 'lucide-react';
 import useVisible from '../hooks/useVisible';
-
-const API = 'http://localhost:8000';
+import { cameraService } from '../services/cameras';
 
 const tileStyles = {
   position: 'relative',
@@ -82,7 +81,7 @@ export default function CameraTile({ camera, onSelect }) {
   // Stream gating: off-screen or hidden tab → drop the src (server keeps
   // encoding once per loop; we just stop pulling frames per client).
   const feedUrl = visible
-    ? `${API}/video_feed/${camera.id}`
+    ? cameraService.getVideoFeedUrl(camera.id)
     : null;
   const showFeed = camera.online && !hasError && feedUrl;
 
