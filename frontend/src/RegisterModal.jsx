@@ -467,7 +467,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
   useEffect(() => { stepIdxRef.current = stepIdx; }, [stepIdx]);
   useEffect(() => { nameRef.current    = name;    }, [name]);
 
-  const { token, authHeaders } = useAuth();
+  const { authHeaders } = useAuth();
 
   const currentStep   = STEPS[stepIdx];
   const isCorrectPose = faceStatus.face_found && faceStatus.pose === currentStep?.id;
@@ -645,7 +645,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
 
             {/* Video */}
             <div className={`rm-video-wrap ${isCorrectPose ? 'rm-video-wrap--ok' : ''} ${flashSuccess ? 'rm-video-wrap--flash' : ''}`}>
-              <img src={`${API}/video_feed?token=${encodeURIComponent(token)}`} alt="live" className="rm-video" />
+              <img src={`${API}/video_feed`} crossOrigin="use-credentials" alt="live" className="rm-video" />
 
               {/* Face guide oval */}
               <div className={`rm-oval ${isCorrectPose ? 'rm-oval--ok' : ''} ${!faceStatus.face_found ? 'rm-oval--warn' : ''}`}>

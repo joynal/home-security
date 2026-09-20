@@ -18,6 +18,7 @@ from pathlib import Path
 
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Request
 from fastapi import status
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.security import HTTPBearer
@@ -122,6 +123,29 @@ def get_current_user(
   return decode_token(creds.credentials)
 
 
+def extract_token(request: Request | None = None, token: str | None = None) -> str:
+  """
+  Extract token from query param (?token=), Cookie header, or Authorization header.
+  Allows media endpoints (<img> and <video>) to authenticate via Cookie headers
+  without leaking the JWT token into URL query strings and access logs.
+  """
+  if token:
+    return token
+  if request is not None:
+    cookie_token = request.cookies.get('access_token')
+    if cookie_token:
+      return cookie_token
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+      return auth_header.removeprefix('Bearer ').strip()
+
+  raise HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail='Missing, invalid, or expired authentication',
+    headers={'WWW-Authenticate': 'Bearer'},
+  )
+
+
 def verify_token_param(token: str) -> str:
-  """For endpoints where the token is passed as a query param (e.g. img src)."""
+  """For endpoints where the token is verified (e.g. img/video media endpoints)."""
   return decode_token(token)

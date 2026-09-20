@@ -213,7 +213,7 @@ export default function CameraDetailPage() {
       return;
     }
     const offset = Math.max(0, epochS - seg.start_epoch);
-    const url = `${API}/recordings/${cameraId}/${seg.filename}?token=${encodeURIComponent(token)}`;
+    const url = `${API}/recordings/${cameraId}/${seg.filename}`;
     setMode({ url, startEpoch: seg.start_epoch, filename: seg.filename });
     setPlayTs(epochS);
     setTimeout(() => {
@@ -248,7 +248,7 @@ export default function CameraDetailPage() {
       const idx = timeline.segments.findIndex(s => s.filename === mode.filename);
       if (idx >= 0 && idx + 1 < timeline.segments.length) {
         const next = timeline.segments[idx + 1];
-        const url = `${API}/recordings/${cameraId}/${next.filename}?token=${encodeURIComponent(token)}`;
+        const url = `${API}/recordings/${cameraId}/${next.filename}`;
         setMode({ url, startEpoch: next.start_epoch, filename: next.filename });
         setTimeout(() => {
           if (videoRef.current) {
@@ -268,7 +268,7 @@ export default function CameraDetailPage() {
 
   const camera = cameras.find(c => c.id === cameraId);
   const liveFeedUrl = camera?.online
-    ? `${API}/video_feed/${cameraId}?token=${encodeURIComponent(token)}`
+    ? `${API}/video_feed/${cameraId}`
     : null;
 
   return (
@@ -323,7 +323,7 @@ export default function CameraDetailPage() {
         <div css={playerStyles}>
           {mode === 'live' ? (
             liveFeedUrl ? (
-              <img src={liveFeedUrl} alt={`${camera?.name ?? cameraId} live`} />
+              <img src={liveFeedUrl} crossOrigin="use-credentials" alt={`${camera?.name ?? cameraId} live`} />
             ) : (
               <div css={playerEmptyStyles}>Camera offline</div>
             )
@@ -332,6 +332,7 @@ export default function CameraDetailPage() {
               ref={videoRef}
               key={mode.url}
               src={mode.url}
+              crossOrigin="use-credentials"
               controls
               autoPlay
               onTimeUpdate={onTimeUpdate}

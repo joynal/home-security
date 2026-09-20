@@ -19,9 +19,11 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Query
+from fastapi import Request
 from fastapi.responses import StreamingResponse
 
 import src.api.state as state
+from src.api.auth import extract_token
 from src.api.auth import get_current_user
 from src.api.auth import verify_token_param
 from src.config import CAMERAS
@@ -102,9 +104,9 @@ def camera_status(camera_id: str, _: str = Depends(get_current_user)):
 
 @router.get('/video_feed')
 @router.get('/video_feed/grid')
-def video_feed_grid(token: str = Query(...)):
-  """MJPEG stream of the stacked grid. Accepts token as query param (img src)."""
-  verify_token_param(token)  # raises 401 if invalid
+def video_feed_grid(request: Request, token: str | None = Query(None)):
+  """MJPEG stream of the stacked grid. Authenticates via cookie, header, or query param."""
+  verify_token_param(extract_token(request, token))
   return StreamingResponse(
     _frame_generator(),
     media_type='multipart/x-mixed-replace; boundary=frame',
@@ -112,9 +114,9 @@ def video_feed_grid(token: str = Query(...)):
 
 
 @router.get('/video_feed/{camera_id}')
-def video_feed_camera(camera_id: str, token: str = Query(...)):
+def video_feed_camera(camera_id: str, request: Request, token: str | None = Query(None)):
   """MJPEG stream for a single camera (serves the encode-once JPEG cache)."""
-  verify_token_param(token)
+  verify_token_param(extract_token(request, token))
   if not any(c.id == camera_id for c in CAMERAS):
     raise HTTPException(status_code=404, detail=f'Unknown camera: {camera_id}')
   return StreamingResponse(
@@ -124,12 +126,16 @@ def video_feed_camera(camera_id: str, token: str = Query(...)):
 
 
 @router.get('/cameras/{camera_id}/snapshot.jpg')
-def camera_snapshot(camera_id: str, token: str = Query(...)):
+def camera_snapshot(
+  camera_id: str,
+  request: Request = None,
+  token: str | None = Query(None),
+):
   """
   Current still frame from a camera's latest annotated frame.
   Cheap alternative to the MJPEG stream for grid tiles and notifications.
   """
-  verify_token_param(token)
+  verify_token_param(extract_token(request, token))
   if not any(c.id == camera_id for c in CAMERAS):
     raise HTTPException(status_code=404, detail=f'Unknown camera: {camera_id}')
   with state.frames_lock:

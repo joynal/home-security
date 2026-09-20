@@ -52,7 +52,7 @@ export default function LivePage() {
       <div className="page-body live-page">
         <RecentEvents limit={10} />
         {cameras.length > 0 ? (
-          <CameraGrid cameras={cameras} token={token} onSelect={openCamera} />
+          <CameraGrid cameras={cameras} onSelect={openCamera} />
         ) : (
           <div className="live-placeholder">
             <p>Loading cameras…</p>

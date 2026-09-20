@@ -13,14 +13,13 @@ const gridStyles = {
   },
 };
 
-export default function CameraGrid({ cameras, token, onSelect }) {
+export default function CameraGrid({ cameras, onSelect }) {
   return (
     <div css={gridStyles} role="list" aria-label="Camera feeds">
       {cameras.map(cam => (
         <CameraTile
           key={cam.id}
           camera={cam}
-          token={token}
           onSelect={onSelect}
         />
       ))}

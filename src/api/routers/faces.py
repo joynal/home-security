@@ -21,12 +21,15 @@ from fastapi import Depends
 from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
+from fastapi import Query
+from fastapi import Request
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pydantic import Field
 
 import src.api.state as state
+from src.api.auth import extract_token
 from src.api.auth import get_current_user
 from src.api.auth import verify_token_param
 from src.api.enroll_jobs import submit_job
@@ -206,12 +209,17 @@ async def import_faces(
 
 
 @router.get('/{name}/img/{filename}')
-def get_face_image(name: str, filename: str, token: str):
+def get_face_image(
+  name: str,
+  filename: str,
+  request: Request,
+  token: str | None = Query(None),
+):
   """
   Serve a specific captured angle image.
-  Uses query-param token for compatibility with <img src>.
+  Authenticates via cookie, header, or query param.
   """
-  verify_token_param(token)
+  verify_token_param(extract_token(request, token))
   person_dir = faces_dir / name
   if not person_dir.exists() or not person_dir.is_dir():
     raise HTTPException(status_code=404, detail='Person not found')

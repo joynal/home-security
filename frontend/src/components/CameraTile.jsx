@@ -76,13 +76,13 @@ const statusStyles = {
   pointerEvents: 'none',
 };
 
-export default function CameraTile({ camera, token, onSelect }) {
+export default function CameraTile({ camera, onSelect }) {
   const [hasError, setHasError] = useState(false);
   const [ref, visible] = useVisible();
   // Stream gating: off-screen or hidden tab → drop the src (server keeps
   // encoding once per loop; we just stop pulling frames per client).
   const feedUrl = visible
-    ? `${API}/video_feed/${camera.id}?token=${encodeURIComponent(token)}`
+    ? `${API}/video_feed/${camera.id}`
     : null;
   const showFeed = camera.online && !hasError && feedUrl;
 
@@ -96,6 +96,7 @@ export default function CameraTile({ camera, token, onSelect }) {
       {showFeed ? (
         <img
           src={feedUrl}
+          crossOrigin="use-credentials"
           alt={`${camera.name} live feed`}
           css={feedStyles}
           onError={() => setHasError(true)}

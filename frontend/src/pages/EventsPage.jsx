@@ -410,7 +410,8 @@ export default function EventsPage() {
                 {ev.thumbnail_path && (
                   <img
                     css={eventRowThumbStyles}
-                    src={`${API}/events/${ev.id}/thumbnail?token=${encodeURIComponent(token)}`}
+                    src={`${API}/events/${ev.id}/thumbnail`}
+                    crossOrigin="use-credentials"
                     alt=""
                     loading="lazy"
                   />
@@ -449,7 +450,8 @@ export default function EventsPage() {
             {selected.thumbnail_path && (
               <img
                 css={evDrawerThumbStyles}
-                src={`${API}/events/${selected.id}/thumbnail?token=${encodeURIComponent(token)}`}
+                src={`${API}/events/${selected.id}/thumbnail`}
+                crossOrigin="use-credentials"
                 alt=""
               />
             )}

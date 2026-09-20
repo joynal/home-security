@@ -50,9 +50,11 @@ Loads `.env`, defines `BASE_DIR`, `DATA_DIR`, `KNOWN_FACES_DIR`, `SECRET_KEY`, `
 
 | Router | Prefix | Endpoints |
 |--------|--------|-----------|
-| `auth_router.py` | `/auth` | `POST /auth/login` → JWT token; `GET /auth/me` → validate token |
-| `stream.py` | `/` | `GET /cameras` → camera list; `GET /video_feed?token=` → MJPEG stream |
-| `faces.py` | `/faces` | `GET /faces` → list with counts; `GET /faces/{name}/img/{file}?token=` → serve image; `DELETE /faces/{name}` → remove from disk + model |
+| `auth_router.py` | `/auth` | `POST /auth/login` → JWT + session cookie; `POST /auth/logout` → clear cookie; `GET /auth/me` → validate token |
+| `stream.py` | `/` | `GET /cameras` → camera list; `GET /video_feed[/grid|/{id}]` → MJPEG stream |
+| `faces.py` | `/faces` | `GET /faces` → list with counts; `GET /faces/{name}/img/{file}` → serve image; `DELETE /faces/{name}` → remove from disk + model |
+| `events.py` | `/events` | `GET /events` → event history; `GET /events/{id}/thumbnail` → serve thumbnail JPEG |
+| `recordings.py` | `/recordings` | `GET /recordings/{cam}/{file}` → MP4 segment; `GET /recordings/{cam}/frame.jpg` → hover frame |
 | `register.py` | `/register` | `GET /register/face_status` → pose data (polled); `GET /register/face_debug` → extended; `POST /register/capture?name=&step=` → save + queue embedding |
 
 ### `src/camera/` — Camera Abstraction
@@ -120,7 +122,7 @@ React SPA (Vite :5173)  ───HTTP───▶  FastAPI (:8000)
 
 1. **Single-threaded ONNX**: All InsightFace `app.get()` calls happen in the inference thread only. Registration uses a `pending_embeddings` queue.
 2. **Thread safety**: Every shared variable in `state.py` has a corresponding `threading.Lock()`.
-3. **Token in query params**: `/video_feed` and `/faces/{name}/img/` use `?token=` because `<img src>` can't set HTTP headers.
+3. **Cookie / Header Authentication for Media**: Media endpoints (`/video_feed`, `/faces/{name}/img`, `/events/{id}/thumbnail`, `/recordings/...`) authenticate via `HttpOnly` session cookies (or `Authorization: Bearer` header) so JWT tokens are never leaked in URL query strings, server logs, or browser history. `?token=` is retained only as an optional fallback.
 4. **Async from sync thread**: `TelegramAlert` uses `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to post from the inference thread.
 5. **Testing**: Hardware-free pytest test suite in `tests/` (`uv run pytest tests/`).
 6. **Hardcoded API URL**: Frontend uses `const API = 'http://localhost:8000'` in multiple files.

@@ -14,9 +14,11 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Query
+from fastapi import Request
 from fastapi.responses import FileResponse
 
 import src.api.state as state
+from src.api.auth import extract_token
 from src.api.auth import get_current_user
 from src.api.auth import verify_token_param
 from src.config import THUMBNAILS_DIR
@@ -107,9 +109,13 @@ def event_summary(_: str = Depends(get_current_user)):
 
 
 @router.get('/{event_id}/thumbnail')
-def get_event_thumbnail(event_id: int, token: str):
-  """Serve event thumbnail image. Uses query-param token for <img> compatibility."""
-  verify_token_param(token)
+def get_event_thumbnail(
+  event_id: int,
+  request: Request,
+  token: str | None = Query(None),
+):
+  """Serve event thumbnail image. Authenticates via cookie, header, or query param."""
+  verify_token_param(extract_token(request, token))
   if not state.event_db:
     raise HTTPException(status_code=404, detail='Event system not initialized')
 

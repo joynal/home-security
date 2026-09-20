@@ -160,7 +160,7 @@ const facesStyles = css`
 `;
 
 export default function FacesPage() {
-  const { token, authHeaders } = useAuth();
+  const { authHeaders } = useAuth();
   const [faces, setFaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -253,7 +253,8 @@ export default function FacesPage() {
                         <div key={filename} className="mf-card__img-wrap" title={filename.split('_')[0]}>
                           <img
                             className="mf-card__img"
-                            src={`${API}/faces/${encodeURIComponent(face.name)}/img/${encodeURIComponent(filename)}?token=${encodeURIComponent(token)}`}
+                            src={`${API}/faces/${encodeURIComponent(face.name)}/img/${encodeURIComponent(filename)}`}
+                            crossOrigin="use-credentials"
                             alt={`${face.name} ${filename}`}
                             onError={e => {
                               e.target.style.display = 'none';

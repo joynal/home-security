@@ -89,7 +89,8 @@ export default function RecentEvents({ limit = 10 }) {
         >
           {ev.thumbnail_path && (
             <img
-              src={`${API}/events/${ev.id}/thumbnail?token=${encodeURIComponent(token)}`}
+              src={`${API}/events/${ev.id}/thumbnail`}
+              crossOrigin="use-credentials"
               alt=""
               loading="lazy"
             />

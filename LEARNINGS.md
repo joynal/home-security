@@ -32,10 +32,10 @@ Use `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to schedule async 
 
 ## Frontend
 
-### Token in Query Params for Images
-> Browsers can't set HTTP headers on `<img src>` or MJPEG streams.
+### Media Authentication via HttpOnly Cookies
+> Browsers cannot set arbitrary custom headers (like `Authorization: Bearer`) on `<img>` or `<video>` tags, but query parameters leak into web server access logs and browser history.
 
-`/video_feed` and `/faces/{name}/img/{file}` accept `?token=` as a query parameter. This is intentional, not a security oversight — it's the only way to authenticate media URLs loaded by the browser directly.
+FastAPI sets an `HttpOnly` session cookie (`access_token`) upon login (`POST /auth/login`). When the browser renders `<img src="/video_feed/..." crossOrigin="use-credentials">` or `<video src="/recordings/..." crossOrigin="use-credentials">`, the browser automatically includes the cookie in the HTTP `Cookie:` header. The backend checks `Authorization: Bearer` first, falls back to `request.cookies.get("access_token")`, and keeps `?token=` only as an optional legacy fallback. This keeps all access logs clean with zero token leakage.
 
 ### Hardcoded API URL
 > `const API = 'http://localhost:8000'` appears in 4 files.

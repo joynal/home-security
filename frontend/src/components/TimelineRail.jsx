@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { CircleAlert, PersonStanding, User } from 'lucide-react';
 
+const API = 'http://localhost:8000';
 const HOUR_PX = 56; // vertical scale: px per hour
 const TOP_PAD = 12;
 
@@ -196,7 +197,7 @@ function fmtTime(ts) {
   return new Date(ts * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function TimelineRail({ date, hours, events, playTs, onSeek, token }) {
+export default function TimelineRail({ date, hours, events, playTs, onSeek }) {
   const day0 = dayStartEpoch(date);
   const totalPx = 24 * HOUR_PX;
 
@@ -273,7 +274,8 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek, toke
             {ev.thumbnail_path ? (
               <img
                 css={thumbStyles}
-                src={`http://localhost:8000/events/${ev.id}/thumbnail?token=${encodeURIComponent(token)}`}
+                src={`${API}/events/${ev.id}/thumbnail`}
+                crossOrigin="use-credentials"
                 alt=""
                 loading="lazy"
                 onClick={e => { e.stopPropagation(); onSeek(ev.ts); }}

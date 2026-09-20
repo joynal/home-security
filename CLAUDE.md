@@ -166,22 +166,23 @@ home-security/
 2. **Thread-safe Shared State**: `src/api/state.py` holds all mutable cross-thread data behind `threading.Lock()`.
 3. **Producer-Consumer Queue**: Registration captures go into `pending_embeddings` → inference loop drains them (avoids concurrent ONNX calls).
 4. **Factory Functions**: `build_camera()` and `build_alert()` in `inference.py` instantiate from config dicts.
-5. **Token Auth via Query Params**: Browser `<img src>` can't set headers, so `/video_feed` and `/faces/{name}/img` accept `?token=` query params.
+5. **Token Auth via Cookie/Header for Media**: Browser `<img src>` and `<video src>` authenticate via `HttpOnly` session cookies (or `Authorization: Bearer` header), eliminating `?token=` from URLs, server logs, and browser history.
 
 ## API Endpoints
 
-| Method   | Path                          | Auth        | Description                        |
-|----------|-------------------------------|-------------|------------------------------------|
-| `POST`   | `/auth/login`                 | None        | Returns JWT `{ access_token }`     |
-| `GET`    | `/auth/me`                    | Bearer      | Validate token, return username    |
-| `GET`    | `/cameras`                    | Bearer      | List configured cameras            |
-| `GET`    | `/video_feed?token=`          | Query param | Infinite MJPEG stream              |
-| `GET`    | `/faces`                      | Bearer      | List registered faces + counts     |
-| `GET`    | `/faces/{name}/img/{file}?token=` | Query param | Serve face image file          |
-| `DELETE` | `/faces/{name}`               | Bearer      | Delete person from disk + model    |
-| `GET`    | `/register/face_status`       | Bearer      | Current face pose (polled by UI)   |
-| `GET`    | `/register/face_debug`        | Bearer      | Extended pose with calibration     |
-| `POST`   | `/register/capture?name=&step=` | Bearer    | Snapshot frame, queue embedding    |
+| Method   | Path                          | Auth            | Description                        |
+|----------|-------------------------------|-----------------|------------------------------------|
+| `POST`   | `/auth/login`                 | None            | Returns JWT + sets session cookie  |
+| `POST`   | `/auth/logout`                | None            | Clears session cookie              |
+| `GET`    | `/auth/me`                    | Bearer / Cookie | Validate token, return username    |
+| `GET`    | `/cameras`                    | Bearer / Cookie | List configured cameras            |
+| `GET`    | `/video_feed[/grid]`          | Cookie / Bearer | Infinite MJPEG stream              |
+| `GET`    | `/faces`                      | Bearer / Cookie | List registered faces + counts     |
+| `GET`    | `/faces/{name}/img/{file}`    | Cookie / Bearer | Serve face image file              |
+| `DELETE` | `/faces/{name}`               | Bearer / Cookie | Delete person from disk + model    |
+| `GET`    | `/register/face_status`       | Bearer / Cookie | Current face pose (polled by UI)   |
+| `GET`    | `/register/face_debug`        | Bearer / Cookie | Extended pose with calibration     |
+| `POST`   | `/register/capture?name=&step=` | Bearer / Cookie | Snapshot frame, queue embedding  |
 
 ## Key Classes & Functions
 
@@ -242,24 +243,25 @@ cd frontend && npm run lint      # JS lint
 
 | Method   | Path                          | Auth        | Description                        |
 |----------|-------------------------------|-------------|------------------------------------|
-| `POST`   | `/auth/login`                 | None        | Returns JWT `{ access_token }`     |
-| `GET`    | `/auth/me`                    | Bearer      | Validate token, return username    |
-| `GET`    | `/cameras`                    | Bearer      | Cameras + live status (online/fps) |
-| `GET`    | `/cameras/{id}/status`        | Bearer      | Single-camera detail incl. error   |
-| `GET`    | `/video_feed?token=`          | Query param | MJPEG grid stream (legacy)         |
-| `GET`    | `/video_feed/{id}?token=`     | Query param | Per-camera MJPEG stream            |
-| `GET`    | `/diagnostics/pipeline`       | Bearer      | Per-camera pipeline stats          |
-| `GET`    | `/faces`                      | Bearer      | List registered faces + counts     |
-| `GET`    | `/faces/{name}/img/{file}?token=` | Query param | Serve face image file          |
-| `DELETE` | `/faces/{name}`               | Bearer      | Delete person from disk + model    |
-| `GET`    | `/register/face_status`       | Bearer      | Current face pose (polled by UI)   |
-| `POST`   | `/register/capture?name=&step=` | Bearer    | Snapshot frame, queue embedding    |
-| `GET`    | `/events`                     | Bearer      | Detection events (filters, paging) |
-| `GET`    | `/events/summary`             | Bearer      | Event counts by type               |
-| `GET`    | `/events/{id}/thumbnail?token=` | Query param | Event thumbnail JPEG             |
-| `GET`    | `/recordings/storage`         | Bearer      | Per-camera disk usage              |
-| `GET`    | `/recordings/{cam}?date=`     | Bearer      | List MP4 segments                  |
-| `GET`    | `/recordings/{cam}/{file}?token=` | Query param | Serve MP4 for playback         |
+| `POST`   | `/auth/login`                 | None            | Returns JWT + sets session cookie  |
+| `POST`   | `/auth/logout`                | None            | Clears session cookie              |
+| `GET`    | `/auth/me`                    | Bearer / Cookie | Validate token, return username    |
+| `GET`    | `/cameras`                    | Bearer / Cookie | Cameras + live status (online/fps) |
+| `GET`    | `/cameras/{id}/status`        | Bearer / Cookie | Single-camera detail incl. error   |
+| `GET`    | `/video_feed`                 | Cookie / Bearer | MJPEG grid stream                  |
+| `GET`    | `/video_feed/{id}`            | Cookie / Bearer | Per-camera MJPEG stream            |
+| `GET`    | `/diagnostics/pipeline`       | Bearer / Cookie | Per-camera pipeline stats          |
+| `GET`    | `/faces`                      | Bearer / Cookie | List registered faces + counts     |
+| `GET`    | `/faces/{name}/img/{file}`    | Cookie / Bearer | Serve face image file              |
+| `DELETE` | `/faces/{name}`               | Bearer / Cookie | Delete person from disk + model    |
+| `GET`    | `/register/face_status`       | Bearer / Cookie | Current face pose (polled by UI)   |
+| `POST`   | `/register/capture?name=&step=` | Bearer / Cookie | Snapshot frame, queue embedding  |
+| `GET`    | `/events`                     | Bearer / Cookie | Detection events (filters, paging) |
+| `GET`    | `/events/summary`             | Bearer / Cookie | Event counts by type               |
+| `GET`    | `/events/{id}/thumbnail`      | Cookie / Bearer | Event thumbnail JPEG               |
+| `GET`    | `/recordings/storage`         | Bearer / Cookie | Per-camera disk usage              |
+| `GET`    | `/recordings/{cam}?date=`     | Bearer / Cookie | List MP4 segments                  |
+| `GET`    | `/recordings/{cam}/{file}`    | Cookie / Bearer | Serve MP4 for playback             |
 
 ## Important Conventions
 

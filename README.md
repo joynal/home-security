@@ -150,9 +150,9 @@ Further docs: [CLAUDE.md](./CLAUDE.md) (project index) · [docs/PROGRESS.md](./d
 
 ## API Overview
 
-`POST /auth/login` → JWT, then Bearer auth everywhere; media streams
-(`/video_feed/{cam}`, `/events/{id}/thumbnail`, `/recordings/{cam}/{file}`) accept
-`?token=` because browsers can't set headers on `<img>`/`<video>` tags.
+`POST /auth/login` → JWT + HttpOnly session cookie, then Bearer / Cookie auth everywhere; media streams
+(`/video_feed/{cam}`, `/events/{id}/thumbnail`, `/recordings/{cam}/{file}`) authenticate via
+session cookies in HTTP headers, preventing token exposure in URL query strings and access logs.
 
 Key endpoints: `/cameras` (+ `/{id}/status`), `/video_feed/{camera_id}`,
 `/events` (+ `/summary`), `/recordings/{cam}` (+ `/storage`), `/faces`,
@@ -161,8 +161,7 @@ Full table in [CLAUDE.md](./CLAUDE.md).
 
 ## Security Notes
 
-- JWT tokens appear in URLs for media endpoints — acceptable on a LAN, not exposed
-  to the internet
+- Media endpoints authenticate via `HttpOnly` session cookies so JWT credentials do not leak into server access logs or browser history
 - go2rtc's API/WebRTC ports bind to `127.0.0.1` (bare metal) and stay on the compose
   network (Docker) — publishing them means unauthenticated video access
 - `data/` (credentials, face images, events, recordings) is gitignored; so are

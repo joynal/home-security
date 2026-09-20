@@ -23,9 +23,11 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Query
+from fastapi import Request
 from fastapi.responses import FileResponse
 
 import src.api.state as state
+from src.api.auth import extract_token
 from src.api.auth import get_current_user
 from src.api.auth import verify_token_param
 from src.config import RECORDINGS_DIR  # env-overridable — same path the recorder writes to
@@ -158,13 +160,14 @@ def camera_timeline(
 def frame_at_time(
   camera_id: str,
   ts: float = Query(..., description='UTC epoch seconds'),
-  token: str = Query(...),
+  request: Request = None,
+  token: str | None = Query(None),
 ):
   """
   JPEG frame at an arbitrary timestamp (timeline hover previews).
   OpenCV seek inside the covering segment; cached under data/thumbnails/frames/.
   """
-  verify_token_param(token)
+  verify_token_param(extract_token(request, token))
   if state.recording_index is None:
     raise HTTPException(status_code=503, detail='Recording index not initialized')
 
@@ -214,9 +217,14 @@ def list_segments(
 
 
 @router.get('/{camera_id}/{filename}')
-def serve_segment(camera_id: str, filename: str, token: str):
+def serve_segment(
+  camera_id: str,
+  filename: str,
+  request: Request,
+  token: str | None = Query(None),
+):
   """Serve an MP4 recording segment for browser playback."""
-  verify_token_param(token)
+  verify_token_param(extract_token(request, token))
   filepath = (RECORDINGS_DIR / camera_id / filename).resolve()
   # Path traversal protection: resolve the path and verify it's inside RECORDINGS_DIR
   if not str(filepath).startswith(str(RECORDINGS_DIR.resolve())):
