@@ -1,161 +1,27 @@
-import { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+/**
+ * App shell — icon rail + routed pages.
+ * The camera grid (Live) is home; Events and Faces are one click away.
+ * (Login gating happens in main.jsx's Root.)
+ */
+import { Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
-import { useAuth } from './contexts/AuthContext';
-import RegisterModal from './RegisterModal';
-import ManageFacesPage from './ManageFacesPage';
-import RecordingsPage from './RecordingsPage';
-import { Camera, Cctv, Clapperboard, Monitor, ScanFace, Shield, UserPlus, Users, Video } from 'lucide-react';
-import CameraGrid from './components/CameraGrid';
-import EventSidebar from './components/EventSidebar';
-
-const API = 'http://localhost:8000';
-
-function CameraCard({ camera, isActive, onClick }) {
-  const icons = { macbook: Monitor, tapo: Camera, file: Clapperboard, rtsp: Cctv, default: Cctv };
-  const Icon = icons[camera.type] || icons.default;
-  return (
-    <button
-      className={`camera-card ${isActive ? 'camera-card--active' : ''}`}
-      onClick={() => onClick(camera)}
-    >
-      <div className="camera-card__icon"><Icon size={16} strokeWidth={1.75} /></div>
-      <div className="camera-card__info">
-        <span className="camera-card__name">{camera.name}</span>
-        <span className="camera-card__type">
-          {camera.type.toUpperCase()}
-          {camera.online && camera.fps > 0 ? ` · ${Math.round(camera.fps)} FPS` : ''}
-        </span>
-      </div>
-      <div
-        className={`camera-card__dot ${camera.online ? 'camera-card__dot--online' : ''} ${
-          isActive ? 'camera-card__dot--active' : ''
-        }`}
-        title={camera.online ? 'Online' : 'Offline'}
-      />
-    </button>
-  );
-}
-
-function Dashboard() {
-  const { token, username, logout, authHeaders } = useAuth();
-  const navigate = useNavigate();
-  const [cameras,      setCameras]      = useState([]);
-  const [activeCamera, setActiveCamera] = useState(null);
-  const [showRegister, setShowRegister] = useState(false);
-  const [eventsCollapsed, setEventsCollapsed] = useState(false);
-
-  // Poll /cameras every 10s for live status (online/offline, FPS)
-  useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    const fetchCameras = () => {
-      fetch(`${API}/cameras`, { headers: authHeaders() })
-        .then(r => r.json())
-        .then(data => {
-          if (cancelled || !data.cameras) return;
-          setCameras(prev => {
-            // Keep activeCamera valid when the list changes
-            if (!prev.length && data.cameras.length > 0) setActiveCamera(data.cameras[0]);
-            return data.cameras;
-          });
-        })
-        .catch(() => {});
-    };
-    fetchCameras();
-    const interval = setInterval(fetchCameras, 10000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [token, authHeaders]);
-
-  return (
-    <>
-      <div className="layout">
-        {/* ── Sidebar ── */}
-        <aside className="sidebar">
-          <div className="sidebar__logo">
-            <span className="sidebar__logo-icon"><Shield size={18} strokeWidth={1.75} /></span>
-            <span className="sidebar__logo-text">Aegis Vision</span>
-          </div>
-
-          <p className="sidebar__section-label">CAMERAS</p>
-
-          <div className="sidebar__camera-list">
-            {cameras.map(cam => (
-              <CameraCard
-                key={cam.id}
-                camera={cam}
-                isActive={activeCamera?.id === cam.id}
-                onClick={setActiveCamera}
-              />
-            ))}
-          </div>
-
-          <div className="sidebar__footer">
-            <button className="register-btn manage-faces-btn" onClick={() => navigate('/manage-faces')}>
-              <Users size={15} strokeWidth={1.75} /> Manage Faces
-            </button>
-            <button className="register-btn manage-faces-btn" onClick={() => navigate('/recordings')}>
-              <Video size={15} strokeWidth={1.75} /> Recordings
-            </button>
-            <button className="register-btn" onClick={() => setShowRegister(true)}>
-              <UserPlus size={15} strokeWidth={1.75} /> Register Person
-            </button>
-            {/* Logout */}
-            <button className="logout-btn" onClick={logout} title={`Signed in as ${username}`}>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-              </svg>
-              Sign out
-            </button>
-          </div>
-        </aside>
-
-        {/* ── Main ── */}
-        <main className="content">
-          <header className="topbar">
-            <div className="topbar__title">{activeCamera ? activeCamera.name : 'All Cameras'}</div>
-          </header>
-
-          <div className="content-row">
-            <div className="content-col">
-              <div className="video-wrapper video-wrapper--grid">
-                {cameras.length > 0 ? (
-                  <CameraGrid cameras={cameras} token={token} />
-                ) : (
-                  <div className="video-placeholder">
-                    <Cctv size={28} strokeWidth={1.5} />
-                    <p>Loading cameras…</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <EventSidebar
-              token={token}
-              authHeaders={authHeaders}
-              collapsed={eventsCollapsed}
-              onToggle={() => setEventsCollapsed(c => !c)}
-            />
-          </div>
-        </main>
-      </div>
-
-      {showRegister && (
-        <RegisterModal
-          onClose={() => setShowRegister(false)}
-          onSuccess={() => {}}
-        />
-      )}
-    </>
-  );
-}
+import LivePage from './pages/LivePage';
+import EventsPage from './pages/EventsPage';
+import FacesPage from './pages/FacesPage';
+import AppRail from './components/AppRail';
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/manage-faces" element={<ManageFacesPage />} />
-      <Route path="/recordings" element={<RecordingsPage />} />
-    </Routes>
+    <div className="app-shell">
+      <AppRail />
+      <main className="app-shell__main">
+        <Routes>
+          <Route path="/" element={<LivePage />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/faces" element={<FacesPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
