@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ManageFacesPage.css';
 import { useAuth } from './contexts/AuthContext';
+import { Users } from 'lucide-react';
 import RegisterModal from './RegisterModal';
 
 const API = 'http://localhost:8000';
@@ -98,7 +99,7 @@ export default function ManageFacesPage() {
           
           {!loading && !error && faces.length === 0 && (
             <div className="mf-empty">
-              <div className="mf-empty-icon">👥</div>
+              <div className="mf-empty-icon"><Users size={30} strokeWidth={1.5} /></div>
               <p>No faces registered yet.</p>
             </div>
           )}

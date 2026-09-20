@@ -5,20 +5,21 @@ import { useAuth } from './contexts/AuthContext';
 import RegisterModal from './RegisterModal';
 import ManageFacesPage from './ManageFacesPage';
 import RecordingsPage from './RecordingsPage';
+import { Camera, Cctv, Clapperboard, Monitor, ScanFace, Shield, UserPlus, Users, Video } from 'lucide-react';
 import CameraGrid from './components/CameraGrid';
 import EventSidebar from './components/EventSidebar';
 
 const API = 'http://localhost:8000';
 
 function CameraCard({ camera, isActive, onClick }) {
-  const icons = { macbook: '💻', tapo: '📷', file: '🎬', rtsp: '🎥', default: '🎥' };
-  const icon  = icons[camera.type] || icons.default;
+  const icons = { macbook: Monitor, tapo: Camera, file: Clapperboard, rtsp: Cctv, default: Cctv };
+  const Icon = icons[camera.type] || icons.default;
   return (
     <button
       className={`camera-card ${isActive ? 'camera-card--active' : ''}`}
       onClick={() => onClick(camera)}
     >
-      <div className="camera-card__icon">{icon}</div>
+      <div className="camera-card__icon"><Icon size={16} strokeWidth={1.75} /></div>
       <div className="camera-card__info">
         <span className="camera-card__name">{camera.name}</span>
         <span className="camera-card__type">
@@ -72,7 +73,7 @@ function Dashboard() {
         {/* ── Sidebar ── */}
         <aside className="sidebar">
           <div className="sidebar__logo">
-            <span className="sidebar__logo-icon">🛡</span>
+            <span className="sidebar__logo-icon"><Shield size={18} strokeWidth={1.75} /></span>
             <span className="sidebar__logo-text">Aegis Vision</span>
           </div>
 
@@ -91,13 +92,13 @@ function Dashboard() {
 
           <div className="sidebar__footer">
             <button className="register-btn manage-faces-btn" onClick={() => navigate('/manage-faces')}>
-              <span>👥</span> Manage Faces
+              <Users size={15} strokeWidth={1.75} /> Manage Faces
             </button>
             <button className="register-btn manage-faces-btn" onClick={() => navigate('/recordings')}>
-              <span>📹</span> Recordings
+              <Video size={15} strokeWidth={1.75} /> Recordings
             </button>
             <button className="register-btn" onClick={() => setShowRegister(true)}>
-              <span>＋</span> Register Person
+              <UserPlus size={15} strokeWidth={1.75} /> Register Person
             </button>
             {/* Logout */}
             <button className="logout-btn" onClick={logout} title={`Signed in as ${username}`}>
@@ -122,7 +123,7 @@ function Dashboard() {
                   <CameraGrid cameras={cameras} token={token} />
                 ) : (
                   <div className="video-placeholder">
-                    <span>🎥</span>
+                    <Cctv size={28} strokeWidth={1.5} />
                     <p>Loading cameras…</p>
                   </div>
                 )}

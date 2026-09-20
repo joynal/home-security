@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { Video } from 'lucide-react';
 import './RecordingsPage.css';
 
 const API = 'http://localhost:8000';
@@ -70,7 +71,7 @@ export default function RecordingsPage() {
     <div className="recordings-page">
       <header className="recordings-page__header">
         <button className="recordings-page__back" onClick={() => navigate('/')}>⟨ Dashboard</button>
-        <h1>📹 Recordings</h1>
+        <h1 className="recordings-page__title"><Video size={18} strokeWidth={1.75} /> Recordings</h1>
         {camStorage && (
           <span className="recordings-page__storage">
             {camStorage.segment_count} segments · {camStorage.gb} GB
@@ -106,7 +107,7 @@ export default function RecordingsPage() {
             </>
           ) : (
             <div className="recordings-page__placeholder">
-              <span>📼</span>
+              <Video size={28} strokeWidth={1.5} />
               <p>No segments for this camera and date</p>
             </div>
           )}

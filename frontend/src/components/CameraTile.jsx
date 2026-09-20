@@ -3,6 +3,7 @@
  * Props: camera (object), token (string), isExpanded (bool), onExpand (func)
  */
 import { useState } from 'react';
+import { VideoOff } from 'lucide-react';
 import './CameraTile.css';
 
 const API = 'http://localhost:8000';
@@ -32,7 +33,7 @@ export default function CameraTile({ camera, token, isExpanded, onExpand }) {
         />
       ) : (
         <div className="camera-tile__offline-msg">
-          <span>📷</span>
+          <VideoOff size={26} strokeWidth={1.5} />
           <p>{hasError ? 'Feed unavailable' : 'Camera offline'}</p>
         </div>
       )}
