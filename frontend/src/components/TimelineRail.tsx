@@ -3,17 +3,31 @@
  * Newest at top. Event blobs on a rail; thumbnails pinned to timestamps
  * with thin connector lines; hour ticks with monospace labels; a playhead
  * line at the current playback/live position. Click anywhere to seek.
- *
- * Props: date (YYYY-MM-DD), hours (timeline API buckets), events [],
- * playTs (epoch s | null), onSeek(epochS), cameraId, token
  */
-import { useMemo } from 'react';
+import { useMemo, type KeyboardEvent, type MouseEvent, type ComponentType } from 'react';
 import { CircleAlert, PersonStanding, User } from 'lucide-react';
 import { eventService } from '../services/events';
+import type { SecurityEvent, TimelineHour } from '../types';
+
+export interface TimelineRailProps {
+  date: string;
+  hours: TimelineHour[];
+  events: SecurityEvent[];
+  playTs: number | null;
+  onSeek: (epochS: number) => void;
+  cameraId?: string;
+  token?: string | null;
+}
+
+interface SeverityConfig {
+  tone: 'alert' | 'warn' | 'ok';
+  icon: ComponentType<{ size?: number | string; strokeWidth?: number | string }>;
+}
+
 const HOUR_PX = 56; // vertical scale: px per hour
 const TOP_PAD = 12;
 
-const SEVERITY = {
+const SEVERITY: Record<string, SeverityConfig> = {
   unknown_face: { tone: 'alert', icon: CircleAlert },
   loitering: { tone: 'warn', icon: PersonStanding },
   known_face: { tone: 'ok', icon: User },
@@ -25,17 +39,17 @@ const tlContainerStyles = {
   display: 'flex',
   height: '100%',
   minHeight: 0,
-  userSelect: 'none',
+  userSelect: 'none' as const,
 };
 
 const scaleStyles = {
   width: '58px',
   flexShrink: 0,
-  position: 'relative',
+  position: 'relative' as const,
 };
 
-const hourRowStyles = (top) => ({
-  position: 'absolute',
+const hourRowStyles = (top: number) => ({
+  position: 'absolute' as const,
   right: '8px',
   display: 'flex',
   alignItems: 'center',
@@ -48,7 +62,7 @@ const hourLabelStyles = {
   fontSize: '10.5px',
   color: 'var(--text-3)',
   fontVariantNumeric: 'tabular-nums',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap' as const,
 };
 
 const tickStyles = {
@@ -57,94 +71,110 @@ const tickStyles = {
   background: 'var(--border-strong)',
 };
 
-const canvasStyles = (height) => ({
-  position: 'relative',
+const canvasStyles = (height: number) => ({
+  position: 'relative' as const,
   flex: 1,
-  minWidth: 0,
-  cursor: 'crosshair',
   height,
+  cursor: 'pointer',
+  outline: 'none',
   '&:focus-visible': {
-    outline: '2px solid var(--accent)',
-    outlineOffset: '-2px',
+    boxShadow: 'inset 0 0 0 1px var(--accent)',
   },
 });
 
 const railTrackStyles = {
-  position: 'absolute',
-  left: '12px',
-  top: 0,
-  bottom: 0,
-  width: '10px',
-  borderRadius: '5px',
-  background: 'var(--surface-2)',
+  position: 'absolute' as const,
+  left: '6px',
+  width: '2px',
+  top: `${TOP_PAD}px`,
+  bottom: `${TOP_PAD}px`,
+  background: 'var(--border)',
 };
 
-const coverageBarStyles = (top, height) => ({
-  position: 'absolute',
+const coverageBarStyles = (top: number, height: number) => ({
+  position: 'absolute' as const,
   left: 0,
-  width: '10px',
-  borderRadius: '5px',
-  background: '#2e5c8f', // muted recorded-blue on zinc
+  width: '2px',
   top,
   height,
+  background: 'var(--accent)',
+  opacity: 0.85,
 });
 
-const getToneColor = (tone) => {
-  if (tone === 'alert') return 'var(--alert)';
-  if (tone === 'warn') return 'var(--warn)';
-  return '#4b7ba8';
-};
-
-const eventRowStyles = (top) => ({
-  position: 'absolute',
+const eventRowStyles = (top: number) => ({
+  position: 'absolute' as const,
   left: 0,
+  right: '6px',
   display: 'flex',
   alignItems: 'center',
-  height: '46px',
   transform: 'translateY(-50%)',
-  pointerEvents: 'none',
   top,
+  pointerEvents: 'auto' as const,
 });
 
-const blobStyles = (tone) => ({
-  position: 'absolute',
-  left: '11px',
-  width: '12px',
-  height: '12px',
-  borderRadius: '50%',
-  background: getToneColor(tone),
-});
-
-const connectorStyles = {
-  width: '34px',
-  height: '1px',
-  background: 'var(--border-strong)',
-  marginLeft: '24px',
-  flexShrink: 0,
+const blobStyles = (tone: string) => {
+  const bg =
+    tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--live)';
+  return {
+    position: 'absolute' as const,
+    left: '3px',
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    background: bg,
+    transform: 'translateX(-50%)',
+    boxShadow: `0 0 0 2px var(--surface), 0 0 6px ${bg}`,
+  };
 };
 
-const iconWrapperStyles = (tone) => ({
-  color: tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--text-3)',
-  marginRight: '6px',
-  display: 'flex',
-});
+const connectorStyles = {
+  position: 'absolute' as const,
+  left: '8px',
+  width: '12px',
+  height: '1px',
+  background: 'var(--border-strong)',
+};
+
+const iconWrapperStyles = (tone: string) => {
+  const color =
+    tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--live)';
+  return {
+    marginLeft: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '18px',
+    height: '18px',
+    color,
+    flexShrink: 0,
+  };
+};
 
 const thumbStyles = {
-  width: '112px',
+  width: '56px',
   aspectRatio: '16 / 9',
   borderRadius: 'var(--radius-sm)',
-  objectFit: 'cover',
+  objectFit: 'cover' as const,
   background: '#000',
-  pointerEvents: 'auto',
+  border: '1px solid var(--border)',
+  flexShrink: 0,
+  marginLeft: '4px',
   cursor: 'pointer',
-  transition: 'transform var(--transition)',
+  transition: 'transform 0.12s, border-color 0.12s',
   '&:hover': {
-    transform: 'scale(1.06)',
+    transform: 'scale(1.08)',
+    borderColor: 'var(--accent)',
+    zIndex: 5,
   },
 };
 
 const thumbEmptyStyles = {
-  ...thumbStyles,
+  width: '56px',
+  aspectRatio: '16 / 9',
+  borderRadius: 'var(--radius-sm)',
+  border: '1px solid var(--border)',
+  flexShrink: 0,
+  marginLeft: '4px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -159,18 +189,18 @@ const whenStyles = {
   marginLeft: '7px',
 };
 
-const playheadStyles = (top) => ({
-  position: 'absolute',
+const playheadStyles = (top: number) => ({
+  position: 'absolute' as const,
   left: 0,
   right: 0,
   height: 0,
   borderTop: '2px solid var(--accent)',
-  pointerEvents: 'none',
+  pointerEvents: 'none' as const,
   top,
 });
 
 const playheadBadgeStyles = {
-  position: 'absolute',
+  position: 'absolute' as const,
   left: '2px',
   top: '-11px',
   background: 'var(--accent)',
@@ -181,22 +211,22 @@ const playheadBadgeStyles = {
   borderRadius: '4px',
 };
 
-function dayStartEpoch(date) {
+function dayStartEpoch(date: string): number {
   const [y, m, d] = date.split('-').map(Number);
   return Date.UTC(y, m - 1, d) / 1000;
 }
 
-function fmtHour(h) {
+function fmtHour(h: number): string {
   const ampm = h < 12 ? 'AM' : 'PM';
   const hr = h % 12 === 0 ? 12 : h % 12;
   return `${hr}:00 ${ampm}`;
 }
 
-function fmtTime(ts) {
+function fmtTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function TimelineRail({ date, hours, events, playTs, onSeek }) {
+export default function TimelineRail({ date, hours, events, playTs, onSeek }: TimelineRailProps) {
   const day0 = dayStartEpoch(date);
   const totalPx = 24 * HOUR_PX;
 
@@ -209,32 +239,38 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }) {
         const seg = SEVERITY[ev.event_type] || SEVERITY.motion;
         return { ...ev, ts, top: TOP_PAD + (off / 86400) * totalPx, ...seg };
       })
-      .filter(Boolean)
+      .filter((e): e is NonNullable<typeof e> => Boolean(e))
       .sort((a, b) => b.ts - a.ts); // newest first (top)
   }, [events, day0, totalPx]);
 
-  const tsToY = (ts) => TOP_PAD + ((ts - day0) / 86400) * totalPx;
+  const tsToY = (ts: number) => TOP_PAD + ((ts - day0) / 86400) * totalPx;
 
-  const handleClick = (e) => {
+  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top - TOP_PAD;
-    const clamped = Math.max(0, Math.min(1, y / totalPx));
-    onSeek(day0 + clamped * 86400);
+    const clampedY = Math.max(0, Math.min(totalPx, y));
+    const epochS = day0 + (clampedY / totalPx) * 86400;
+    onSeek(Math.round(epochS));
   };
 
   return (
     <div css={tlContainerStyles}>
-      {/* Hour labels + ticks column */}
-      <div css={scaleStyles} aria-hidden="true">
-        {Array.from({ length: 24 }, (_, h) => (
-          <div key={h} css={hourRowStyles(TOP_PAD + h * HOUR_PX)}>
-            <span css={hourLabelStyles} className="tnum">{fmtHour(23 - h)}</span>
-            <span css={tickStyles} />
-          </div>
-        ))}
+      {/* Time axis labels */}
+      <div css={scaleStyles}>
+        {Array.from({ length: 25 }, (_, i) => {
+          const top = TOP_PAD + i * HOUR_PX;
+          return (
+            <div key={i} css={hourRowStyles(top)}>
+              <span css={hourLabelStyles} className="tnum">
+                {fmtHour(i % 24)}
+              </span>
+              <span css={tickStyles} />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Interactive rail + pinned events */}
+      {/* Rail canvas */}
       <div
         css={canvasStyles(totalPx + TOP_PAD * 2)}
         onClick={handleClick}
@@ -244,7 +280,7 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }) {
         aria-valuemax={86400}
         aria-valuenow={playTs ? Math.round(playTs - day0) : undefined}
         tabIndex={0}
-        onKeyDown={e => {
+        onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
           if (e.key === 'ArrowUp') onSeek((playTs ?? day0) + 60);
           if (e.key === 'ArrowDown') onSeek((playTs ?? day0) - 60);
         }}
@@ -288,11 +324,11 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }) {
           </div>
         ))}
 
-        {/* Playhead */}
-        {playTs && playTs >= day0 && playTs <= day0 + 86400 && (
+        {/* Playhead marker line */}
+        {playTs !== null && playTs >= day0 && playTs <= day0 + 86400 && (
           <div css={playheadStyles(tsToY(playTs))}>
             <span css={playheadBadgeStyles} className="tnum">
-              {new Date(playTs * 1000).toLocaleTimeString(undefined, { hour12: false })}
+              {fmtTime(playTs)}
             </span>
           </div>
         )}

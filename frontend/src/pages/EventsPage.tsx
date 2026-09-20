@@ -4,7 +4,7 @@
  * and a detail drawer: Play jumps into the camera timeline; unknown events
  * offer "Name this person" (enrolls from the event's thumbnail).
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { keyframes } from '@emotion/react';
 import { useAuth } from '../contexts/useAuth';
@@ -12,6 +12,7 @@ import { Activity, ChevronLeft, ChevronRight, CircleAlert, Play, PersonStanding,
 import { eventService } from '../services/events';
 import { cameraService } from '../services/cameras';
 import { faceService } from '../services/faces';
+import type { Camera, EventSummary, FacePerson, SecurityEvent, AddFaceResponse } from '../types';
 
 const evDrawerIn = keyframes`
   from { transform: translateX(24px); opacity: 0; }
@@ -20,7 +21,7 @@ const evDrawerIn = keyframes`
 
 const eventsEmptyStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   alignItems: 'center',
   gap: '10px',
   color: 'var(--text-3)',
@@ -36,7 +37,7 @@ const evChipsStyles = {
   gap: '6px',
 };
 
-const evChipStyles = (active) => ({
+const evChipStyles = (active: boolean) => ({
   display: 'inline-flex',
   alignItems: 'center',
   gap: '7px',
@@ -78,7 +79,7 @@ const eventRowStyles = {
   padding: '10px 4px',
   borderBottom: '1px solid var(--border)',
   width: '100%',
-  textAlign: 'left',
+  textAlign: 'left' as const,
   '&:hover': { background: 'var(--surface)' },
   '&:focus-visible': { outline: '2px solid var(--accent)', outlineOffset: '-2px' },
 };
@@ -87,20 +88,20 @@ const eventRowThumbStyles = {
   width: '96px',
   aspectRatio: '16 / 9',
   borderRadius: 'var(--radius-sm)',
-  objectFit: 'cover',
+  objectFit: 'cover' as const,
   background: '#000',
   flexShrink: 0,
 };
 
 const eventRowBodyStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '3px',
   minWidth: 0,
   flex: 1,
 };
 
-const eventRowTitleStyles = (tone) => ({
+const eventRowTitleStyles = (tone: string) => ({
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
@@ -131,7 +132,7 @@ const evLoadMoreStyles = {
 };
 
 const evDrawerStyles = {
-  position: 'fixed',
+  position: 'fixed' as const,
   top: 0,
   right: 0,
   bottom: 0,
@@ -141,7 +142,7 @@ const evDrawerStyles = {
   boxShadow: '-8px 0 32px rgba(0, 0, 0, 0.45)',
   zIndex: 60,
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   animation: `${evDrawerIn} var(--transition-slow) ease-out`,
 };
 
@@ -156,23 +157,23 @@ const evDrawerHeadStyles = {
 
 const evDrawerBodyStyles = {
   padding: '16px',
-  overflowY: 'auto',
+  overflowY: 'auto' as const,
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '16px',
 };
 
 const evDrawerThumbStyles = {
   width: '100%',
   aspectRatio: '16 / 9',
-  objectFit: 'contain',
+  objectFit: 'contain' as const,
   background: '#000',
   borderRadius: 'var(--radius)',
 };
 
 const evDrawerMetaStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '8px',
   '& > div': {
     display: 'flex',
@@ -181,12 +182,12 @@ const evDrawerMetaStyles = {
     fontSize: '12.5px',
   },
   '& dt': { color: 'var(--text-3)' },
-  '& dd': { color: 'var(--text-1)', textAlign: 'right' },
+  '& dd': { color: 'var(--text-1)', textAlign: 'right' as const },
 };
 
 const evDrawerActionsStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '10px',
 };
 
@@ -194,7 +195,7 @@ const evDrawerNameStyles = {
   borderTop: '1px solid var(--border)',
   paddingTop: '14px',
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '10px',
 };
 
@@ -224,13 +225,19 @@ const evDrawerNameRowStyles = {
   },
 };
 
-const evNameResultStyles = (isOk) => ({
+const evNameResultStyles = (isOk: boolean) => ({
   fontSize: '12.5px',
   lineHeight: 1.5,
   color: isOk ? 'var(--live)' : 'var(--alert)',
 });
 
-const TYPE_META = {
+interface EventTypeMeta {
+  icon: ComponentType<{ size?: number | string; strokeWidth?: number | string }>;
+  label: string;
+  tone: string;
+}
+
+const TYPE_META: Record<string, EventTypeMeta> = {
   unknown_face: { icon: CircleAlert, label: 'Unknown person', tone: 'alert' },
   known_face: { icon: User, label: 'Known person', tone: 'ok' },
   loitering: { icon: PersonStanding, label: 'Loitering', tone: 'warn' },
@@ -238,18 +245,18 @@ const TYPE_META = {
   motion: { icon: Activity, label: 'Motion', tone: 'ok' },
 };
 
-function localDateStr(d = new Date()) {
-  const pad = n => String(n).padStart(2, '0');
+function localDateStr(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function dayRange(date) {
+function dayRange(date: string): { start: Date; end: Date } {
   const [y, m, d] = date.split('-').map(Number);
   const start = new Date(Date.UTC(y, m - 1, d));
   return { start, end: new Date(start.getTime() + 86400000) };
 }
 
-function relTime(iso) {
+function relTime(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
@@ -268,16 +275,16 @@ export default function EventsPage() {
   const [personFilter, setPersonFilter] = useState('');
   const [date, setDate] = useState(localDateStr());
 
-  const [summary, setSummary] = useState(null);
-  const [cameras, setCameras] = useState([]);
-  const [people, setPeople] = useState([]);
-  const [events, setEvents] = useState([]);
+  const [summary, setSummary] = useState<EventSummary | null>(null);
+  const [cameras, setCameras] = useState<Camera[]>([]);
+  const [people, setPeople] = useState<FacePerson[]>([]);
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [total, setTotal] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
-  const [selected, setSelected] = useState(null); // event in the drawer
+  const [selected, setSelected] = useState<SecurityEvent | null>(null); // event in the drawer
   const [naming, setNaming] = useState('');       // name input while enrolling
-  const [nameResult, setNameResult] = useState(null);
+  const [nameResult, setNameResult] = useState<AddFaceResponse | { status: string; detail?: string } | null>(null);
 
   // Static-ish reference data
   useEffect(() => {
@@ -312,17 +319,17 @@ export default function EventsPage() {
 
   useEffect(() => { loadEvents(0); }, [loadEvents]);
 
-  const shiftDate = (delta) => {
+  const shiftDate = (delta: number) => {
     const d = new Date(date + 'T00:00:00Z');
     d.setUTCDate(d.getUTCDate() + delta);
     const next = d.toISOString().slice(0, 10);
     if (next <= localDateStr()) setDate(next);
   };
 
-  const openEvent = (ev) => { setSelected(ev); setNaming(''); setNameResult(null); };
+  const openEvent = (ev: SecurityEvent) => { setSelected(ev); setNaming(''); setNameResult(null); };
   const closeDrawer = () => setSelected(null);
 
-  const playEvent = (ev) => {
+  const playEvent = (ev: SecurityEvent) => {
     const ts = new Date(ev.timestamp).getTime() / 1000;
     navigate(`/camera/${ev.camera_id}?date=${ev.timestamp.slice(0, 10)}&ts=${ts}`);
   };
@@ -333,12 +340,12 @@ export default function EventsPage() {
       const data = await faceService.addFaceFromEvent(naming.trim(), selected.id);
       setNameResult(data);
     } catch (e) {
-      setNameResult({ status: 'error', detail: String(e.message || e) });
+      setNameResult({ status: 'error', detail: String((e as Error).message || e) });
     }
   };
 
   useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') closeDrawer(); };
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') closeDrawer(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -376,7 +383,7 @@ export default function EventsPage() {
         </select>
         <select css={evSelectStyles} value={personFilter} onChange={e => setPersonFilter(e.target.value)} aria-label="Filter by person">
           <option value="">All people</option>
-          {people.map(p => <option key={p.id ?? p.name} value={p.name}>{p.name}</option>)}
+          {people.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
         </select>
         <div className="cd-date">
           <button className="btn-ghost" onClick={() => shiftDate(-1)} aria-label="Previous day"><ChevronLeft size={14} /></button>
@@ -472,27 +479,22 @@ export default function EventsPage() {
             {selected.event_type === 'unknown_face' && (
               <div css={evDrawerNameStyles}>
                 <div css={evDrawerNameTitleStyles}>
-                  <UserPlus size={13} strokeWidth={1.75} /> Know this person?
+                  <UserPlus size={14} strokeWidth={1.75} /> Name this person
                 </div>
-                {nameResult ? (
-                  <div css={evNameResultStyles(nameResult.status === 'enrolled')}>
-                    {nameResult.status === 'enrolled'
-                      ? `Enrolled as ${naming.trim()} — future sightings will be recognized.`
-                      : `Not enrolled: ${nameResult.verdict?.reason || nameResult.detail || 'rejected'}`}
-                  </div>
-                ) : (
-                  <div css={evDrawerNameRowStyles}>
-                    <input
-                      value={naming}
-                      onChange={e => setNaming(e.target.value)}
-                      placeholder="Their name"
-                      onKeyDown={e => e.key === 'Enter' && submitName()}
-                      aria-label="Person name"
-                    />
-                    <button className="btn-primary" onClick={submitName} disabled={!naming.trim()}>
-                      Enroll
-                    </button>
-                  </div>
+                <div css={evDrawerNameRowStyles}>
+                  <input
+                    value={naming}
+                    onChange={e => setNaming(e.target.value)}
+                    placeholder="e.g. Alice"
+                    aria-label="Person name"
+                    onKeyDown={e => e.key === 'Enter' && submitName()}
+                  />
+                  <button className="btn-primary" onClick={submitName} disabled={!naming.trim()}>Save</button>
+                </div>
+                {nameResult && (
+                  <span css={evNameResultStyles(nameResult.status === 'ok')}>
+                    {nameResult.status === 'ok' ? 'Enrolled successfully!' : (nameResult.detail || 'Enrollment failed')}
+                  </span>
                 )}
               </div>
             )}

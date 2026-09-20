@@ -3,6 +3,12 @@
  * auto-fill columns from 340px. The grid IS the camera list.
  */
 import CameraTile from './CameraTile';
+import type { Camera } from '../types';
+
+export interface CameraGridProps {
+  cameras: Camera[];
+  onSelect?: (cameraId: string) => void;
+}
 
 const gridStyles = {
   display: 'grid',
@@ -13,7 +19,7 @@ const gridStyles = {
   },
 };
 
-export default function CameraGrid({ cameras, onSelect }) {
+export default function CameraGrid({ cameras, onSelect }: CameraGridProps) {
   return (
     <div css={gridStyles} role="list" aria-label="Camera feeds">
       {cameras.map(cam => (

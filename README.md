@@ -86,13 +86,13 @@ Absent → falls back to the MacBook webcam. See `cameras.json.example`:
 
 ### Environment — `.env`
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `SECRET_KEY` | ✅ | JWT signing key (32+ chars) |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | for Telegram alerts | from @BotFather |
-| `NTFY_TOPIC` | for ntfy.sh push | subscribe on your phone at `https://ntfy.sh/<topic>` |
-| `RECORDINGS_DIR` / `THUMBNAILS_DIR` | NAS/external storage | defaults to `data/…` |
-| `GO2RTC_HOST` | Docker Compose only | `go2rtc:8554` |
+| Variable                                  | Required             | Purpose                                              |
+| ----------------------------------------- | -------------------- | ---------------------------------------------------- |
+| `SECRET_KEY`                              | ✅                    | JWT signing key (32+ chars)                          |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | for Telegram alerts  | from @BotFather                                      |
+| `NTFY_TOPIC`                              | for ntfy.sh push     | subscribe on your phone at `https://ntfy.sh/<topic>` |
+| `RECORDINGS_DIR` / `THUMBNAILS_DIR`       | NAS/external storage | defaults to `data/…`                                 |
+| `GO2RTC_HOST`                             | Docker Compose only  | `go2rtc:8554`                                        |
 
 Alert channel is `ACTIVE_ALERT` in `src/config.py` (`console` / `telegram` / `ntfy`).
 
@@ -131,19 +131,19 @@ go2rtc-docker.yaml with your streams for the compose setup.
 
 ## Project Layout
 
-| Path | What |
-|------|------|
-| `main.py` | FastAPI entrypoint — wires routers, go2rtc, recorder, inference thread |
-| `src/config.py` + `src/models.py` | Env vars, cameras.json loading, Pydantic config models |
-| `src/api/` | Inference loop, shared state, routers (stream/events/recordings/faces/auth/register) |
-| `src/detection/` | Cascading pipeline: motion, person, tracker, zones, loitering |
-| `src/recognition/` | InsightFace ArcFace recognizer |
-| `src/camera/` | Camera sources: webcam, Tapo RTSP, looping video file |
-| `src/recording/` | FFmpeg segment recorder + retention |
-| `src/events/` | SQLite event database |
-| `src/alerts/` | Console / Telegram / ntfy + daily summary |
-| `frontend/src/` | React dashboard, face manager, registration wizard, recordings page |
-| `docs/` | Architecture diagram, research, implementation plan, progress tracker |
+| Path                              | What                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `main.py`                         | FastAPI entrypoint — wires routers, go2rtc, recorder, inference thread               |
+| `src/config.py` + `src/models.py` | Env vars, cameras.json loading, Pydantic config models                               |
+| `src/api/`                        | Inference loop, shared state, routers (stream/events/recordings/faces/auth/register) |
+| `src/detection/`                  | Cascading pipeline: motion, person, tracker, zones, loitering                        |
+| `src/recognition/`                | InsightFace ArcFace recognizer                                                       |
+| `src/camera/`                     | Camera sources: webcam, Tapo RTSP, looping video file                                |
+| `src/recording/`                  | FFmpeg segment recorder + retention                                                  |
+| `src/events/`                     | SQLite event database                                                                |
+| `src/alerts/`                     | Console / Telegram / ntfy + daily summary                                            |
+| `frontend/src/`                   | React dashboard, face manager, registration wizard, recordings page                  |
+| `docs/`                           | Architecture diagram, research, implementation plan, progress tracker                |
 
 Further docs: [CLAUDE.md](./CLAUDE.md) (project index) · [docs/PROGRESS.md](./docs/PROGRESS.md)
 (task state + verification log) · [LEARNINGS.md](./LEARNINGS.md) (gotchas)

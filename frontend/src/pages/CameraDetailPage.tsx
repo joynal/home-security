@@ -12,6 +12,15 @@ import TimelineRail from '../components/TimelineRail';
 import { cameraService } from '../services/cameras';
 import { eventService } from '../services/events';
 import { recordingService } from '../services/recordings';
+import type { Camera, SecurityEvent, TimelineResponse } from '../types';
+
+interface PlaybackMode {
+  url: string;
+  startEpoch: number;
+  filename: string;
+}
+
+type Mode = 'live' | PlaybackMode;
 
 const headerStyles = {
   gap: '6px',
@@ -90,12 +99,13 @@ const playerStyles = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 0,
+  position: 'relative' as const,
+  overflow: 'hidden',
   minHeight: 0,
   '& img, & video': {
-    maxWidth: '100%',
-    maxHeight: '100%',
-    objectFit: 'contain',
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain' as const,
   },
 };
 
@@ -105,9 +115,9 @@ const playerEmptyStyles = {
 };
 
 const railStyles = {
-  borderLeft: '1px solid var(--border)',
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
+  borderLeft: '1px solid var(--border)',
   minHeight: 0,
   background: 'var(--surface)',
   '@media (max-width: 900px)': {
@@ -135,40 +145,40 @@ const railHeadStyles = {
 
 const railScrollStyles = {
   flex: 1,
-  overflowY: 'auto',
+  overflowY: 'auto' as const,
   padding: '6px 10px 24px',
-  scrollbarWidth: 'thin',
+  scrollbarWidth: 'thin' as const,
 };
 
-function localDateStr(d = new Date()) {
-  const pad = n => String(n).padStart(2, '0');
+function localDateStr(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function dayRange(date) {
+function dayRange(date: string): { start: Date; end: Date } {
   const [y, m, d] = date.split('-').map(Number);
   const start = new Date(Date.UTC(y, m - 1, d));
   return { start, end: new Date(start.getTime() + 86400000) };
 }
 
 export default function CameraDetailPage() {
-  const { cameraId } = useParams();
+  const { cameraId } = useParams<{ cameraId: string }>();
   const { token } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const date = searchParams.get('date') || localDateStr();
-  const [cameras, setCameras] = useState([]);
-  const [timeline, setTimeline] = useState({ hours: [], segments: [] });
-  const [events, setEvents] = useState([]);
-  const [days, setDays] = useState([]);
+  const [cameras, setCameras] = useState<Camera[]>([]);
+  const [timeline, setTimeline] = useState<TimelineResponse>({ hours: [], segments: [] });
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [days, setDays] = useState<string[]>([]);
 
-  // 'live' | { url, startEpoch } — playback rides the <video>
-  const [mode, setMode] = useState('live');
-  const [playTs, setPlayTs] = useState(null);
-  const videoRef = useRef(null);
+  // 'live' | { url, startEpoch, filename } — playback rides the <video>
+  const [mode, setMode] = useState<Mode>('live');
+  const [playTs, setPlayTs] = useState<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   // Deep link (?ts=) from the events drawer — seek once segments are loaded
-  const pendingTs = useRef(null);
+  const pendingTs = useRef<number | null>(null);
   const tsParam = searchParams.get('ts');
   useEffect(() => {
     if (tsParam && Number(tsParam) > 0) pendingTs.current = Number(tsParam);
@@ -203,11 +213,11 @@ export default function CameraDetailPage() {
   }, [token, cameraId, date]);
 
   // ── Playback control ────────────────────────────────────
-  const onSeek = (epochS) => {
+  const onSeek = (epochS: number) => {
     const seg = timeline.segments.find(
       s => epochS >= s.start_epoch && epochS < s.start_epoch + s.duration_seconds
     );
-    if (!seg) {
+    if (!seg || !cameraId) {
       setPlayTs(epochS);
       return;
     }
@@ -238,7 +248,7 @@ export default function CameraDetailPage() {
   };
 
   const onTimeUpdate = () => {
-    if (!videoRef.current || typeof mode !== 'object') return;
+    if (!videoRef.current || typeof mode !== 'object' || !cameraId) return;
     const current = mode.startEpoch + videoRef.current.currentTime;
     setPlayTs(current);
 
@@ -259,14 +269,14 @@ export default function CameraDetailPage() {
     }
   };
 
-  const shiftDate = (deltaDays) => {
+  const shiftDate = (deltaDays: number) => {
     const [y, m, d] = date.split('-').map(Number);
     const next = new Date(Date.UTC(y, m - 1, d + deltaDays));
     setSearchParams({ date: localDateStr(next) });
   };
 
   const camera = cameras.find(c => c.id === cameraId);
-  const liveFeedUrl = camera?.online
+  const liveFeedUrl = camera?.online && cameraId
     ? cameraService.getVideoFeedUrl(cameraId)
     : null;
 
@@ -278,7 +288,7 @@ export default function CameraDetailPage() {
         </button>
         <select
           css={cameraSelectStyles}
-          value={cameraId}
+          value={cameraId || ''}
           onChange={e => navigate(`/camera/${e.target.value}`)}
           aria-label="Switch camera"
         >
@@ -309,7 +319,7 @@ export default function CameraDetailPage() {
         {mode === 'live' ? (
           <span css={modeLiveStyles}>
             <span className="status-dot status-dot--live" /> Live
-            {camera?.fps > 0 && <span className="tnum">· {Math.round(camera.fps)} fps</span>}
+            {camera?.fps !== undefined && camera.fps > 0 && <span className="tnum">· {Math.round(camera.fps)} fps</span>}
           </span>
         ) : (
           <button css={modePlaybackStyles} onClick={goLive}>

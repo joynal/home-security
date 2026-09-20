@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { css } from '@emotion/react';
 import { useAuth } from './contexts/useAuth';
 
@@ -137,17 +137,17 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error,    setError]    = useState('');
-  const [loading,  setLoading]  = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       await login(username, password);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -155,9 +155,7 @@ export default function LoginPage() {
 
   return (
     <div css={loginStyles}>
-
       <div className="lp-card">
-
         <div className="lp-copy">
           <h1 className="lp-title">Aegis Vision</h1>
           <p className="lp-sub">AI-powered home security — sign in to continue</p>

@@ -1,10 +1,9 @@
 /**
  * App shell — icon rail + routed pages.
  * The camera grid (Live) is home; Events and Faces are one click away.
- * (Login gating happens in main.jsx's Root.)
+ * (Login gating happens in main.tsx's Root.)
  */
 import { Routes, Route, Navigate } from 'react-router-dom';
-import './index.css';
 import LivePage from './pages/LivePage';
 import EventsPage from './pages/EventsPage';
 import FacesPage from './pages/FacesPage';

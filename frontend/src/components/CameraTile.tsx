@@ -2,15 +2,21 @@
  * Camera tile — just video (Frigate/UniFi pattern).
  * Black 16:9 cell, no card chrome. Overlays: name bottom-left on a scrim,
  * status dot + word top-right. Everything else lives in the detail view.
- * Props: camera, token, onSelect(cameraId)
+ * Props: camera, onSelect(cameraId)
  */
 import { useState } from 'react';
 import { VideoOff } from 'lucide-react';
 import useVisible from '../hooks/useVisible';
 import { cameraService } from '../services/cameras';
+import type { Camera } from '../types';
+
+export interface CameraTileProps {
+  camera: Camera;
+  onSelect?: (cameraId: string) => void;
+}
 
 const tileStyles = {
-  position: 'relative',
+  position: 'relative' as const,
   width: '100%',
   aspectRatio: '16 / 9',
   background: '#000',
@@ -28,14 +34,14 @@ const tileStyles = {
 const feedStyles = {
   width: '100%',
   height: '100%',
-  objectFit: 'contain', // letterbox — never crop a security feed
+  objectFit: 'contain' as const, // letterbox — never crop a security feed
 };
 
-const offlineStyles = (paused) => ({
-  position: 'absolute',
+const offlineStyles = (paused: boolean) => ({
+  position: 'absolute' as const,
   inset: 0,
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   alignItems: 'center',
   justifyContent: 'center',
   gap: '8px',
@@ -45,7 +51,7 @@ const offlineStyles = (paused) => ({
 });
 
 const nameStyles = {
-  position: 'absolute',
+  position: 'absolute' as const,
   left: 0,
   bottom: 0,
   right: 0,
@@ -54,12 +60,12 @@ const nameStyles = {
   color: '#fff',
   fontSize: '13px',
   fontWeight: 500,
-  textAlign: 'left',
-  pointerEvents: 'none',
+  textAlign: 'left' as const,
+  pointerEvents: 'none' as const,
 };
 
 const statusStyles = {
-  position: 'absolute',
+  position: 'absolute' as const,
   top: '10px',
   right: '10px',
   display: 'flex',
@@ -72,12 +78,12 @@ const statusStyles = {
   color: 'var(--text-2)',
   fontSize: '11px',
   fontWeight: 500,
-  pointerEvents: 'none',
+  pointerEvents: 'none' as const,
 };
 
-export default function CameraTile({ camera, onSelect }) {
+export default function CameraTile({ camera, onSelect }: CameraTileProps) {
   const [hasError, setHasError] = useState(false);
-  const [ref, visible] = useVisible();
+  const [ref, visible] = useVisible<HTMLButtonElement>();
   // Stream gating: off-screen or hidden tab → drop the src (server keeps
   // encoding once per loop; we just stop pulling frames per client).
   const feedUrl = visible

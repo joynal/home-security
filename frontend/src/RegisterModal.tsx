@@ -2,6 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { css } from '@emotion/react';
 import { registerService } from './services/register';
 import { cameraService } from './services/cameras';
+import type { FaceStatus } from './types';
+
+export interface RegisterModalProps {
+  initialName?: string;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
 
 const modalStyles = css`
   position: fixed;
@@ -18,18 +25,18 @@ const modalStyles = css`
 
   .rm-panel {
     position: relative;
-    background: #0b0f19;
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    width: 100%;
+    max-width: 440px;
+    background: #111318;
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 24px;
-    width: min(540px, 95vw);
-    max-height: 92vh;
-    overflow-y: auto;
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
-    animation: rm-up 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+    animation: rm-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  @keyframes rm-up {
-    from { transform: translateY(28px) scale(0.96); opacity: 0; }
-    to   { transform: translateY(0)    scale(1);    opacity: 1; }
+  @keyframes rm-slide-up {
+    from { transform: translateY(16px) scale(0.98); opacity: 0; }
+    to   { transform: translateY(0) scale(1); opacity: 1; }
   }
 
   .rm-close {
@@ -37,116 +44,48 @@ const modalStyles = css`
     top: 18px; right: 18px;
     width: 32px; height: 32px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
     color: #7a879e;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    z-index: 10;
+    cursor: pointer; z-index: 10;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .rm-close:hover { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+  .rm-close:hover { background: rgba(255, 255, 255, 0.1); color: #e8eaf0; border-color: rgba(255, 255, 255, 0.16); }
 
   .rm-name-phase {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-    padding: 40px 36px 36px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 22px; padding: 40px 32px 36px;
+    text-align: center;
   }
 
   .rm-face-art {
-    width: 160px;
-    height: 160px;
-    flex-shrink: 0;
+    width: 100px; height: 100px;
+    margin-top: 4px;
   }
-
-  .rm-bracket {
-    stroke: #3b9eff;
-    stroke-width: 3;
-    fill: none;
-    animation: rm-bracket-glow 3s ease-in-out infinite;
-  }
-  @keyframes rm-bracket-glow {
-    0%, 100% { stroke-opacity: 0.6; }
-    50%       { stroke-opacity: 1;   }
-  }
-
-  .rm-face-oval {
-    stroke: rgba(255, 255, 255, 0.12);
-    stroke-width: 1.5;
-  }
-
-  .rm-eye {
-    stroke: #63b3ff;
-    stroke-width: 1.5;
-    fill: none;
-  }
-
-  .rm-nose {
-    stroke: rgba(255, 255, 255, 0.2);
-    stroke-width: 1.5;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .rm-mouth {
-    stroke: #63b3ff;
-    stroke-width: 1.5;
-    fill: none;
-    stroke-linecap: round;
-  }
-
-  .rm-dot {
-    fill: #3b9eff;
-    animation: rm-dot-pulse 2s ease-in-out infinite;
-  }
-  @keyframes rm-dot-pulse {
-    0%, 100% { fill-opacity: 0.5; }
-    50%       { fill-opacity: 1;   }
-  }
-
+  .rm-bracket { stroke: #3b9eff; stroke-width: 2.5; opacity: 0.85; }
+  .rm-face-oval { stroke: rgba(59, 158, 255, 0.3); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .rm-eye, .rm-nose, .rm-mouth { stroke: rgba(59, 158, 255, 0.45); stroke-width: 1.5; }
+  .rm-dot { fill: #3b9eff; opacity: 0.7; }
   .rm-scanline {
-    stroke: #3b9eff;
-    stroke-width: 1;
-    stroke-dasharray: 6 3;
-    stroke-opacity: 0.7;
-    animation: rm-scan 3s ease-in-out infinite;
+    stroke: #3b9eff; stroke-width: 1.5; opacity: 0.8;
+    animation: rm-scan 2.4s ease-in-out infinite alternate;
   }
   @keyframes rm-scan {
-    0%   { transform: translateY(-30px); opacity: 0; }
-    20%  { opacity: 1; }
-    80%  { opacity: 1; }
-    100% { transform: translateY(30px);  opacity: 0; }
+    from { transform: translateY(-30px); opacity: 0.2; }
+    to   { transform: translateY(30px);  opacity: 0.9; }
   }
 
-  .rm-name-copy { text-align: center; }
-  .rm-name-title {
-    margin: 0 0 6px;
-    font-size: 20px;
-    font-weight: 700;
-    color: #e8eaf0;
-    letter-spacing: -0.3px;
-  }
-  .rm-name-sub {
-    margin: 0;
-    font-size: 13px;
-    color: #7a879e;
-  }
+  .rm-name-copy { display: flex; flex-direction: column; gap: 6px; }
+  .rm-name-title { margin: 0; font-size: 20px; font-weight: 700; color: #e8eaf0; letter-spacing: -0.3px; }
+  .rm-name-sub   { margin: 0; font-size: 13px; color: #7a879e; }
 
   .rm-step-chips {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
   }
   .rm-chip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 99px;
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 99px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.07);
     font-size: 12px;
@@ -248,104 +187,103 @@ const modalStyles = css`
     transition: border-color 0.3s;
   }
   .rm-oval--ok   { border-color: #22d3a5;  }
-  .rm-oval--warn { border-color: rgba(248, 113, 113, 0.5); }
+  .rm-oval--warn { border-color: rgba(248, 113, 113, 0.4); }
 
   .rm-oval__scan {
-    position: absolute;
-    left: 0; right: 0;
-    height: 2px;
-    background: var(--live);
-    animation: none;
-    opacity: 0.7;
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(59, 158, 255, 0.04) 40%,
+      rgba(59, 158, 255, 0.12) 50%,
+      transparent 60%
+    );
+    animation: rm-scan-sweep 2s ease-in-out infinite alternate;
   }
-  .rm-oval--ok .rm-oval__scan { background: var(--live); }
+  @keyframes rm-scan-sweep {
+    from { transform: translateY(-40%); }
+    to   { transform: translateY(40%); }
+  }
 
   .rm-dir-arrow {
     position: absolute;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 28px;
-    color: rgba(59, 158, 255, 0.9);
-    animation: rm-arrow-pulse 1s ease-in-out infinite;
-    text-shadow: 0 0 20px rgba(59, 158, 255, 0.7);
-    font-style: normal;
     pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 700;
+    color: #3b9eff;
+    filter: drop-shadow(0 0 8px rgba(59, 158, 255, 0.8));
+    animation: rm-arrow-pulse 0.9s ease-in-out infinite alternate;
   }
-  .rm-dir-arrow--left  { top: 50%; left: 16px;    transform: translateY(-50%); }
-  .rm-dir-arrow--right { top: 50%; right: 16px;   transform: translateY(-50%); }
-  .rm-dir-arrow--up    { top: 16px;   left: 50%;  transform: translateX(-50%); }
-  .rm-dir-arrow--down  { bottom: 16px; left: 50%; transform: translateX(-50%); }
+  .rm-dir-arrow--left  { left: 16px; top: 50%; transform: translateY(-50%); }
+  .rm-dir-arrow--right { right: 16px; top: 50%; transform: translateY(-50%); }
+  .rm-dir-arrow--up    { top: 14px; left: 50%; transform: translateX(-50%); }
+  .rm-dir-arrow--down  { bottom: 14px; left: 50%; transform: translateX(-50%); }
+
   @keyframes rm-arrow-pulse {
-    0%, 100% { opacity: 0.5; transform: translateY(-50%) scale(1);   }
-    50%       { opacity: 1;   transform: translateY(-50%) scale(1.2); }
-  }
-  .rm-dir-arrow--up,    .rm-dir-arrow--down    { animation-name: rm-arrow-pulse-v; }
-  .rm-dir-arrow--left,  .rm-dir-arrow--right   { animation-name: rm-arrow-pulse-h; }
-  @keyframes rm-arrow-pulse-v {
-    0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(1);   }
-    50%       { opacity: 1;   transform: translateX(-50%) scale(1.2); }
-  }
-  @keyframes rm-arrow-pulse-h {
-    0%, 100% { opacity: 0.5; transform: translateY(-50%) scale(1);   }
-    50%       { opacity: 1;   transform: translateY(-50%) scale(1.2); }
+    from { opacity: 0.4; }
+    to   { opacity: 1; }
   }
 
-  .rm-ring {
+  .rm-countdown-ring {
     position: absolute;
-    bottom: 16px; right: 16px;
-    width: 56px; height: 56px;
-    display: flex; align-items: center; justify-content: center;
+    inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    pointer-events: none;
   }
-  .rm-ring__svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-  .rm-ring__track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 4; }
-  .rm-ring__fill  {
-    fill: none; stroke: #22d3a5; stroke-width: 4;
-    stroke-dasharray: 150.8;
-    stroke-dashoffset: 0;
-    stroke-linecap: round;
-    animation: rm-ring-drain 1s linear forwards;
+  .rm-countdown-num {
+    font-size: 48px; font-weight: 800; color: #22d3a5;
+    line-height: 1;
+    animation: rm-count-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  @keyframes rm-ring-drain {
-    from { stroke-dashoffset: 0; }
-    to   { stroke-dashoffset: 150.8; }
-  }
-  .rm-ring__num {
-    font-size: 20px; font-weight: 700; color: #22d3a5;
-    position: relative; z-index: 1;
-    animation: rm-num-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes rm-num-pop {
+  @keyframes rm-count-pop {
     from { transform: scale(0.5); opacity: 0; }
     to   { transform: scale(1);   opacity: 1; }
   }
+  .rm-countdown-sub { font-size: 11px; font-weight: 600; color: #22d3a5; letter-spacing: 0.5px; text-transform: uppercase; }
 
-  .rm-flash {
+  .rm-flash-overlay {
     position: absolute; inset: 0;
-    background: rgba(255, 255, 255, 0.55);
-    animation: rm-flash-out 0.7s ease forwards;
+    background: white;
     pointer-events: none;
+    animation: rm-flash-anim 0.7s ease-out forwards;
   }
-  @keyframes rm-flash-out { from { opacity: 0.55; } to { opacity: 0; } }
-
-  .rm-debug {
-    position: absolute; bottom: 10px; left: 12px;
-    font-size: 10px; font-weight: 500; font-family: 'Courier New', monospace;
-    color: rgba(255,255,255,0.5);
-    background: rgba(0,0,0,0.45);
-    padding: 3px 8px; border-radius: 5px;
-    pointer-events: none;
+  @keyframes rm-flash-anim {
+    0%   { opacity: 0.85; }
+    100% { opacity: 0; }
   }
 
   .rm-guide {
-    font-size: 14px; font-weight: 500;
-    text-align: center;
-    padding: 10px 16px;
-    border-radius: 10px;
-    margin: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: background 0.3s, border-color 0.3s;
   }
-  .rm-guide--ok   { color: #22d3a5; background: rgba(34, 211, 165, 0.07); border: 1px solid rgba(34, 211, 165, 0.2); }
-  .rm-guide--warn { color: #facc15; background: rgba(234, 179, 8, 0.06);  border: 1px solid rgba(234, 179, 8, 0.18); }
+  .rm-guide--ok {
+    background: rgba(34, 211, 165, 0.07);
+    border-color: rgba(34, 211, 165, 0.25);
+  }
+  .rm-guide-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #7a879e; flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .rm-guide--ok .rm-guide-dot {
+    background: #22d3a5;
+    box-shadow: 0 0 6px #22d3a5;
+  }
+  .rm-guide-text {
+    font-size: 13px; font-weight: 500; color: #e8eaf0;
+    flex: 1;
+  }
 
-  .rm-err { font-size: 12px; color: #f87171; text-align: center; margin: 0; }
+  .rm-err-msg {
+    font-size: 12px; color: #f87171; text-align: center;
+    background: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    border-radius: 8px; padding: 6px 12px;
+  }
 
   .rm-manual-btn {
     background: rgba(255, 255, 255, 0.04);
@@ -396,7 +334,15 @@ const modalStyles = css`
   .rm-success-sub   { margin: 0; font-size: 13px; color: #7a879e; max-width: 340px; line-height: 1.65; }
 `;
 
-const STEPS = [
+interface StepItem {
+  id: string;
+  label: string;
+  instruction: string;
+  arrowDir: 'left' | 'right' | 'up' | 'down' | null;
+  icon: string;
+}
+
+const STEPS: StepItem[] = [
   { id: 'center', label: 'Center',     instruction: 'Look directly into the camera',   arrowDir: null,    icon: '◎' },
   { id: 'left',   label: 'Turn Left',  instruction: 'Slowly turn your head to the left',  arrowDir: 'left',  icon: '←' },
   { id: 'right',  label: 'Turn Right', instruction: 'Slowly turn your head to the right', arrowDir: 'right', icon: '→' },
@@ -435,7 +381,7 @@ function FaceScanArt() {
 }
 
 /* ── Animated direction arrows overlay ─────────────────── */
-function DirectionArrow({ dir }) {
+function DirectionArrow({ dir }: { dir: 'left' | 'right' | 'up' | 'down' | null }) {
   if (!dir) return null;
   const arrows = { left: '←', right: '→', up: '↑', down: '↓' };
   return (
@@ -445,20 +391,20 @@ function DirectionArrow({ dir }) {
   );
 }
 
-export default function RegisterModal({ onClose, onSuccess }) {
-  const [phase, setPhase]               = useState('name');
-  const [name, setName]                 = useState('');
+export default function RegisterModal({ initialName, onClose, onSuccess }: RegisterModalProps) {
+  const [phase, setPhase]               = useState<'name' | 'capture' | 'success'>(initialName ? 'capture' : 'name');
+  const [name, setName]                 = useState(initialName || '');
   const [nameError, setNameError]       = useState('');
   const [stepIdx, setStepIdx]           = useState(0);
-  const [faceStatus, setFaceStatus]     = useState({ face_found: false, pose: 'none', offset_y: null });
-  const [countdown, setCountdown]       = useState(null);
-  const [completedSteps, setCompletedSteps] = useState([]);
+  const [faceStatus, setFaceStatus]     = useState<FaceStatus>({ face_found: false, pose: 'none' });
+  const [countdown, setCountdown]       = useState<number | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [capturing, setCapturing]       = useState(false);
-  const [captureError, setCaptureError] = useState('');
   const [flashSuccess, setFlashSuccess] = useState(false);
+  const [captureError, setCaptureError] = useState('');
 
-  const pollingRef   = useRef(null);
-  const countdownRef = useRef(null);
+  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCapturing  = useRef(false);
   const stepIdxRef   = useRef(stepIdx);
   const nameRef      = useRef(name);
@@ -487,7 +433,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
         setFlashSuccess(false);
         const nextIdx = stepIdxRef.current + 1;
         if (nextIdx >= STEPS.length) {
-          clearInterval(pollingRef.current);
+          if (pollingRef.current) clearInterval(pollingRef.current);
           setPhase('success');
         } else {
           setStepIdx(nextIdx);
@@ -496,7 +442,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
         setCapturing(false);
       }, 700);
     } catch (err) {
-      setCaptureError(err.message || String(err));
+      setCaptureError((err as Error).message || String(err));
       isCapturing.current = false;
       setCapturing(false);
     }
@@ -513,7 +459,9 @@ export default function RegisterModal({ onClose, onSuccess }) {
         setFaceStatus({ face_found: false, pose: 'none' });
       }
     }, 350);
-    return () => clearInterval(pollingRef.current);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, [phase]);
 
   /* ── Auto-capture countdown ─────────────────────────── */
@@ -524,7 +472,7 @@ export default function RegisterModal({ onClose, onSuccess }) {
       countdownRef.current = setInterval(() => {
         tick -= 1;
         if (tick <= 0) {
-          clearInterval(countdownRef.current);
+          if (countdownRef.current) clearInterval(countdownRef.current);
           setCountdown(null);
           doCapture();
         } else {
@@ -532,11 +480,13 @@ export default function RegisterModal({ onClose, onSuccess }) {
         }
       }, 1000);
     } else if (!isCorrectPose) {
-      clearInterval(countdownRef.current);
-      // deferred out of the effect body (react-hooks/set-state-in-effect)
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      // deferred out of the effect body
       setTimeout(() => setCountdown(null), 0);
     }
-    return () => clearInterval(countdownRef.current);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
   }, [isCorrectPose, phase, doCapture]);
 
   /* ── Name form ──────────────────────────────────────── */
@@ -618,12 +568,16 @@ export default function RegisterModal({ onClose, onSuccess }) {
                 <span className="rm-step-num">{stepIdx + 1}/{STEPS.length}</span>
                 <span className="rm-step-name">{currentStep.label}</span>
               </div>
-              {/* Step dots */}
+
+              {/* Pip progress */}
               <div className="rm-dots">
-                {STEPS.map((_, i) => (
+                {STEPS.map((s, idx) => (
                   <div
-                    key={i}
-                    className={`rm-dot-pip ${completedSteps.includes(STEPS[i].id) ? 'rm-dot-pip--done' : i === stepIdx ? 'rm-dot-pip--active' : ''}`}
+                    key={s.id}
+                    className={`rm-dot-pip ${
+                      completedSteps.includes(s.id) ? 'rm-dot-pip--done' :
+                      idx === stepIdx               ? 'rm-dot-pip--active' : ''
+                    }`}
                   />
                 ))}
               </div>
@@ -643,38 +597,33 @@ export default function RegisterModal({ onClose, onSuccess }) {
               {!isCorrectPose && <DirectionArrow dir={currentStep.arrowDir} />}
 
               {/* Countdown ring */}
-              {countdown !== null && (
-                <div className="rm-ring">
-                  <svg viewBox="0 0 56 56" className="rm-ring__svg">
-                    <circle cx="28" cy="28" r="24" className="rm-ring__track"/>
-                    <circle cx="28" cy="28" r="24" className="rm-ring__fill" style={{ animationDuration: '1s' }}/>
-                  </svg>
-                  <span className="rm-ring__num">{countdown}</span>
+              {countdown != null && (
+                <div className="rm-countdown-ring">
+                  <div className="rm-countdown-num">{countdown}</div>
+                  <div className="rm-countdown-sub">Hold Still</div>
                 </div>
               )}
 
-              {/* Flash */}
-              {flashSuccess && <div className="rm-flash" />}
-
-              {/* Debug badge */}
-              <div className="rm-debug">
-                {faceStatus.face_found
-                  ? `pose: ${faceStatus.pose}  y=${faceStatus.offset_y?.toFixed(2) ?? '–'}`
-                  : 'no face'}
-              </div>
+              {/* Flash on success */}
+              {flashSuccess && <div className="rm-flash-overlay" />}
             </div>
 
-            {/* Guide + error */}
-            <p className={`rm-guide ${guide.ok ? 'rm-guide--ok' : 'rm-guide--warn'}`}>{guide.text}</p>
-            {captureError && <p className="rm-err">{captureError}</p>}
+            {/* Smart guide banner */}
+            <div className={`rm-guide ${guide.ok ? 'rm-guide--ok' : ''}`}>
+              <div className="rm-guide-dot" />
+              <div className="rm-guide-text">{guide.text}</div>
+            </div>
 
-            {/* Manual button */}
+            {/* Capture error */}
+            {captureError && <div className="rm-err-msg">{captureError}</div>}
+
+            {/* Manual capture fallback */}
             <button
               className="rm-manual-btn"
               onClick={doCapture}
               disabled={!faceStatus.face_found || capturing}
             >
-              {capturing ? 'Capturing…' : 'Capture manually'}
+              Take photo manually
             </button>
           </div>
         )}

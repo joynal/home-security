@@ -6,25 +6,30 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/useAuth';
 import { eventService } from '../services/events';
+import type { SecurityEvent } from '../types';
+
+export interface RecentEventsProps {
+  limit?: number;
+}
 
 const stripStyles = {
   display: 'flex',
   gap: '8px',
-  overflowX: 'auto',
+  overflowX: 'auto' as const,
   paddingBottom: '4px',
   marginBottom: '8px',
-  scrollbarWidth: 'thin',
+  scrollbarWidth: 'thin' as const,
 };
 
-const getBorderColor = (type) => {
+const getBorderColor = (type: string) => {
   if (type === 'unknown_face') return 'var(--alert)';
   if (type === 'loitering') return 'var(--warn)';
   if (type === 'known_face') return 'var(--live)';
   return 'transparent';
 };
 
-const cardStyles = (eventType) => ({
-  position: 'relative',
+const cardStyles = (eventType: string) => ({
+  position: 'relative' as const,
   flexShrink: 0,
   width: '150px',
   aspectRatio: '16 / 9',
@@ -35,12 +40,12 @@ const cardStyles = (eventType) => ({
   '& img': {
     width: '100%',
     height: '100%',
-    objectFit: 'cover',
+    objectFit: 'cover' as const,
   },
 });
 
 const timeStyles = {
-  position: 'absolute',
+  position: 'absolute' as const,
   bottom: '4px',
   right: '6px',
   fontSize: '10.5px',
@@ -48,7 +53,7 @@ const timeStyles = {
   textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
 };
 
-function relTime(iso) {
+function relTime(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
@@ -58,9 +63,9 @@ function relTime(iso) {
   return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
 }
 
-export default function RecentEvents({ limit = 10 }) {
+export default function RecentEvents({ limit = 10 }: RecentEventsProps) {
   const { token } = useAuth();
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
 
   useEffect(() => {
     if (!token) return;

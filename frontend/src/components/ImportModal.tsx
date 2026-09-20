@@ -2,14 +2,31 @@
  * ImportModal — enroll a person from photos (drag-and-drop or picker).
  * Posts multipart to /faces/import; shows a per-file verdict list
  * (enrolled / no_face / blurry / too_small / …). EXIF is stripped server-side.
- * Props: fixedName (string | null — when adding photos to an existing person),
- *        onClose(), onDone()
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type DragEvent } from 'react';
 import { CheckCircle2, CircleAlert, ImagePlus, Upload, X } from 'lucide-react';
 import { faceService } from '../services/faces';
 
-const REASON_LABELS = {
+export interface ImportModalProps {
+  fixedName?: string | null;
+  onClose: () => void;
+  onDone?: (results: ImportResponseData) => void;
+}
+
+export interface ImportResultItem {
+  file?: string;
+  filename?: string;
+  status: string;
+  reason?: string;
+  note?: string;
+}
+
+export interface ImportResponseData {
+  total?: number;
+  results: ImportResultItem[];
+}
+
+const REASON_LABELS: Record<string, string> = {
   no_face: 'No face found',
   blurry: 'Too blurry',
   too_small: 'Face too small / too far',
@@ -20,7 +37,7 @@ const REASON_LABELS = {
 };
 
 const overlayStyles = {
-  position: 'fixed',
+  position: 'fixed' as const,
   inset: 0,
   background: 'rgba(0, 0, 0, 0.6)',
   display: 'flex',
@@ -36,7 +53,7 @@ const panelStyles = {
   borderRadius: 'var(--radius-lg)',
   boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   maxHeight: 'calc(100vh - 64px)',
 };
 
@@ -59,14 +76,14 @@ const titleStyles = {
 const bodyStyles = {
   padding: '18px',
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '14px',
-  overflowY: 'auto',
+  overflowY: 'auto' as const,
 };
 
 const fieldStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '6px',
   '& span': { fontSize: '12px', color: 'var(--text-2)', fontWeight: 500 },
   '& input': {
@@ -82,9 +99,9 @@ const fieldStyles = {
   },
 };
 
-const dropzoneStyles = (dragging) => ({
+const dropzoneStyles = (dragging: boolean) => ({
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   alignItems: 'center',
   gap: '8px',
   padding: '30px 16px',
@@ -107,22 +124,22 @@ const hintStyles = {
 
 const filesStyles = {
   display: 'flex',
-  flexWrap: 'wrap',
+  flexWrap: 'wrap' as const,
   gap: '8px',
 };
 
 const fileItemStyles = {
-  position: 'relative',
+  position: 'relative' as const,
   width: '72px',
   height: '72px',
   borderRadius: 'var(--radius-sm)',
   overflow: 'hidden',
   background: 'var(--surface-2)',
-  '& img': { width: '100%', height: '100%', objectFit: 'cover' },
+  '& img': { width: '100%', height: '100%', objectFit: 'cover' as const },
 };
 
 const removeBtnStyles = {
-  position: 'absolute',
+  position: 'absolute' as const,
   top: '3px',
   right: '3px',
   width: '18px',
@@ -145,7 +162,7 @@ const errorStyles = {
 
 const resultsContainerStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '8px',
 };
 
@@ -154,7 +171,7 @@ const resultsSummaryStyles = {
   color: 'var(--text-1)',
 };
 
-const resultItemStyles = (isOk) => ({
+const resultItemStyles = (isOk: boolean) => ({
   display: 'flex',
   alignItems: 'center',
   gap: '9px',
@@ -169,7 +186,7 @@ const resultNameStyles = {
   color: 'var(--text-1)',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'nowrap' as const,
   flex: 1,
 };
 
@@ -185,23 +202,24 @@ const footStyles = {
   borderTop: '1px solid var(--border)',
 };
 
-export default function ImportModal({ fixedName, onClose, onDone }) {
+export default function ImportModal({ fixedName, onClose, onDone }: ImportModalProps) {
   const [name, setName] = useState(fixedName || '');
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
-  const inputRef = useRef(null);
+  const [results, setResults] = useState<ImportResponseData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const addFiles = useCallback((fileList) => {
+  const addFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList) return;
     const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     setFiles(prev => [...prev, ...imgs].slice(0, 20));
     setResults(null);
     setError(null);
   }, []);
 
-  const onDrop = (e) => {
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
     addFiles(e.dataTransfer.files);
@@ -213,9 +231,9 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
     setError(null);
     try {
       const data = await faceService.importFaces(name.trim(), files);
-      setResults(data);
+      setResults(data as unknown as ImportResponseData);
     } catch (e) {
-      setError(String(e.message || e));
+      setError(String((e as Error).message || e));
     } finally {
       setBusy(false);
     }
@@ -297,7 +315,7 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
           {done && results && (
             <div css={resultsContainerStyles}>
               <p css={resultsSummaryStyles}>
-                {enrolled} of {results.total} photo{results.total === 1 ? '' : 's'} enrolled
+                {enrolled} of {results.total ?? results.results.length} photo{(results.total ?? results.results.length) === 1 ? '' : 's'} enrolled
                 {enrolled === 0 ? ' — try clearer, closer, better-lit photos.' : '.'}
               </p>
               {results.results.map((r, i) => (
@@ -305,11 +323,11 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
                   {r.status === 'enrolled'
                     ? <CheckCircle2 size={13} strokeWidth={1.75} />
                     : <CircleAlert size={13} strokeWidth={1.75} />}
-                  <span css={resultNameStyles}>{r.file}</span>
+                  <span css={resultNameStyles}>{r.file || r.filename}</span>
                   <span css={resultStatusStyles}>
                     {r.status === 'enrolled'
                       ? (r.note || 'enrolled')
-                      : (REASON_LABELS[r.reason] || r.status)}
+                      : ((r.reason && REASON_LABELS[r.reason]) || r.status)}
                   </span>
                 </div>
               ))}
@@ -326,7 +344,7 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
             </button>
           )}
           {done && enrolled > 0 && (
-            <button className="btn-primary" onClick={() => onDone(results)}>Done</button>
+            <button className="btn-primary" onClick={() => onDone?.(results)}>Done</button>
           )}
         </div>
       </div>

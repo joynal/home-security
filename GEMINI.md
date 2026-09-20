@@ -9,11 +9,11 @@
 ## Tech Stack
 
 - **Backend**: Python 3.13 · FastAPI · Uvicorn · InsightFace (buffalo_l: RetinaFace + ArcFace) · ONNX Runtime (CPU)
-- **Frontend**: React 19 · Vite 8 · React Router 6 · @emotion/react (embedded component styles) · CSS design tokens & shell in `index.css` (dark theme)
+- **Frontend**: React 19 · TypeScript 5.8+ · Vite 8 · React Router 6 · @emotion/react (embedded component styles) · CSS design tokens & shell in `index.css` (dark theme)
 - **Auth**: JWT via python-jose · bcrypt via passlib · file-based credentials (`data/credentials.json`)
 - **Alerts**: Console (stdout) or Telegram (async httpx)
 - **Package Management**: `uv` (Python) · `npm` (frontend)
-- **Linting**: Ruff (Python, line-length 100, py313) · ESLint (JS)
+- **Linting**: Ruff (Python, line-length 100, py313) · ESLint + typescript-eslint (TS/TSX)
 - **Tests**: pytest (`uv run pytest tests/`)
 
 ## File Map
@@ -79,20 +79,22 @@ Loads `.env`, defines `BASE_DIR`, `DATA_DIR`, `KNOWN_FACES_DIR`, `SECRET_KEY`, `
 |------|---------|
 | `set_password.py` | CLI to create/update `data/credentials.json` with bcrypt hash. Validates: min 8 chars, uppercase, lowercase, digit. |
 
-### `frontend/src/` — React SPA
+### `frontend/src/` — React SPA (TypeScript)
 
 | File | Role |
 |------|------|
-| `main.jsx` | Root: `BrowserRouter` → `AuthProvider` → conditional `App` or `LoginPage` |
-| `contexts/AuthContext.jsx` | React Context: `{ token, username, login, logout, authHeaders }`, persists in localStorage |
-| `App.jsx` | App shell with navigation rail (`AppRail`), routes: `/` (Live), `/events` (`EventsPage`), `/people` (`FacesPage`), `/cameras/:id` (`CameraDetailPage`) |
-| `LoginPage.jsx` | Login form with shield SVG illustration (Emotion styles) |
-| `RegisterModal.jsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold (Emotion styles) |
+| `main.tsx` | Root: `BrowserRouter` → `AuthProvider` → conditional `App` or `LoginPage` |
+| `contexts/AuthContext.tsx` | React Context: `{ token, username, login, logout, authHeaders }`, persists in localStorage |
+| `contexts/useAuth.tsx` | Typed convenience hook for `AuthContext` |
+| `App.tsx` | App shell with navigation rail (`AppRail`), routes: `/` (Live), `/events` (`EventsPage`), `/faces` (`FacesPage`), `/camera/:cameraId` (`CameraDetailPage`) |
+| `LoginPage.tsx` | Login form with shield SVG illustration (Emotion styles) |
+| `RegisterModal.tsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold (Emotion styles) |
 | `components/` | Modular UI components (`AppRail`, `CameraGrid`, `CameraTile`, `ImportModal`, `RecentEvents`, `TimelineRail`) with co-located Emotion styles |
-| `pages/` | Page components (`CameraDetailPage`, `EventsPage`, `FacesPage`) with co-located Emotion styles |
-| `services/` | API abstraction layer (`core.js` with `apiFetch`, plus `auth`, `cameras`, `events`, `faces`, `recordings`, `register`) |
-| `hooks/` | Custom hooks: `useFetch.js` (data fetching with abort control), `useVisible.js` (viewport visibility) |
-| `config.js` | Frontend config: exports `API` based on `VITE_API_URL` |
+| `pages/` | Page components (`CameraDetailPage`, `EventsPage`, `FacesPage`, `LivePage`) with co-located Emotion styles |
+| `services/` | Typed API abstraction layer (`core.ts` with `apiFetch`, plus `auth`, `cameras`, `events`, `faces`, `recordings`, `register`) |
+| `hooks/` | Custom hooks: `useFetch.ts` (data fetching with abort control), `useVisible.ts` (viewport visibility) |
+| `types/` | Domain TypeScript interfaces and types (`index.ts`) |
+| `config.ts` | Frontend config: exports `API` based on `VITE_API_URL` |
 | `index.css` | Global stylesheet: design tokens (`:root`), base resets, font declarations, and common layout shell classes (`.app-shell`, `.page-header`, `.page-body`) |
 
 ## Architecture Pattern
@@ -128,16 +130,17 @@ React SPA (Vite :5173)  ───HTTP───▶  FastAPI (:8000)
 3. **Cookie / Header Authentication for Media**: Media endpoints (`/video_feed`, `/faces/{name}/img`, `/events/{id}/thumbnail`, `/recordings/...`) authenticate via `HttpOnly` session cookies (or `Authorization: Bearer` header) so JWT tokens are never leaked in URL query strings, server logs, or browser history. `?token=` is retained only as an optional fallback.
 4. **Async from sync thread**: `TelegramAlert` uses `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to post from the inference thread.
 5. **Testing**: Hardware-free pytest test suite in `tests/` (`uv run pytest tests/`).
-6. **Frontend Service Layer & API Abstraction**: Frontend abstracts all backend interaction behind a domain service layer (`src/services/`) and a generic `apiFetch` client in `src/services/core.js` (with a reusable `useFetch` hook). UI components never import `API` directly, and URL helpers provide media links for `<img>` and `<video>` tags.
-7. **Data directory gitignored**: `data/` (credentials, face images) is not tracked.
-8. **Component Styling with Emotion**: All component and page styling MUST be embedded directly in JSX using `@emotion/react` (`css` prop or objects). Do NOT create separate `.css` files. Only global tokens, resets, and layout shell classes belong in `src/index.css`.
+6. **Frontend Service Layer & API Abstraction**: Frontend abstracts all backend interaction behind a domain service layer (`src/services/`) and a generic `apiFetch` client in `src/services/core.ts` (with a reusable `useFetch` hook). UI components never import `API` directly, and URL helpers provide media links for `<img>` and `<video>` tags.
+7. **TypeScript & Emotion Types**: Full TypeScript type safety throughout (`src/types/index.ts`). Emotion `css` prop typings are supplied via `"jsxImportSource": "@emotion/react"` and `vite-env.d.ts`.
+8. **Data directory gitignored**: `data/` (credentials, face images) is not tracked.
+9. **Component Styling with Emotion**: All component and page styling MUST be embedded directly in TSX using `@emotion/react` (`css` prop or objects). Do NOT create separate `.css` files. Only global tokens, resets, and layout shell classes belong in `src/index.css`.
 
 ## Development
 
 ```bash
 # Setup
 uv sync                              # Python deps
-cd frontend && npm install            # JS deps
+cd frontend && npm install            # TS/JS deps
 cp .env.example .env                  # Configure SECRET_KEY
 uv run scripts/set_password.py        # Create admin password
 
@@ -145,9 +148,9 @@ uv run scripts/set_password.py        # Create admin password
 uv run main.py                        # Backend on :8000
 cd frontend && npm run dev            # Frontend on :5173
 
-# Lint
+# Lint & Build
 uv run ruff check . && uv run ruff format .
-cd frontend && npm run lint
+cd frontend && npm run lint && npm run build
 ```
 
 ## Learnings

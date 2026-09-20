@@ -3,12 +3,13 @@
  * U6 rebuilds this into the full person manager (sightings, import, rename);
  * for now: gallery, register wizard, update, delete.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type SyntheticEvent } from 'react';
 import { css } from '@emotion/react';
 import { ImagePlus, UserPlus, Users } from 'lucide-react';
 import RegisterModal from '../RegisterModal';
 import ImportModal from '../components/ImportModal';
 import { faceService } from '../services/faces';
+import type { FacePerson } from '../types';
 
 const facesStyles = css`
   max-width: 1080px;
@@ -99,21 +100,20 @@ const facesStyles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    opacity: 0.5;
+    font-size: 28px;
+    opacity: 0.3;
   }
 
   .mf-card__info {
-    padding: 14px 14px 12px;
+    padding: 14px 16px 12px;
+    flex: 1;
   }
   .mf-card__name {
     margin: 0 0 4px;
     font-size: 15px;
     font-weight: 600;
     color: #e8eaf0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    letter-spacing: -0.2px;
   }
   .mf-card__meta {
     margin: 0;
@@ -124,18 +124,14 @@ const facesStyles = css`
   .mf-card__actions {
     display: flex;
     border-top: 1px solid rgba(255,255,255,0.05);
-    margin-top: auto;
   }
   .mf-btn {
     flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 0;
+    padding: 10px;
     background: transparent;
     border: none;
-    font-size: 12px;
+    font-family: inherit;
+    font-size: 12.5px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
@@ -158,11 +154,11 @@ const facesStyles = css`
 `;
 
 export default function FacesPage() {
-  const [faces, setFaces] = useState([]);
+  const [faces, setFaces] = useState<FacePerson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [modalName, setModalName] = useState(null); // null | '' (new) | name (update)
-  const [importFor, setImportFor] = useState(undefined); // undefined=closed | ''=new | name
+  const [error, setError] = useState<string | null>(null);
+  const [modalName, setModalName] = useState<string | null>(null); // null | '' (new) | name (update)
+  const [importFor, setImportFor] = useState<string | undefined>(undefined); // undefined=closed | ''=new | name
 
   const fetchFaces = useCallback(async () => {
     setLoading(true);
@@ -170,7 +166,7 @@ export default function FacesPage() {
       const data = await faceService.getFaces();
       setFaces(data.faces);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -178,7 +174,7 @@ export default function FacesPage() {
 
   useEffect(() => { fetchFaces(); }, [fetchFaces]);
 
-  const handleDelete = async (name) => {
+  const handleDelete = async (name: string) => {
     if (!window.confirm(`Are you sure you want to delete ${name}? This will instantly remove them from the AI model.`)) {
       return;
     }
@@ -186,7 +182,7 @@ export default function FacesPage() {
       await faceService.deleteFace(name);
       setFaces(prev => prev.filter(f => f.name !== name));
     } catch (err) {
-      alert(`Error deleting: ${err.message}`);
+      alert(`Error deleting: ${(err as Error).message}`);
     }
   };
 
@@ -247,9 +243,10 @@ export default function FacesPage() {
                             src={faceService.getFaceImageUrl(face.name, filename)}
                             crossOrigin="use-credentials"
                             alt={`${face.name} ${filename}`}
-                            onError={e => {
-                              e.target.style.display = 'none';
-                              e.target.parentElement.classList.add('mf-card__img-fallback');
+                            onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              target.parentElement?.classList.add('mf-card__img-fallback');
                             }}
                           />
                         </div>
@@ -262,8 +259,8 @@ export default function FacesPage() {
                   <div className="mf-card__info">
                     <h3 className="mf-card__name">{face.name}</h3>
                     <p className="mf-card__meta tnum">
-                      {face.image_count} reference images
-                      {face.sightings > 0 && ` · ${face.sightings} sightings`}
+                      {face.image_count ?? face.images?.length ?? 0} reference images
+                      {face.sightings !== undefined && face.sightings > 0 && ` · ${face.sightings} sightings`}
                     </p>
                   </div>
 

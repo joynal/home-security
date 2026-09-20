@@ -3,11 +3,11 @@
  * Returns whether an element is on-screen AND the tab is focused.
  * Used to pause MJPEG streams for off-screen tiles (bandwidth).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
-export default function useVisible() {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(true); // assume visible until proven otherwise
+export default function useVisible<T extends HTMLElement = HTMLElement>(): [RefObject<T | null>, boolean] {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState<boolean>(true); // assume visible until proven otherwise
 
   useEffect(() => {
     const el = ref.current;

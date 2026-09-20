@@ -9,11 +9,12 @@ import { useAuth } from '../contexts/useAuth';
 import CameraGrid from '../components/CameraGrid';
 import RecentEvents from '../components/RecentEvents';
 import { cameraService } from '../services/cameras';
+import type { Camera } from '../types';
 
 export default function LivePage() {
   const { token } = useAuth();
   const navigate = useNavigate();
-  const [cameras, setCameras] = useState([]);
+  const [cameras, setCameras] = useState<Camera[]>([]);
 
   // Poll /cameras every 10s for live status (online/offline, FPS)
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function LivePage() {
 
   const online = cameras.filter(c => c.online).length;
 
-  const openCamera = (cameraId) => {
+  const openCamera = (cameraId: string) => {
     navigate(`/camera/${cameraId}`);
   };
 

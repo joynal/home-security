@@ -9,7 +9,7 @@ const railStyles = {
   background: 'var(--surface)',
   borderRight: '1px solid var(--border)',
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   alignItems: 'center',
   padding: '12px 0',
   gap: '8px',
@@ -27,13 +27,13 @@ const logoStyles = {
 
 const navStyles = {
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column' as const,
   gap: '4px',
   flex: 1,
 };
 
 const railItemStyles = {
-  position: 'relative',
+  position: 'relative' as const,
   width: '36px',
   height: '36px',
   borderRadius: 'var(--radius-sm)',
@@ -54,7 +54,7 @@ const railItemStyles = {
     color: 'var(--accent)',
     '&::before': {
       content: '""',
-      position: 'absolute',
+      position: 'absolute' as const,
       left: '-10px',
       top: '8px',
       bottom: '8px',
@@ -79,11 +79,11 @@ const avatarStyles = {
 };
 
 const footerStyles = {
-  position: 'relative',
+  position: 'relative' as const,
 };
 
 const menuStyles = {
-  position: 'absolute',
+  position: 'absolute' as const,
   bottom: '44px',
   left: '48px',
   background: 'var(--surface-3)',
@@ -123,12 +123,12 @@ export default function AppRail() {
   const { username, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
-    const close = e => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -162,10 +162,10 @@ export default function AppRail() {
         <button
           css={railItemStyles}
           onClick={() => setMenuOpen(o => !o)}
-          aria-label={`Account: ${username}`}
+          aria-label={`Account: ${username ?? ''}`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          title={username}
+          title={username ?? undefined}
         >
           <span css={avatarStyles}>{username?.[0]?.toUpperCase() ?? '?'}</span>
         </button>

@@ -1,12 +1,21 @@
 import { API } from '../config';
 
-export const API_BASE_URL = API;
+export const API_BASE_URL: string = API;
 export const STORAGE_KEY = 'aegis_token';
 
-let onUnauthorizedCallback = null;
+type UnauthorizedCallback = () => void;
+let onUnauthorizedCallback: UnauthorizedCallback | null = null;
 
-export function setUnauthorizedHandler(callback) {
+export function setUnauthorizedHandler(callback: UnauthorizedCallback | null): void {
   onUnauthorizedCallback = callback;
+}
+
+export interface ApiFetchOptions extends Omit<RequestInit, 'headers'> {
+  headers?: Record<string, string> | HeadersInit;
+}
+
+export interface ApiError extends Error {
+  status?: number;
 }
 
 /**
@@ -14,9 +23,14 @@ export function setUnauthorizedHandler(callback) {
  * Automatically injects Bearer JWT, handles cookie credentials,
  * manages 401 unauthorization callbacks, and parses errors and JSON.
  */
-export async function apiFetch(endpoint, options = {}) {
+export async function apiFetch<T = unknown>(
+  endpoint: string,
+  options: ApiFetchOptions = {},
+): Promise<T> {
   const token = localStorage.getItem(STORAGE_KEY);
-  const headers = { ...options.headers };
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
 
   if (!(options.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
@@ -52,15 +66,15 @@ export async function apiFetch(endpoint, options = {}) {
     } catch {
       // Non-JSON error body
     }
-    const error = new Error(errorMsg);
+    const error: ApiError = new Error(errorMsg);
     error.status = response.status;
     throw error;
   }
 
   if (response.status === 204) {
-    return {};
+    return {} as T;
   }
 
   const text = await response.text();
-  return text ? JSON.parse(text) : {};
+  return text ? (JSON.parse(text) as T) : ({} as T);
 }

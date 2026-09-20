@@ -10,7 +10,7 @@ and alerts when unknown individuals are detected. Full-stack: Python/FastAPI bac
 
 | Layer       | Technology                                                     |
 |-------------|----------------------------------------------------------------|
-| Language    | Python 3.13, JavaScript (ES modules)                           |
+| Language    | Python 3.13, TypeScript 5.8+ (ES modules)                      |
 | Backend     | FastAPI + Uvicorn (port 8000)                                  |
 | Frontend    | React 19 + Vite 8 + React Router 6 + @emotion/react            |
 | AI/ML       | InsightFace (buffalo_l) — RetinaFace detection + ArcFace 512-d embeddings |
@@ -21,8 +21,8 @@ and alerts when unknown individuals are detected. Full-stack: Python/FastAPI bac
 | Recording   | FFmpeg segment recorder + go2rtc stream proxy + disk-aware retention |
 | Events      | SQLite (`data/events.db`) + JPEG thumbnails                   |
 | Pkg Manager | `uv` (Python), `npm` (frontend)                               |
-| Linting     | Ruff (Python), ESLint (JS)                                     |
-| Tests       | pytest (`uv run pytest tests/`) — 60 tests, no hardware needed |
+| Linting     | Ruff (Python), ESLint + typescript-eslint (TS/TSX)             |
+| Tests       | pytest (`uv run pytest tests/`) — 118 tests, no hardware needed |
 
 ## Directory Structure
 
@@ -103,22 +103,28 @@ home-security/
 │   └── set_password.py              # CLI to create/update admin credentials (bcrypt)
 │
 ├── frontend/
-│   ├── package.json                 # React 19, react-router-dom 6, Vite 8, @emotion/react
-│   ├── vite.config.js               # Vite + @vitejs/plugin-react (@emotion/babel-plugin)
-│   ├── index.html                   # SPA shell
+│   ├── package.json                 # React 19, react-router-dom 6, Vite 8, @emotion/react, typescript
+│   ├── tsconfig.json                # Project references to tsconfig.app.json & tsconfig.node.json
+│   ├── tsconfig.app.json            # React + Emotion jsxImportSource configuration
+│   ├── tsconfig.node.json           # Node configuration for vite.config.ts
+│   ├── vite.config.ts               # Vite + @vitejs/plugin-react (jsxImportSource: @emotion/react)
+│   ├── index.html                   # SPA shell pointing to /src/main.tsx
 │   └── src/
-│       ├── main.jsx                 # React root — BrowserRouter + AuthProvider + conditional render
-│       ├── App.jsx                  # App shell with navigation rail (AppRail), routes
-│       ├── LoginPage.jsx            # Login form with shield SVG art (Emotion styles)
-│       ├── RegisterModal.jsx        # 5-step face registration wizard with pose detection (Emotion styles)
-│       ├── config.js                # Frontend config: API URL from VITE_API_URL || 'http://localhost:8000'
+│       ├── main.tsx                 # React root — BrowserRouter + AuthProvider + conditional render
+│       ├── App.tsx                  # App shell with navigation rail (AppRail), routes
+│       ├── LoginPage.tsx            # Login form with shield SVG art (Emotion styles)
+│       ├── RegisterModal.tsx        # 5-step guided face registration wizard with pose detection (Emotion styles)
+│       ├── config.ts                # Frontend config: API URL from VITE_API_URL || 'http://localhost:8000'
 │       ├── index.css                # Global styles: tokens, resets, fonts, shell layout
+│       ├── vite-env.d.ts            # Ambient type declarations for Vite and @emotion/react/types/css-prop
+│       ├── types/                   # Centralized domain TypeScript definitions (index.ts)
 │       ├── components/              # AppRail, CameraGrid, CameraTile, ImportModal, RecentEvents, TimelineRail
-│       ├── pages/                   # CameraDetailPage, EventsPage, FacesPage
+│       ├── pages/                   # CameraDetailPage, EventsPage, FacesPage, LivePage
 │       ├── services/                # API service layer (core apiFetch, auth, cameras, events, faces, recordings, register)
 │       ├── hooks/                   # useFetch, useVisible
 │       └── contexts/
-│           └── AuthContext.jsx      # React Context: token/username in localStorage, login/logout
+│           ├── AuthContext.tsx      # React Context: token/username in localStorage, login/logout
+│           └── useAuth.tsx          # Custom hook for consuming AuthContext
 │
 ├── docs/
 │   ├── architecture.jpg             # System architecture diagram
@@ -236,10 +242,11 @@ uv run main.py                   # Start FastAPI on port 8000
 cd frontend && npm install       # Install JS dependencies
 cd frontend && npm run dev       # Start Vite dev server (port 5173)
 
-# Linting
+# Linting & Build
 uv run ruff check .              # Python lint
 uv run ruff format .             # Python format
-cd frontend && npm run lint      # JS lint
+cd frontend && npm run lint      # TS/TSX lint
+cd frontend && npm run build     # TS typecheck & Vite build
 ```
 
 ## API Endpoints
@@ -273,8 +280,8 @@ cd frontend && npm run lint      # JS lint
 - **ONNX calls are single-threaded** — enrollment goes through the pending queue, never call `app.get()` from multiple threads.
 - **The `data/` directory is gitignored** — credentials, face images, events.db, recordings, dev `cameras.json`.
 - **Ruff config**: line-length 100, target Python 3.13, single quotes, 2-space indentation, single-line imports. Note: no nested double quotes inside triple-quoted f-strings (CPython rejects them).
-- **Frontend**: All API communication is routed through domain services (`frontend/src/services/`) and `apiFetch` in `core.js` (with `useFetch` hook). Configured via `VITE_API_URL` in `frontend/src/config.js` (defaults to `'http://localhost:8000'`). Components never import `API` directly.
-- **CSS / Styling**: All component and page styling is co-located directly inside JSX files using `@emotion/react` (`css` prop). Never create separate `.css` files per component; only `src/index.css` is retained for global design tokens (`:root`), base resets, font declarations, and layout shell classes.
+- **Frontend**: All API communication is routed through domain services (`frontend/src/services/`) and `apiFetch` in `core.ts` (with `useFetch` hook). Configured via `VITE_API_URL` in `frontend/src/config.ts` (defaults to `'http://localhost:8000'`). Components never import `API` directly. Full TypeScript types and interfaces are managed in `frontend/src/types/index.ts`.
+- **CSS / Styling**: All component and page styling is co-located directly inside TSX files using `@emotion/react` (`css` prop). Never create separate `.css` files per component; only `src/index.css` is retained for global design tokens (`:root`), base resets, font declarations, and layout shell classes.
 - **Detection pipeline**: one `DetectionPipeline` per camera; the registration camera bypasses the motion gate and runs raw InsightFace (see `src/api/inference.py`).
 - **Recording source**: always via go2rtc (`rtsp://$GO2RTC_HOST/{camera_id}`), never the camera directly.
 

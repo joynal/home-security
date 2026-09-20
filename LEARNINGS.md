@@ -109,6 +109,11 @@ The inference loop encodes each camera's JPEG once per iteration into `state.lat
 
 The registration camera (first enabled camera, `state.registration_camera_id`) gets `enable_motion_filter=False` and runs raw InsightFace on the full frame — pipeline landmarks are crop-relative, which breaks `compute_pose()`.
 
+### TypeScript with @emotion/react `css` Prop & Flat ESLint
+> Using `@emotion/react` `css` prop in TSX often causes `Property 'css' does not exist on type 'HTMLAttributes<...>'` or Vite/Babel plugin conflicts.
+
+In `tsconfig.app.json`, set `"jsxImportSource": "@emotion/react"`. In `src/vite-env.d.ts`, include `/// <reference types="@emotion/react/types/css-prop" />`. For `@vitejs/plugin-react` v6, the plugin directly accepts `jsxImportSource: '@emotion/react'` without `@emotion/babel-plugin`. In ESLint 9 flat config, use `reactHooks.configs.flat['recommended-latest']` rather than legacy string-plugin arrays, combined with `tseslint.configs.recommended`.
+
 ---
 
 <!-- 
