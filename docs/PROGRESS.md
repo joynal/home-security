@@ -68,20 +68,20 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| U1.1 | Design tokens | — | ⬜ | | |
-| U1.2 | Lucide icons | — | ⬜ | | |
-| U2.1 | Icon rail + routing | U1 | ⬜ | | |
-| U3.1 | Grid hero | U2.1 | ⬜ | | |
-| U3.3 | Story strip | U2.1, B5 | ⬜ | | |
-| U3.4 | Stream gating | U3.1 | ⬜ | | |
+| U1.1 | Design tokens | — | ✅ | (v2 run) | zinc system + legacy aliases |
+| U1.2 | Lucide icons | — | ✅ | (v2 run) | emoji gate = 0 |
+| U2.1 | Icon rail + routing | U1 | ✅ | (v2 run) | sidebar/topbar deleted; RecordingsPage removed |
+| U3.1 | Grid hero | U2.1 | ✅ | (v2 run) | ⚠️ visual user |
+| U3.3 | Story strip | U2.1, B5 | ✅ | (v2 run) | replaced EventSidebar |
+| U3.4 | Stream gating | U3.1 | ✅ | (v2 run) | off-screen/hidden-tab pauses |
 | U3.5 | Snapshot-idle tiles (opt) | B7.1 | ⬜ | | |
-| U4.1 | Camera detail: player shell | B2, U2.1 | ⬜ | | |
-| U4.2 | Timeline rail | U4.1, B2.1 | ⬜ | | |
-| U4.3 | Scrub-to-playback | U4.2, B3 | ⬜ | | |
-| U5 | Events page v2 | B5, B6.2 | ⬜ | | |
-| U6.1–6.3 | Faces gallery/detail/import | B6, B12 | ⬜ | | |
-| U6.4 | Wizard restyle | U1 | ⬜ | | |
-| U7.1–7.3 | Login, a11y, guardrails | all | ⬜ | | |
+| U4.1 | Camera detail: player shell | B2, U2.1 | ✅ | (v2 run) | /camera/:id, date nav, live↔playback |
+| U4.2 | Timeline rail | U4.1, B2.1 | ✅ | (v2 run) | blobs+thumbs+playhead; ⚠️ visual user |
+| U4.3 | Scrub-to-playback | U4.2, B3 | ✅ | (v2 run) | E2E data-path verified |
+| U5 | Events page v2 | B5, B6.2 | 🔄 | | interim list done; TODO: filter chips+counts, camera/person filters, day nav, drawer w/ Play + Name-this-person |
+| U6.1–6.3 | Faces gallery/detail/import | B6, B12 | ⬜ | | gallery done (v2 run); TODO: import modal (drag-drop→POST /faces/import), person detail |
+| U6.4 | Wizard restyle | U1 | ⬜ | | RegisterModal.css still has gradients |
+| U7.1–7.3 | Login, a11y, guardrails | all | ⬜ | | LoginPage blobs+shield; 6 lint errors; gradient grep still >0 in Login/RegisterModal css | |
 
 ### Phase 1 — Foundation (Multi-Camera + Streaming)
 
@@ -198,6 +198,14 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Phase B COMPLETE** (B0→B1→B2→B3→B5→B6→B12→B7.1; B7.2 clip-extraction deferred until ffmpeg installed). 118 tests green, ruff clean, every task live-verified where the environment allows.
 - One API-quota blip mid-run (permission classifier) — resumed without loss; per-task commits held throughout.
 - **Next: Phase U (frontend)** — U1 tokens → U2 rail → U3 grid+story strip → U4 player+timeline-rail flagship (B2/B3 APIs all present) → U5 events → U6 faces (import backend ready) → U7 polish. Two user live-checks for the next camera session: known-face sightings populate (B5.1), photo import with real photos (B12.1).
+
+### Session 6 — 2026-09-20 (Phase U: U1–U4 done)
+- User live-verified the events API (B5.1 known-face sightings ✅).
+- **U1–U4 complete and committed** (`task U1.1` → `task U4`): zinc tokens + Lucide; 56px icon rail with pages/ (Live/Events/Faces + /camera/:id); grid hero + recent-activity strip + stream gating; the flagship camera detail — player left, vertical timeline rail right, scrub-to-playback with segment auto-advance.
+- **U4 E2E data-path verified**: seeded a real recorded day (real mp4 copies as clock-aligned segments + 2 events) → timeline hours correct, events carry playback {file, start_offset} (10:02→seg1@120s, 10:20→seg2@300s), frame.jpg returns a real 640×360 JPEG (a 404 past file EOF was correct behavior on the short test clip).
+- Frontend gate: build ✓, no new lint (4 pre-existing errors remain — U7.3), emoji = 0.
+- **Remaining: U5 (drawer + filters + Name-this-person via POST /faces/{name}/add), U6.2 import modal (drag-drop → POST /faces/import), U6.4 wizard restyle, U7 (login cleanup, gradient grep = 0, 6 lint errors, CLAUDE.md update).**
+- Dev state: `data/recordings/test_clip/` holds the seeded 2026-09-20 test day (3 segments); events.db seeded with 2 events for it. Visual sign-offs pending on U3.1/U4.2 (user).
 
 ### Task 1.1 + 1.2 — camera config refactor + pydantic
 - **Status**: ✅
