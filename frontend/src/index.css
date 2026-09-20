@@ -1,23 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ─── Tokens ─────────────────────────────────────────── */
+/* ─── Design tokens (ui-research.md §5 — zinc dark, one accent, semantics) ── */
 :root {
-  --bg: #07090f;
-  --surface: #0d1117;
-  --surface2: #161b26;
-  --border: rgba(255,255,255,0.07);
-  --border-active: rgba(99, 179, 255, 0.4);
-  --accent: #3b9eff;
-  --accent-glow: rgba(59, 158, 255, 0.25);
-  --success: #22d3a5;
-  --danger: #f87171;
-  --text1: #e8eaf0;
-  --text2: #7a879e;
-  --text3: #3d4a5c;
-  --radius: 14px;
-  --sidebar-w: 270px;
-  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Neutrals — zinc, zero chroma (video-friendly) */
+  --bg: #09090b;
+  --surface: #101014;
+  --surface-2: #18181b;
+  --surface-3: #27272a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: #3f3f46;
+
+  /* Text — three steps only */
+  --text-1: #fafafa;
+  --text-2: #a1a1aa;
+  --text-3: #71717a;
+
+  /* ONE interactive color + semantics (true states only) */
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --live: #22c55e;
+  --alert: #ef4444;
+  --warn: #f59e0b;
+
+  /* Geometry + motion */
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --sidebar-w: 270px;   /* legacy — removed with the sidebar in U2 */
+  --transition: 120ms ease-out;
+  --transition-slow: 200ms ease-out;
 }
+
+/* Legacy token aliases — die out as U2–U7 replace the old components.
+ * (No gradients, no glows: any file still pointing at --accent-glow
+ * renders correctly by falling back to transparent.) */
+:root {
+  --surface2: var(--surface-2);
+  --border-active: rgba(59, 130, 246, 0.45);
+  --success: var(--live);
+  --danger: var(--alert);
+  --text1: var(--text-1);
+  --text2: var(--text-2);
+  --text3: var(--text-3);
+  --accent-glow: transparent;
+}
+
+/* Tabular numerals for every timestamp/counter */
+.tnum { font-feature-settings: 'tnum' 1; font-variant-numeric: tabular-nums; }
 
 /* ─── Reset ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
