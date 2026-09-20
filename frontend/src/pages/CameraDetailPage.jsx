@@ -40,6 +40,12 @@ export default function CameraDetailPage() {
   const [mode, setMode] = useState('live');
   const [playTs, setPlayTs] = useState(null);
   const videoRef = useRef(null);
+  // Deep link (?ts=) from the events drawer — seek once segments are loaded
+  const pendingTs = useRef(null);
+  const tsParam = searchParams.get('ts');
+  useEffect(() => {
+    if (tsParam && Number(tsParam) > 0) pendingTs.current = Number(tsParam);
+  }, [tsParam]);
 
   // ── Data loading ────────────────────────────────────────
   useEffect(() => {
@@ -113,6 +119,15 @@ export default function CameraDetailPage() {
     },
     [playAt]
   );
+
+  // Fire the pending deep-link seek once the timeline data arrives
+  useEffect(() => {
+    if (pendingTs.current && timeline.segments.length) {
+      const ts = pendingTs.current;
+      pendingTs.current = null;
+      playAt(ts);
+    }
+  }, [timeline.segments, playAt]);
 
   // Follow the video clock; auto-advance at segment ends
   const onTimeUpdate = () => {

@@ -99,6 +99,7 @@ def event_summary(_: str = Depends(get_current_user)):
     'summary': {
       'unknown_face': state.event_db.count(event_type='unknown_face'),
       'known_face': state.event_db.count(event_type='known_face'),
+      'loitering': state.event_db.count(event_type='loitering'),
       'person_detected': state.event_db.count(event_type='person_detected'),
       'total': state.event_db.count(),
     }
