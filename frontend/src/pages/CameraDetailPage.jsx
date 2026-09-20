@@ -4,14 +4,140 @@
  * resolves the covering segment (playback info from /events, segments from
  * /timeline) and plays the MP4 at an offset; auto-advances across segments.
  */
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, PanelRightClose, Radio } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 import TimelineRail from '../components/TimelineRail';
-import './CameraDetailPage.css';
 
 const API = 'http://localhost:8000';
+
+const headerStyles = {
+  gap: '6px',
+};
+
+const cameraSelectStyles = {
+  background: 'var(--surface-2)',
+  color: 'var(--text-1)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)',
+  height: '30px',
+  padding: '0 8px',
+  fontFamily: 'inherit',
+  fontSize: '13px',
+};
+
+const dateContainerStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '2px',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '0 2px',
+  height: '30px',
+};
+
+const dateInputStyles = {
+  background: 'transparent',
+  color: 'var(--text-1)',
+  border: 'none',
+  fontFamily: 'inherit',
+  fontSize: '12.5px',
+  padding: '0 4px',
+  width: '128px',
+  '&:focus': { outline: 'none', color: 'var(--accent-hover)' },
+};
+
+const modeLiveStyles = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '7px',
+  height: '30px',
+  padding: '0 12px',
+  borderRadius: 'var(--radius-sm)',
+  fontSize: '12.5px',
+  fontWeight: 500,
+  color: 'var(--live)',
+};
+
+const modePlaybackStyles = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '7px',
+  height: '30px',
+  padding: '0 12px',
+  borderRadius: 'var(--radius-sm)',
+  fontSize: '12.5px',
+  fontWeight: 500,
+  color: 'var(--text-1)',
+  background: 'var(--surface-3)',
+};
+
+const bodyStyles = {
+  flex: 1,
+  minHeight: 0,
+  display: 'grid',
+  gridTemplateColumns: '1fr 320px',
+  '@media (max-width: 900px)': {
+    gridTemplateColumns: '1fr',
+    gridTemplateRows: '1fr 240px',
+  },
+};
+
+const playerStyles = {
+  background: '#000',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 0,
+  minHeight: 0,
+  '& img, & video': {
+    maxWidth: '100%',
+    maxHeight: '100%',
+    objectFit: 'contain',
+  },
+};
+
+const playerEmptyStyles = {
+  color: 'var(--text-3)',
+  fontSize: '13px',
+};
+
+const railStyles = {
+  borderLeft: '1px solid var(--border)',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+  background: 'var(--surface)',
+  '@media (max-width: 900px)': {
+    borderLeft: 'none',
+    borderTop: '1px solid var(--border)',
+  },
+};
+
+const railHeadStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  padding: '10px 14px',
+  borderBottom: '1px solid var(--border)',
+  color: 'var(--text-2)',
+  fontSize: '12px',
+  fontWeight: 600,
+  flexShrink: 0,
+  '& span:last-child': {
+    marginLeft: 'auto',
+    color: 'var(--text-3)',
+    fontWeight: 400,
+  },
+};
+
+const railScrollStyles = {
+  flex: 1,
+  overflowY: 'auto',
+  padding: '6px 10px 24px',
+  scrollbarWidth: 'thin',
+};
 
 function localDateStr(d = new Date()) {
   const pad = n => String(n).padStart(2, '0');
@@ -75,100 +201,84 @@ export default function CameraDetailPage() {
       .then(r => r.json())
       .then(d => setEvents(d.events || []))
       .catch(() => setEvents([]));
-  }, [token, cameraId, date, authHeaders]);
+  }, [token, authHeaders, cameraId, date]);
 
-  const camera = useMemo(
-    () => cameras.find(c => c.id === cameraId),
-    [cameras, cameraId]
-  );
-
-  const segmentForTs = useCallback(
-    (epochSecs) => {
-      const ts = new Date(epochSecs * 1000).toISOString();
-      return (timeline.segments || []).find(
-        s => s.start <= ts && ts <= s.end
-      );
-    },
-    [timeline.segments]
-  );
-
-  // ── Playback ────────────────────────────────────────────
-  const playAt = useCallback(
-    (epochSecs) => {
-      const seg = segmentForTs(epochSecs);
-      if (!seg) return false;
-      const offset = epochSecs - new Date(seg.start).getTime() / 1000;
-      const file = seg.file.split('/').pop();
-      setMode({
-        url: `${API}/recordings/${cameraId}/${file}?token=${encodeURIComponent(token)}#t=${offset}`,
-        startEpoch: new Date(seg.start).getTime() / 1000,
-        segStart: seg.start,
-      });
-      setPlayTs(epochSecs);
-      return true;
-    },
-    [segmentForTs, cameraId, token]
-  );
-
-  const onSeek = useCallback(
-    (epochSecs) => {
-      if (!playAt(epochSecs)) {
-        // No recording at that time — still move the playhead for feedback
-        setPlayTs(epochSecs);
+  // ── Playback control ────────────────────────────────────
+  const onSeek = (epochS) => {
+    const seg = timeline.segments.find(
+      s => epochS >= s.start_epoch && epochS < s.start_epoch + s.duration_seconds
+    );
+    if (!seg) {
+      setPlayTs(epochS);
+      return;
+    }
+    const offset = Math.max(0, epochS - seg.start_epoch);
+    const url = `${API}/recordings/${cameraId}/${seg.filename}?token=${encodeURIComponent(token)}`;
+    setMode({ url, startEpoch: seg.start_epoch, filename: seg.filename });
+    setPlayTs(epochS);
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = offset;
+        videoRef.current.play().catch(() => {});
       }
-    },
-    [playAt]
-  );
+    }, 50);
+  };
 
-  // Fire the pending deep-link seek once the timeline data arrives
+  // Deep-link seek once segments are ready
   useEffect(() => {
-    if (pendingTs.current && timeline.segments.length) {
+    if (pendingTs.current && timeline.segments.length > 0) {
       const ts = pendingTs.current;
       pendingTs.current = null;
-      playAt(ts);
+      onSeek(ts);
     }
-  }, [timeline.segments, playAt]);
+  });
 
-  // Follow the video clock; auto-advance at segment ends
-  const onTimeUpdate = () => {
-    const v = videoRef.current;
-    if (!v || typeof mode !== 'object') return;
-    setPlayTs(mode.startEpoch + v.currentTime);
-
-    if (v.duration && v.duration - v.currentTime < 0.6) {
-      const nextEnd = mode.startEpoch + v.duration + 1;
-      if (!playAt(nextEnd)) setMode('live'); // ran off the recordings → back to live
-    }
+  const goLive = () => {
+    setMode('live');
+    setPlayTs(null);
   };
 
-  const goLive = () => { setMode('live'); setPlayTs(null); };
+  const onTimeUpdate = () => {
+    if (!videoRef.current || typeof mode !== 'object') return;
+    const current = mode.startEpoch + videoRef.current.currentTime;
+    setPlayTs(current);
 
-  // Esc back to the grid
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') navigate('/'); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [navigate]);
+    // Auto-advance: within 0.5s of end, jump to next segment if one exists
+    if (videoRef.current.duration && videoRef.current.currentTime >= videoRef.current.duration - 0.5) {
+      const idx = timeline.segments.findIndex(s => s.filename === mode.filename);
+      if (idx >= 0 && idx + 1 < timeline.segments.length) {
+        const next = timeline.segments[idx + 1];
+        const url = `${API}/recordings/${cameraId}/${next.filename}?token=${encodeURIComponent(token)}`;
+        setMode({ url, startEpoch: next.start_epoch, filename: next.filename });
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.currentTime = 0;
+            videoRef.current.play().catch(() => {});
+          }
+        }, 50);
+      }
+    }
+  };
 
   const shiftDate = (deltaDays) => {
-    const d = new Date(date + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + deltaDays);
-    const next = d.toISOString().slice(0, 10);
-    if (next <= localDateStr()) setSearchParams({ date: next });
+    const [y, m, d] = date.split('-').map(Number);
+    const next = new Date(Date.UTC(y, m - 1, d + deltaDays));
+    setSearchParams({ date: localDateStr(next) });
   };
 
+  const camera = cameras.find(c => c.id === cameraId);
   const liveFeedUrl = camera?.online
     ? `${API}/video_feed/${cameraId}?token=${encodeURIComponent(token)}`
     : null;
 
   return (
     <>
-      <header className="page-header cd-header">
+      <header className="page-header" css={headerStyles}>
         <button className="btn-ghost" onClick={() => navigate('/')}>
           <ChevronLeft size={15} strokeWidth={1.75} /> All cameras
         </button>
         <select
-          className="cd-camera-select"
+          css={cameraSelectStyles}
           value={cameraId}
           onChange={e => navigate(`/camera/${e.target.value}`)}
           aria-label="Switch camera"
@@ -178,13 +288,14 @@ export default function CameraDetailPage() {
 
         <span className="page-header__spacer" />
 
-        <div className="cd-date">
+        <div css={dateContainerStyles}>
           <button className="btn-ghost" onClick={() => shiftDate(-1)} aria-label="Previous day">
             <ChevronLeft size={14} />
           </button>
           <input
             type="date"
-            className="cd-date__input tnum"
+            css={dateInputStyles}
+            className="tnum"
             value={date}
             max={localDateStr()}
             onChange={e => { if (e.target.value) setSearchParams({ date: e.target.value }); }}
@@ -197,24 +308,24 @@ export default function CameraDetailPage() {
         </div>
 
         {mode === 'live' ? (
-          <span className="cd-mode cd-mode--live">
+          <span css={modeLiveStyles}>
             <span className="status-dot status-dot--live" /> Live
             {camera?.fps > 0 && <span className="tnum">· {Math.round(camera.fps)} fps</span>}
           </span>
         ) : (
-          <button className="cd-mode cd-mode--playback" onClick={goLive}>
+          <button css={modePlaybackStyles} onClick={goLive}>
             <Radio size={13} strokeWidth={1.75} /> Back to live
           </button>
         )}
       </header>
 
-      <div className="cd-body">
-        <div className="cd-player">
+      <div css={bodyStyles}>
+        <div css={playerStyles}>
           {mode === 'live' ? (
             liveFeedUrl ? (
               <img src={liveFeedUrl} alt={`${camera?.name ?? cameraId} live`} />
             ) : (
-              <div className="cd-player__empty">Camera offline</div>
+              <div css={playerEmptyStyles}>Camera offline</div>
             )
           ) : (
             <video
@@ -228,13 +339,13 @@ export default function CameraDetailPage() {
           )}
         </div>
 
-        <aside className="cd-rail" aria-label="Timeline">
-          <div className="cd-rail__head">
+        <aside css={railStyles} aria-label="Timeline">
+          <div css={railHeadStyles}>
             <PanelRightClose size={13} strokeWidth={1.75} />
             <span>Timeline</span>
             <span className="tnum">{events.length} events</span>
           </div>
-          <div className="cd-rail__scroll">
+          <div css={railScrollStyles}>
             <TimelineRail
               date={date}
               hours={timeline.hours}

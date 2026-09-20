@@ -9,11 +9,12 @@
 ## Tech Stack
 
 - **Backend**: Python 3.13 · FastAPI · Uvicorn · InsightFace (buffalo_l: RetinaFace + ArcFace) · ONNX Runtime (CPU)
-- **Frontend**: React 19 · Vite 8 · React Router 6 · vanilla CSS (dark theme)
+- **Frontend**: React 19 · Vite 8 · React Router 6 · @emotion/react (embedded component styles) · CSS design tokens & shell in `index.css` (dark theme)
 - **Auth**: JWT via python-jose · bcrypt via passlib · file-based credentials (`data/credentials.json`)
 - **Alerts**: Console (stdout) or Telegram (async httpx)
 - **Package Management**: `uv` (Python) · `npm` (frontend)
 - **Linting**: Ruff (Python, line-length 100, py313) · ESLint (JS)
+- **Tests**: pytest (`uv run pytest tests/`)
 
 ## File Map
 
@@ -82,11 +83,12 @@ Loads `.env`, defines `BASE_DIR`, `DATA_DIR`, `KNOWN_FACES_DIR`, `SECRET_KEY`, `
 |------|------|
 | `main.jsx` | Root: `BrowserRouter` → `AuthProvider` → conditional `App` or `LoginPage` |
 | `contexts/AuthContext.jsx` | React Context: `{ token, username, login, logout, authHeaders }`, persists in localStorage |
-| `App.jsx` | Dashboard: camera sidebar, live MJPEG feed (`<img src>`), register person button. Routes: `/` and `/manage-faces` |
-| `LoginPage.jsx` | Login form with shield SVG illustration |
-| `ManageFacesPage.jsx` | Grid of registered faces — view thumbnails, delete, update |
-| `RegisterModal.jsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold |
-| `*.css` | Per-component CSS files, dark theme |
+| `App.jsx` | App shell with navigation rail (`AppRail`), routes: `/` (Live), `/events` (`EventsPage`), `/people` (`FacesPage`), `/cameras/:id` (`CameraDetailPage`) |
+| `LoginPage.jsx` | Login form with shield SVG illustration (Emotion styles) |
+| `RegisterModal.jsx` | 5-step wizard (center/left/right/up/down) — polls face_status every 350ms, auto-captures on 2s hold (Emotion styles) |
+| `components/` | Modular UI components (`AppRail`, `CameraGrid`, `CameraTile`, `ImportModal`, `RecentEvents`, `TimelineRail`) with co-located Emotion styles |
+| `pages/` | Page components (`CameraDetailPage`, `EventsPage`, `FacesPage`) with co-located Emotion styles |
+| `index.css` | Global stylesheet: design tokens (`:root`), base resets, font declarations, and common layout shell classes (`.app-shell`, `.page-header`, `.page-body`) |
 
 ## Architecture Pattern
 
@@ -120,9 +122,10 @@ React SPA (Vite :5173)  ───HTTP───▶  FastAPI (:8000)
 2. **Thread safety**: Every shared variable in `state.py` has a corresponding `threading.Lock()`.
 3. **Token in query params**: `/video_feed` and `/faces/{name}/img/` use `?token=` because `<img src>` can't set HTTP headers.
 4. **Async from sync thread**: `TelegramAlert` uses `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to post from the inference thread.
-5. **No tests**: No test framework or test files exist.
+5. **Testing**: Hardware-free pytest test suite in `tests/` (`uv run pytest tests/`).
 6. **Hardcoded API URL**: Frontend uses `const API = 'http://localhost:8000'` in multiple files.
 7. **Data directory gitignored**: `data/` (credentials, face images) is not tracked.
+8. **Component Styling with Emotion**: All component and page styling MUST be embedded directly in JSX using `@emotion/react` (`css` prop or objects). Do NOT create separate `.css` files. Only global tokens, resets, and layout shell classes belong in `src/index.css`.
 
 ## Development
 

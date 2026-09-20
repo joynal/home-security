@@ -6,11 +6,228 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { keyframes } from '@emotion/react';
 import { useAuth } from '../contexts/useAuth';
 import { Activity, ChevronLeft, ChevronRight, CircleAlert, Play, PersonStanding, User, UserPlus, X } from 'lucide-react';
-import './EventsPage.css';
 
 const API = 'http://localhost:8000';
+
+const evDrawerIn = keyframes`
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+`;
+
+const eventsEmptyStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '10px',
+  color: 'var(--text-3)',
+  padding: '80px 0',
+};
+
+const eventRowsStyles = {
+  maxWidth: '760px',
+};
+
+const evChipsStyles = {
+  display: 'flex',
+  gap: '6px',
+};
+
+const evChipStyles = (active) => ({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '7px',
+  height: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+  color: active ? 'var(--text-1)' : 'var(--text-2)',
+  background: active ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+  fontSize: '12.5px',
+  transition: 'color var(--transition), border-color var(--transition), background var(--transition)',
+  '&:hover': {
+    color: 'var(--text-1)',
+    borderColor: 'var(--border-strong)',
+  },
+});
+
+const evChipCountStyles = {
+  fontSize: '11px',
+  color: 'var(--text-3)',
+};
+
+const evSelectStyles = {
+  background: 'var(--surface-2)',
+  color: 'var(--text-1)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)',
+  height: '30px',
+  padding: '0 8px',
+  fontFamily: 'inherit',
+  fontSize: '12.5px',
+  maxWidth: '150px',
+};
+
+const eventRowStyles = {
+  display: 'flex',
+  gap: '12px',
+  alignItems: 'center',
+  padding: '10px 4px',
+  borderBottom: '1px solid var(--border)',
+  width: '100%',
+  textAlign: 'left',
+  '&:hover': { background: 'var(--surface)' },
+  '&:focus-visible': { outline: '2px solid var(--accent)', outlineOffset: '-2px' },
+};
+
+const eventRowThumbStyles = {
+  width: '96px',
+  aspectRatio: '16 / 9',
+  borderRadius: 'var(--radius-sm)',
+  objectFit: 'cover',
+  background: '#000',
+  flexShrink: 0,
+};
+
+const eventRowBodyStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '3px',
+  minWidth: 0,
+  flex: 1,
+};
+
+const eventRowTitleStyles = (tone) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  fontSize: '13px',
+  fontWeight: 500,
+  color: tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--text-1)',
+});
+
+const eventRowMetaStyles = {
+  display: 'flex',
+  gap: '8px',
+  fontSize: '11px',
+  color: 'var(--text-3)',
+};
+
+const eventRowPlayStyles = {
+  color: 'var(--text-3)',
+  marginLeft: 'auto',
+  flexShrink: 0,
+  '.event-row:hover &': {
+    color: 'var(--accent)',
+  },
+};
+
+const evLoadMoreStyles = {
+  margin: '14px auto',
+  display: 'flex',
+};
+
+const evDrawerStyles = {
+  position: 'fixed',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  width: '380px',
+  background: 'var(--surface)',
+  borderLeft: '1px solid var(--border)',
+  boxShadow: '-8px 0 32px rgba(0, 0, 0, 0.45)',
+  zIndex: 60,
+  display: 'flex',
+  flexDirection: 'column',
+  animation: `${evDrawerIn} var(--transition-slow) ease-out`,
+};
+
+const evDrawerHeadStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '12px 16px',
+  borderBottom: '1px solid var(--border)',
+  flexShrink: 0,
+};
+
+const evDrawerBodyStyles = {
+  padding: '16px',
+  overflowY: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '16px',
+};
+
+const evDrawerThumbStyles = {
+  width: '100%',
+  aspectRatio: '16 / 9',
+  objectFit: 'contain',
+  background: '#000',
+  borderRadius: 'var(--radius)',
+};
+
+const evDrawerMetaStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  '& > div': {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+    fontSize: '12.5px',
+  },
+  '& dt': { color: 'var(--text-3)' },
+  '& dd': { color: 'var(--text-1)', textAlign: 'right' },
+};
+
+const evDrawerActionsStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+};
+
+const evDrawerNameStyles = {
+  borderTop: '1px solid var(--border)',
+  paddingTop: '14px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+};
+
+const evDrawerNameTitleStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  fontSize: '13px',
+  fontWeight: 500,
+  color: 'var(--text-1)',
+};
+
+const evDrawerNameRowStyles = {
+  display: 'flex',
+  gap: '8px',
+  '& input': {
+    flex: 1,
+    height: '32px',
+    padding: '0 12px',
+    background: 'var(--surface-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-1)',
+    fontFamily: 'inherit',
+    fontSize: '13px',
+    '&:focus': { outline: 'none', borderColor: 'var(--accent)' },
+  },
+};
+
+const evNameResultStyles = (isOk) => ({
+  fontSize: '12.5px',
+  lineHeight: 1.5,
+  color: isOk ? 'var(--live)' : 'var(--alert)',
+});
 
 const TYPE_META = {
   unknown_face: { icon: CircleAlert, label: 'Unknown person', tone: 'alert' },
@@ -145,26 +362,26 @@ export default function EventsPage() {
       <header className="page-header">
         <span className="page-header__title">Events</span>
 
-        <div className="ev-chips">
+        <div css={evChipsStyles}>
           {chips.map(c => (
             <button
               key={c.key}
-              className={`ev-chip ${typeFilter === c.key ? 'ev-chip--active' : ''}`}
+              css={evChipStyles(typeFilter === c.key)}
               onClick={() => setTypeFilter(c.key)}
             >
               {c.label}
-              {typeof c.count === 'number' && <span className="ev-chip__count tnum">{c.count}</span>}
+              {typeof c.count === 'number' && <span css={evChipCountStyles} className="tnum">{c.count}</span>}
             </button>
           ))}
         </div>
 
         <span className="page-header__spacer" />
 
-        <select className="ev-select" value={cameraFilter} onChange={e => setCameraFilter(e.target.value)} aria-label="Filter by camera">
+        <select css={evSelectStyles} value={cameraFilter} onChange={e => setCameraFilter(e.target.value)} aria-label="Filter by camera">
           <option value="">All cameras</option>
           {cameras.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select className="ev-select" value={personFilter} onChange={e => setPersonFilter(e.target.value)} aria-label="Filter by person">
+        <select css={evSelectStyles} value={personFilter} onChange={e => setPersonFilter(e.target.value)} aria-label="Filter by person">
           <option value="">All people</option>
           {people.map(p => <option key={p.id ?? p.name} value={p.name}>{p.name}</option>)}
         </select>
@@ -178,66 +395,66 @@ export default function EventsPage() {
 
       <div className="page-body">
         {loaded && events.length === 0 && (
-          <div className="events-empty">
+          <div css={eventsEmptyStyles}>
             <Activity size={26} strokeWidth={1.5} />
             <p>No events for this day{typeFilter ? ' and filter' : ''}</p>
           </div>
         )}
 
-        <div className="event-rows">
+        <div css={eventRowsStyles}>
           {events.map(ev => {
             const meta = TYPE_META[ev.event_type] || TYPE_META.motion;
             const Icon = meta.icon;
             return (
-              <button key={ev.id} className={`event-row event-row--${meta.tone}`} onClick={() => openEvent(ev)}>
+              <button key={ev.id} css={eventRowStyles} className="event-row" onClick={() => openEvent(ev)}>
                 {ev.thumbnail_path && (
                   <img
-                    className="event-row__thumb"
+                    css={eventRowThumbStyles}
                     src={`${API}/events/${ev.id}/thumbnail?token=${encodeURIComponent(token)}`}
                     alt=""
                     loading="lazy"
                   />
                 )}
-                <div className="event-row__body">
-                  <div className="event-row__title">
+                <div css={eventRowBodyStyles}>
+                  <div css={eventRowTitleStyles(meta.tone)}>
                     <Icon size={14} strokeWidth={1.75} />
                     <span>{ev.person_name || meta.label}</span>
                   </div>
-                  <div className="event-row__meta tnum">
+                  <div css={eventRowMetaStyles} className="tnum">
                     <span>{ev.camera_id}</span>
                     <span>{relTime(ev.timestamp)}</span>
                   </div>
                 </div>
-                {ev.playback && <Play size={14} strokeWidth={1.75} className="event-row__play" />}
+                {ev.playback && <Play size={14} strokeWidth={1.75} css={eventRowPlayStyles} className="event-row__play" />}
               </button>
             );
           })}
         </div>
 
         {events.length < total && (
-          <button className="btn-ghost ev-load-more" onClick={() => loadEvents(events.length)}>
+          <button className="btn-ghost" css={evLoadMoreStyles} onClick={() => loadEvents(events.length)}>
             Load more ({events.length}/{total})
           </button>
         )}
       </div>
 
       {selected && (
-        <aside className="ev-drawer" role="dialog" aria-label="Event detail">
-          <div className="ev-drawer__head">
+        <aside css={evDrawerStyles} role="dialog" aria-label="Event detail">
+          <div css={evDrawerHeadStyles}>
             <span className="page-header__title">Event</span>
             <button className="btn-ghost" onClick={closeDrawer} aria-label="Close"><X size={15} /></button>
           </div>
 
-          <div className="ev-drawer__body">
+          <div css={evDrawerBodyStyles}>
             {selected.thumbnail_path && (
               <img
-                className="ev-drawer__thumb"
+                css={evDrawerThumbStyles}
                 src={`${API}/events/${selected.id}/thumbnail?token=${encodeURIComponent(token)}`}
                 alt=""
               />
             )}
 
-            <dl className="ev-drawer__meta tnum">
+            <dl css={evDrawerMetaStyles} className="tnum">
               <div><dt>Type</dt><dd>{(TYPE_META[selected.event_type] || {}).label || selected.event_type}</dd></div>
               <div><dt>Camera</dt><dd>{selected.camera_id}</dd></div>
               <div><dt>Time</dt><dd>{new Date(selected.timestamp).toLocaleString()}</dd></div>
@@ -247,7 +464,7 @@ export default function EventsPage() {
               )}
             </dl>
 
-            <div className="ev-drawer__actions">
+            <div css={evDrawerActionsStyles}>
               {selected.playback ? (
                 <button className="btn-primary" onClick={() => playEvent(selected)}>
                   <Play size={14} strokeWidth={1.75} /> Play in timeline
@@ -258,18 +475,18 @@ export default function EventsPage() {
             </div>
 
             {selected.event_type === 'unknown_face' && (
-              <div className="ev-drawer__name">
-                <div className="ev-drawer__name-title">
+              <div css={evDrawerNameStyles}>
+                <div css={evDrawerNameTitleStyles}>
                   <UserPlus size={13} strokeWidth={1.75} /> Know this person?
                 </div>
                 {nameResult ? (
-                  <div className={`ev-name-result ${nameResult.status === 'enrolled' ? 'ev-name-result--ok' : 'ev-name-result--bad'}`}>
+                  <div css={evNameResultStyles(nameResult.status === 'enrolled')}>
                     {nameResult.status === 'enrolled'
                       ? `Enrolled as ${naming.trim()} — future sightings will be recognized.`
                       : `Not enrolled: ${nameResult.verdict?.reason || nameResult.detail || 'rejected'}`}
                   </div>
                 ) : (
-                  <div className="ev-drawer__name-row">
+                  <div css={evDrawerNameRowStyles}>
                     <input
                       value={naming}
                       onChange={e => setNaming(e.target.value)}

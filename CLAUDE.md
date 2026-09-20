@@ -12,7 +12,7 @@ and alerts when unknown individuals are detected. Full-stack: Python/FastAPI bac
 |-------------|----------------------------------------------------------------|
 | Language    | Python 3.13, JavaScript (ES modules)                           |
 | Backend     | FastAPI + Uvicorn (port 8000)                                  |
-| Frontend    | React 19 + Vite 8 + React Router 6                            |
+| Frontend    | React 19 + Vite 8 + React Router 6 + @emotion/react            |
 | AI/ML       | InsightFace (buffalo_l) — RetinaFace detection + ArcFace 512-d embeddings |
 | Detection   | Cascading pipeline: motion (MOG2) → YOLOv8n person → ByteTrack → ArcFace → zones |
 | Runtime     | ONNX Runtime (CPU)                                             |
@@ -103,19 +103,17 @@ home-security/
 │   └── set_password.py              # CLI to create/update admin credentials (bcrypt)
 │
 ├── frontend/
-│   ├── package.json                 # React 19, react-router-dom 6, Vite 8
-│   ├── vite.config.js               # Vite + @vitejs/plugin-react
+│   ├── package.json                 # React 19, react-router-dom 6, Vite 8, @emotion/react
+│   ├── vite.config.js               # Vite + @vitejs/plugin-react (@emotion/babel-plugin)
 │   ├── index.html                   # SPA shell
 │   └── src/
 │       ├── main.jsx                 # React root — BrowserRouter + AuthProvider + conditional render
-│       ├── App.jsx                  # Dashboard (camera sidebar, MJPEG feed, register modal)
-│       ├── LoginPage.jsx            # Login form with shield SVG art
-│       ├── ManageFacesPage.jsx      # CRUD for known faces (gallery, delete, update)
-│       ├── RegisterModal.jsx        # 5-step face registration wizard with pose detection
-│       ├── index.css                # Global styles (dark theme)
-│       ├── LoginPage.css            # Login page styles
-│       ├── ManageFacesPage.css      # Face management styles
-│       ├── RegisterModal.css        # Registration modal styles
+│       ├── App.jsx                  # App shell with navigation rail (AppRail), routes
+│       ├── LoginPage.jsx            # Login form with shield SVG art (Emotion styles)
+│       ├── RegisterModal.jsx        # 5-step face registration wizard with pose detection (Emotion styles)
+│       ├── index.css                # Global styles: tokens, resets, fonts, shell layout
+│       ├── components/              # AppRail, CameraGrid, CameraTile, ImportModal, RecentEvents, TimelineRail
+│       ├── pages/                   # CameraDetailPage, EventsPage, FacesPage
 │       └── contexts/
 │           └── AuthContext.jsx      # React Context: token/username in localStorage, login/logout
 │
@@ -200,9 +198,10 @@ home-security/
 ### Frontend
 
 - **`AuthContext`** (`contexts/AuthContext.jsx`): React Context providing `{ token, username, login, logout, authHeaders }`. Persists JWT in localStorage.
-- **`App.jsx`**: Main dashboard — camera sidebar, MJPEG video feed, register modal trigger. Routes: `/` (Dashboard), `/manage-faces`.
+- **`App.jsx`**: App shell with navigation rail (`AppRail`). Routes: `/` (Live), `/events` (`EventsPage`), `/people` (`FacesPage`), `/cameras/:id` (`CameraDetailPage`).
 - **`RegisterModal.jsx`**: 5-step guided face registration wizard. Polls `/register/face_status` every 350ms, auto-captures when correct pose held for 2s.
-- **`ManageFacesPage.jsx`**: Grid of registered faces with thumbnails, delete, and update actions.
+- **`FacesPage.jsx`** (`pages/FacesPage.jsx`): Grid of registered faces with thumbnails, gallery, delete, update, and photo import actions.
+- **Styling Convention**: All component and page styles are co-located via `@emotion/react` (`css` prop). No separate `.css` files per component; only `index.css` is retained for global design tokens, resets, and layout shell classes.
 
 ## Configuration
 
@@ -268,9 +267,9 @@ cd frontend && npm run lint      # JS lint
 - **All camera I/O is threaded** — never call camera methods from the FastAPI async context directly.
 - **ONNX calls are single-threaded** — enrollment goes through the pending queue, never call `app.get()` from multiple threads.
 - **The `data/` directory is gitignored** — credentials, face images, events.db, recordings, dev `cameras.json`.
-- **Ruff config**: line-length 100, target Python 3.13, double quotes, space indentation. Note: no nested double quotes inside triple-quoted f-strings (CPython rejects them).
+- **Ruff config**: line-length 100, target Python 3.13, single quotes, 2-space indentation, single-line imports. Note: no nested double quotes inside triple-quoted f-strings (CPython rejects them).
 - **Frontend**: hardcoded `API = 'http://localhost:8000'` — no env-based API URL.
-- **CSS**: All styles are in separate `.css` files per component, dark theme throughout.
+- **CSS / Styling**: All component and page styling is co-located directly inside JSX files using `@emotion/react` (`css` prop). Never create separate `.css` files per component; only `src/index.css` is retained for global design tokens (`:root`), base resets, font declarations, and layout shell classes.
 - **Detection pipeline**: one `DetectionPipeline` per camera; the registration camera bypasses the motion gate and runs raw InsightFace (see `src/api/inference.py`).
 - **Recording source**: always via go2rtc (`rtsp://$GO2RTC_HOST/{camera_id}`), never the camera directly.
 

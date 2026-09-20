@@ -8,7 +8,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/useAuth';
 import { CheckCircle2, CircleAlert, ImagePlus, Upload, X } from 'lucide-react';
-import './ImportModal.css';
 
 const API = 'http://localhost:8000';
 
@@ -20,6 +19,172 @@ const REASON_LABELS = {
   too_bright: 'Too bright',
   unreadable: 'Not a readable image',
   timeout: 'Server busy — try again',
+};
+
+const overlayStyles = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 80,
+};
+
+const panelStyles = {
+  width: 'min(480px, calc(100vw - 32px))',
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-lg)',
+  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+  display: 'flex',
+  flexDirection: 'column',
+  maxHeight: 'calc(100vh - 64px)',
+};
+
+const headStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '14px 18px',
+  borderBottom: '1px solid var(--border)',
+};
+
+const titleStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '9px',
+  fontSize: '14px',
+  fontWeight: 600,
+};
+
+const bodyStyles = {
+  padding: '18px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '14px',
+  overflowY: 'auto',
+};
+
+const fieldStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+  '& span': { fontSize: '12px', color: 'var(--text-2)', fontWeight: 500 },
+  '& input': {
+    height: '34px',
+    padding: '0 12px',
+    background: 'var(--surface-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-1)',
+    fontFamily: 'inherit',
+    fontSize: '13.5px',
+    '&:focus': { outline: 'none', borderColor: 'var(--accent)' },
+  },
+};
+
+const dropzoneStyles = (dragging) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '30px 16px',
+  border: `1px dashed ${dragging ? 'var(--accent)' : 'var(--border-strong)'}`,
+  borderRadius: 'var(--radius)',
+  color: dragging ? 'var(--text-1)' : 'var(--text-3)',
+  cursor: 'pointer',
+  transition: 'border-color var(--transition), color var(--transition)',
+  '&:hover': {
+    borderColor: 'var(--accent)',
+    color: 'var(--text-1)',
+  },
+  '& p': { fontSize: '13px', color: 'var(--text-2)' },
+});
+
+const hintStyles = {
+  fontSize: '11.5px',
+  color: 'var(--text-3)',
+};
+
+const filesStyles = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+};
+
+const fileItemStyles = {
+  position: 'relative',
+  width: '72px',
+  height: '72px',
+  borderRadius: 'var(--radius-sm)',
+  overflow: 'hidden',
+  background: 'var(--surface-2)',
+  '& img': { width: '100%', height: '100%', objectFit: 'cover' },
+};
+
+const removeBtnStyles = {
+  position: 'absolute',
+  top: '3px',
+  right: '3px',
+  width: '18px',
+  height: '18px',
+  borderRadius: '50%',
+  background: 'rgba(9, 9, 11, 0.8)',
+  color: 'var(--text-1)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const errorStyles = {
+  color: 'var(--alert)',
+  fontSize: '12.5px',
+  background: 'rgba(239, 68, 68, 0.08)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '9px 12px',
+};
+
+const resultsContainerStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+};
+
+const resultsSummaryStyles = {
+  fontSize: '13px',
+  color: 'var(--text-1)',
+};
+
+const resultItemStyles = (isOk) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '9px',
+  fontSize: '12.5px',
+  padding: '7px 10px',
+  borderRadius: 'var(--radius-sm)',
+  background: 'var(--surface-2)',
+  color: isOk ? 'var(--live)' : 'var(--alert)',
+});
+
+const resultNameStyles = {
+  color: 'var(--text-1)',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  flex: 1,
+};
+
+const resultStatusStyles = {
+  color: 'var(--text-3)',
+};
+
+const footStyles = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  padding: '14px 18px',
+  borderTop: '1px solid var(--border)',
 };
 
 export default function ImportModal({ fixedName, onClose, onDone }) {
@@ -74,19 +239,19 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
   const done = results !== null;
 
   return (
-    <div className="im-overlay" role="dialog" aria-modal="true" aria-label="Import faces from photos">
-      <div className="im-panel">
-        <div className="im-head">
-          <span className="im-title">
+    <div css={overlayStyles} role="dialog" aria-modal="true" aria-label="Import faces from photos">
+      <div css={panelStyles}>
+        <div css={headStyles}>
+          <span css={titleStyles}>
             <ImagePlus size={15} strokeWidth={1.75} />
             {fixedName ? `Add photos — ${fixedName}` : 'Add person from photos'}
           </span>
           <button className="btn-ghost" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </div>
 
-        <div className="im-body">
+        <div css={bodyStyles}>
           {!fixedName && (
-            <label className="im-field">
+            <label css={fieldStyles}>
               <span>Name</span>
               <input
                 value={name}
@@ -100,7 +265,7 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
 
           {!done && (
             <div
-              className={`im-dropzone ${dragging ? 'im-dropzone--over' : ''}`}
+              css={dropzoneStyles(dragging)}
               onDragOver={e => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
@@ -112,7 +277,7 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
             >
               <Upload size={22} strokeWidth={1.5} />
               <p>Drop photos here, or click to browse</p>
-              <span className="im-hint">Face photos work best; EXIF/GPS is stripped on import</span>
+              <span css={hintStyles}>Face photos work best; EXIF/GPS is stripped on import</span>
               <input
                 ref={inputRef}
                 type="file"
@@ -125,12 +290,12 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
           )}
 
           {files.length > 0 && !done && (
-            <div className="im-files">
+            <div css={filesStyles}>
               {files.map((f, i) => (
-                <div key={i} className="im-file">
+                <div key={i} css={fileItemStyles}>
                   <img src={URL.createObjectURL(f)} alt="" />
                   <button
-                    className="im-file__x"
+                    css={removeBtnStyles}
                     onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
                     aria-label={`Remove ${f.name}`}
                   >
@@ -141,21 +306,21 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
             </div>
           )}
 
-          {error && <div className="im-error">{error}</div>}
+          {error && <div css={errorStyles}>{error}</div>}
 
           {done && results && (
-            <div className="im-results">
-              <p className="im-results__summary">
+            <div css={resultsContainerStyles}>
+              <p css={resultsSummaryStyles}>
                 {enrolled} of {results.total} photo{results.total === 1 ? '' : 's'} enrolled
                 {enrolled === 0 ? ' — try clearer, closer, better-lit photos.' : '.'}
               </p>
               {results.results.map((r, i) => (
-                <div key={i} className={`im-result im-result--${r.status === 'enrolled' ? 'ok' : 'bad'}`}>
+                <div key={i} css={resultItemStyles(r.status === 'enrolled')}>
                   {r.status === 'enrolled'
                     ? <CheckCircle2 size={13} strokeWidth={1.75} />
                     : <CircleAlert size={13} strokeWidth={1.75} />}
-                  <span className="im-result__name">{r.file}</span>
-                  <span className="im-result__status">
+                  <span css={resultNameStyles}>{r.file}</span>
+                  <span css={resultStatusStyles}>
                     {r.status === 'enrolled'
                       ? (r.note || 'enrolled')
                       : (REASON_LABELS[r.reason] || r.status)}
@@ -166,7 +331,7 @@ export default function ImportModal({ fixedName, onClose, onDone }) {
           )}
         </div>
 
-        <div className="im-foot">
+        <div css={footStyles}>
           <button className="btn-ghost" onClick={onClose}>{done ? 'Close' : 'Cancel'}</button>
           {!done && (
             <button className="btn-primary" onClick={submit} disabled={busy || !name.trim() || files.length === 0}>

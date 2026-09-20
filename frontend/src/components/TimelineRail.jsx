@@ -9,7 +9,6 @@
  */
 import { useMemo } from 'react';
 import { CircleAlert, PersonStanding, User } from 'lucide-react';
-import './TimelineRail.css';
 
 const HOUR_PX = 56; // vertical scale: px per hour
 const TOP_PAD = 12;
@@ -20,6 +19,166 @@ const SEVERITY = {
   known_face: { tone: 'ok', icon: User },
   person_detected: { tone: 'ok', icon: PersonStanding },
   motion: { tone: 'ok', icon: PersonStanding },
+};
+
+const tlContainerStyles = {
+  display: 'flex',
+  height: '100%',
+  minHeight: 0,
+  userSelect: 'none',
+};
+
+const scaleStyles = {
+  width: '58px',
+  flexShrink: 0,
+  position: 'relative',
+};
+
+const hourRowStyles = (top) => ({
+  position: 'absolute',
+  right: '8px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  transform: 'translateY(-50%)',
+  top,
+});
+
+const hourLabelStyles = {
+  fontSize: '10.5px',
+  color: 'var(--text-3)',
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
+
+const tickStyles = {
+  width: '8px',
+  height: '1px',
+  background: 'var(--border-strong)',
+};
+
+const canvasStyles = (height) => ({
+  position: 'relative',
+  flex: 1,
+  minWidth: 0,
+  cursor: 'crosshair',
+  height,
+  '&:focus-visible': {
+    outline: '2px solid var(--accent)',
+    outlineOffset: '-2px',
+  },
+});
+
+const railTrackStyles = {
+  position: 'absolute',
+  left: '12px',
+  top: 0,
+  bottom: 0,
+  width: '10px',
+  borderRadius: '5px',
+  background: 'var(--surface-2)',
+};
+
+const coverageBarStyles = (top, height) => ({
+  position: 'absolute',
+  left: 0,
+  width: '10px',
+  borderRadius: '5px',
+  background: '#2e5c8f', // muted recorded-blue on zinc
+  top,
+  height,
+});
+
+const getToneColor = (tone) => {
+  if (tone === 'alert') return 'var(--alert)';
+  if (tone === 'warn') return 'var(--warn)';
+  return '#4b7ba8';
+};
+
+const eventRowStyles = (top) => ({
+  position: 'absolute',
+  left: 0,
+  display: 'flex',
+  alignItems: 'center',
+  height: '46px',
+  transform: 'translateY(-50%)',
+  pointerEvents: 'none',
+  top,
+});
+
+const blobStyles = (tone) => ({
+  position: 'absolute',
+  left: '11px',
+  width: '12px',
+  height: '12px',
+  borderRadius: '50%',
+  background: getToneColor(tone),
+});
+
+const connectorStyles = {
+  width: '34px',
+  height: '1px',
+  background: 'var(--border-strong)',
+  marginLeft: '24px',
+  flexShrink: 0,
+};
+
+const iconWrapperStyles = (tone) => ({
+  color: tone === 'alert' ? 'var(--alert)' : tone === 'warn' ? 'var(--warn)' : 'var(--text-3)',
+  marginRight: '6px',
+  display: 'flex',
+});
+
+const thumbStyles = {
+  width: '112px',
+  aspectRatio: '16 / 9',
+  borderRadius: 'var(--radius-sm)',
+  objectFit: 'cover',
+  background: '#000',
+  pointerEvents: 'auto',
+  cursor: 'pointer',
+  transition: 'transform var(--transition)',
+  '&:hover': {
+    transform: 'scale(1.06)',
+  },
+};
+
+const thumbEmptyStyles = {
+  ...thumbStyles,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'var(--surface-2)',
+  color: 'var(--text-3)',
+  fontSize: '10px',
+};
+
+const whenStyles = {
+  fontSize: '10px',
+  color: 'var(--text-3)',
+  marginLeft: '7px',
+};
+
+const playheadStyles = (top) => ({
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  height: 0,
+  borderTop: '2px solid var(--accent)',
+  pointerEvents: 'none',
+  top,
+});
+
+const playheadBadgeStyles = {
+  position: 'absolute',
+  left: '2px',
+  top: '-11px',
+  background: 'var(--accent)',
+  color: '#fff',
+  fontSize: '10px',
+  fontWeight: 600,
+  padding: '2px 7px',
+  borderRadius: '4px',
 };
 
 function dayStartEpoch(date) {
@@ -64,21 +223,20 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek, toke
   };
 
   return (
-    <div className="tl">
+    <div css={tlContainerStyles}>
       {/* Hour labels + ticks column */}
-      <div className="tl__scale" aria-hidden="true">
+      <div css={scaleStyles} aria-hidden="true">
         {Array.from({ length: 24 }, (_, h) => (
-          <div key={h} className="tl__hour" style={{ top: TOP_PAD + h * HOUR_PX }}>
-            <span className="tl__hour-label tnum">{fmtHour(23 - h)}</span>
-            <span className="tl__tick" />
+          <div key={h} css={hourRowStyles(TOP_PAD + h * HOUR_PX)}>
+            <span css={hourLabelStyles} className="tnum">{fmtHour(23 - h)}</span>
+            <span css={tickStyles} />
           </div>
         ))}
       </div>
 
       {/* Interactive rail + pinned events */}
       <div
-        className="tl__canvas"
-        style={{ height: totalPx + TOP_PAD * 2 }}
+        css={canvasStyles(totalPx + TOP_PAD * 2)}
         onClick={handleClick}
         role="slider"
         aria-label="Timeline — click to seek"
@@ -92,16 +250,15 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek, toke
         }}
       >
         {/* Recorded-segment coverage behind the rail (blue bars) */}
-        <div className="tl__rail">
+        <div css={railTrackStyles}>
           {hours.map((h, i) =>
             h.segment_minutes > 0 ? (
               <div
                 key={i}
-                className="tl__coverage"
-                style={{
-                  top: TOP_PAD + i * HOUR_PX + 2,
-                  height: Math.max(3, (h.segment_minutes / 60) * (HOUR_PX - 4)),
-                }}
+                css={coverageBarStyles(
+                  TOP_PAD + i * HOUR_PX + 2,
+                  Math.max(3, (h.segment_minutes / 60) * (HOUR_PX - 4))
+                )}
               />
             ) : null
           )}
@@ -109,31 +266,31 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek, toke
 
         {/* Event blobs + connector + thumbnail rows */}
         {positioned.map(ev => (
-          <div key={ev.id} className={`tl__event tl__event--${ev.tone}`} style={{ top: ev.top }}>
-            <span className="tl__blob" />
-            <span className="tl__connector" />
-            <span className="tl__icon"><ev.icon size={11} strokeWidth={2} /></span>
+          <div key={ev.id} css={eventRowStyles(ev.top)}>
+            <span css={blobStyles(ev.tone)} />
+            <span css={connectorStyles} />
+            <span css={iconWrapperStyles(ev.tone)}><ev.icon size={11} strokeWidth={2} /></span>
             {ev.thumbnail_path ? (
               <img
-                className="tl__thumb"
+                css={thumbStyles}
                 src={`http://localhost:8000/events/${ev.id}/thumbnail?token=${encodeURIComponent(token)}`}
                 alt=""
                 loading="lazy"
                 onClick={e => { e.stopPropagation(); onSeek(ev.ts); }}
               />
             ) : (
-              <span className="tl__thumb tl__thumb--empty" onClick={e => { e.stopPropagation(); onSeek(ev.ts); }}>
+              <span css={thumbEmptyStyles} onClick={e => { e.stopPropagation(); onSeek(ev.ts); }}>
                 {fmtTime(ev.ts)}
               </span>
             )}
-            <span className="tl__when tnum">{fmtTime(ev.ts)}</span>
+            <span css={whenStyles} className="tnum">{fmtTime(ev.ts)}</span>
           </div>
         ))}
 
         {/* Playhead */}
         {playTs && playTs >= day0 && playTs <= day0 + 86400 && (
-          <div className="tl__playhead" style={{ top: tsToY(playTs) }}>
-            <span className="tl__playhead-badge tnum">
+          <div css={playheadStyles(tsToY(playTs))}>
+            <span css={playheadBadgeStyles} className="tnum">
               {new Date(playTs * 1000).toLocaleTimeString(undefined, { hour12: false })}
             </span>
           </div>

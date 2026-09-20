@@ -40,7 +40,12 @@ Use `asyncio.run_coroutine_threadsafe(coro, state.main_loop)` to schedule async 
 ### Hardcoded API URL
 > `const API = 'http://localhost:8000'` appears in 4 files.
 
-Files: `App.jsx`, `ManageFacesPage.jsx`, `RegisterModal.jsx`, `AuthContext.jsx`. If the API URL needs to change, all four must be updated. Consider centralizing to an env variable or shared constant.
+Files: `App.jsx`, `FacesPage.jsx`, `RegisterModal.jsx`, `AuthContext.jsx`. If the API URL needs to change, all four must be updated. Consider centralizing to an env variable or shared constant.
+
+### Component Styling Co-location with @emotion/react
+> Separate `.css` files per component created unmanageable orphaned stylesheets upon refactoring or deletion.
+
+All component and page-specific styles are embedded directly inside components via `@emotion/react` (`css` tagged template or style objects). Global tokens (`:root`), font declarations, and high-level layout shell classes (`.app-shell`, `.page-header`, `.page-body`) remain in `src/index.css`. Vite uses `@vitejs/plugin-react` with `jsxImportSource: '@emotion/react'` and `@emotion/babel-plugin`.
 
 ## AI / Face Recognition
 

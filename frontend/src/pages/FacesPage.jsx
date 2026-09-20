@@ -4,13 +4,160 @@
  * for now: gallery, register wizard, update, delete.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { css } from '@emotion/react';
 import { useAuth } from '../contexts/useAuth';
 import { ImagePlus, UserPlus, Users } from 'lucide-react';
 import RegisterModal from '../RegisterModal';
 import ImportModal from '../components/ImportModal';
-import '../ManageFacesPage.css';
 
 const API = 'http://localhost:8000';
+
+const facesStyles = css`
+  max-width: 1080px;
+
+  .mf-loading, .mf-error, .mf-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+    color: #7a879e;
+    font-size: 14px;
+    text-align: center;
+    gap: 16px;
+  }
+  .mf-empty-icon {
+    font-size: 48px;
+    opacity: 0.5;
+    margin-bottom: 8px;
+  }
+  .mf-spinner {
+    width: 24px; height: 24px;
+    border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: #3b9eff;
+    border-radius: 50%;
+    animation: mf-spin 0.8s linear infinite;
+  }
+  @keyframes mf-spin { to { transform: rotate(360deg); } }
+
+  .mf-error {
+    color: #f87171;
+    background: rgba(248,113,113,0.05);
+    border-radius: 12px;
+  }
+
+  .mf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .mf-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .mf-card:hover {
+    transform: translateY(-2px);
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.1);
+  }
+
+  .mf-card__gallery {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: #000;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .mf-card__img-wrap {
+    flex: 1;
+    aspect-ratio: 1;
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+  }
+  .mf-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s;
+  }
+  .mf-card:hover .mf-card__img {
+    transform: scale(1.05);
+  }
+  .mf-card__img-fallback {
+    background: var(--surface-3);
+  }
+  .mf-card__img-fallback::after {
+    content: '👤';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    opacity: 0.5;
+  }
+
+  .mf-card__info {
+    padding: 14px 14px 12px;
+  }
+  .mf-card__name {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #e8eaf0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mf-card__meta {
+    margin: 0;
+    font-size: 12px;
+    color: #7a879e;
+  }
+
+  .mf-card__actions {
+    display: flex;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    margin-top: auto;
+  }
+  .mf-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 0;
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mf-btn--update {
+    color: #63b3ff;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .mf-btn--update:hover {
+    background: rgba(99,179,255,0.1);
+  }
+
+  .mf-btn--delete {
+    color: #7a879e;
+  }
+  .mf-btn--delete:hover {
+    color: #f87171;
+    background: rgba(248,113,113,0.1);
+  }
+`;
 
 export default function FacesPage() {
   const { token, authHeaders } = useAuth();
@@ -85,7 +232,7 @@ export default function FacesPage() {
       )}
 
       <div className="page-body">
-        <div className="mf-page">
+        <div css={facesStyles} className="mf-page">
           {loading && <div className="mf-loading"><span className="mf-spinner" /> Loading…</div>}
           {error && <div className="mf-error">{error}</div>}
 
