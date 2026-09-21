@@ -12,6 +12,7 @@ import json
 import time
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -26,6 +27,7 @@ from src.camera.tapo import TapoCamera
 from src.camera.video_file import VideoFileCamera
 from src.camera.webcam import MacbookWebcam
 from src.config import ACTIVE_ALERT
+from src.config import BASE_DIR
 from src.config import CAMERAS
 from src.config import TELEGRAM_BOT_TOKEN
 from src.config import TELEGRAM_CHAT_ID
@@ -52,7 +54,10 @@ def build_camera(config: CameraConfig):
   if config.type == 'file':
     if not config.rtsp_url:
       raise ValueError(f"Camera '{config.id}' (type file) requires rtsp_url=<video file path>")
-    return VideoFileCamera(path=config.rtsp_url)
+    p = Path(config.rtsp_url)
+    if not p.is_absolute():
+      p = BASE_DIR / p
+    return VideoFileCamera(path=str(p))
   raise ValueError(f'Unknown camera type: {config.type}')
 
 
