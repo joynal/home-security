@@ -1,10 +1,12 @@
 /**
  * Camera tile — just video (Frigate/UniFi pattern).
- * Black 16:9 cell, no card chrome. Overlays: name bottom-left on a scrim,
- * status dot + word top-right. Everything else lives in the detail view.
- * Props: camera, onSelect(cameraId)
+ * Black 16:9 cell, no card chrome. Snapshot-idle: tiles show a cheap still
+ * refreshing every ~10s and upgrade to the full MJPEG stream only on hover
+ * or keyboard focus (Frigate's biggest bandwidth win for many cameras).
+ * Off-screen/hidden-tab tiles drop all requests entirely.
+ * Overlays: name bottom-left on a scrim, status dot + word top-right.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { VideoOff } from 'lucide-react';
 import useVisible from '@/hooks/useVisible';
 import { cameraService } from '@/services/cameras';
@@ -15,6 +17,8 @@ export interface CameraTileProps {
   camera: Camera;
   onSelect?: (cameraId: string) => void;
 }
+
+const SNAPSHOT_REFRESH_MS = 10_000;
 
 const tileStyles = {
   position: 'relative' as const,
@@ -84,24 +88,42 @@ const statusStyles = {
 
 export default function CameraTile({ camera, onSelect }: CameraTileProps) {
   const [hasError, setHasError] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [snapBust, setSnapBust] = useState(() => Date.now());
   const [ref, visible] = useVisible<HTMLButtonElement>();
-  // Stream gating: off-screen or hidden tab → drop the src (server keeps
-  // encoding once per loop; we just stop pulling frames per client).
-  const feedUrl = visible ? cameraService.getVideoFeedUrl(camera.id) : null;
-  const showFeed = camera.online && !hasError && feedUrl;
+
+  // Snapshot refresh while idle (visible + not live-streaming)
+  useEffect(() => {
+    if (!visible || hovering || !camera.online) return;
+    const t = setInterval(() => setSnapBust(Date.now()), SNAPSHOT_REFRESH_MS);
+    return () => clearInterval(t);
+  }, [visible, hovering, camera.online]);
+
+  const showLive = camera.online && !hasError && visible && hovering;
+  const showSnapshot = camera.online && !hasError && visible && !hovering;
+  const src = showLive
+    ? cameraService.getVideoFeedUrl(camera.id)
+    : showSnapshot
+      ? cameraService.getSnapshotUrl(camera.id, snapBust)
+      : null;
 
   return (
     <button
       ref={ref}
       css={tileStyles}
       onClick={() => onSelect?.(camera.id)}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      onFocus={() => setHovering(true)}
+      onBlur={() => setHovering(false)}
       aria-label={`Open ${camera.name}`}
     >
-      {showFeed ? (
+      {src ? (
         <img
-          src={feedUrl}
+          key={showLive ? 'live' : `snap-${snapBust}`}
+          src={src}
           crossOrigin="use-credentials"
-          alt={`${camera.name} live feed`}
+          alt={`${camera.name} ${showLive ? 'live feed' : 'snapshot'}`}
           css={feedStyles}
           onError={() => setHasError(true)}
         />
@@ -122,7 +144,7 @@ export default function CameraTile({ camera, onSelect }: CameraTileProps) {
         <span
           className={`status-dot ${camera.online && !hasError ? 'status-dot--live' : 'status-dot--offline'}`}
         />
-        <span>{camera.online && !hasError ? 'LIVE' : 'OFFLINE'}</span>
+        <span>{camera.online && !hasError ? (showLive ? 'LIVE' : 'IDLE') : 'OFFLINE'}</span>
       </div>
     </button>
   );
