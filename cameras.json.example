@@ -23,5 +23,13 @@
     "zones": [
       { "name": "porch", "coordinates": [[0, 0], [300, 0], [300, 360], [0, 360]] }
     ]
+  },
+  {
+    "id": "test_camera",
+    "name": "Test Simulation Camera",
+    "type": "file",
+    "rtsp_url": "data/test_people.mp4",
+    "detect": { "width": 640, "height": 360, "fps": 5, "enabled": true },
+    "record": { "enabled": false }
   }
 ]

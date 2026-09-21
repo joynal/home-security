@@ -18,3 +18,6 @@ go2rtc.yaml
 
 # YOLO model weights — auto-downloaded by ultralytics on first run
 yolov8n.pt
+
+# Camera config lives in data/ (gitignored) — never commit real RTSP credentials
+/cameras.json

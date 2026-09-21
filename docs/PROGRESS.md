@@ -55,7 +55,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| R13 | Restore data/cameras.json as only camera store; untrack root cameras.json (P0) | — | ⬜ | | config.py:23 precedence + save_cameras sync must go |
+| R13 | Restore data/cameras.json as only camera store; untrack root cameras.json (P0) | — | ✅ | (this commit) | 4 new tests; root file was identical to data/ (no migration needed) |
 | R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ⬜ | | verification instrument for all UI tasks |
 | R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ⬜ | | frontend-only; absorbs timezone bug |
 | R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ⬜ | | default 400px/hour |
@@ -401,6 +401,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - Environment updates: **ffmpeg is now installed** (/opt/homebrew/bin — B7.2/R16 unblocked); CLAUDE.md test count stale (136 now).
 - **Wrote [review-fix-plan.md](./review-fix-plan.md) + Phase R task rows above. NO implementation started.** Execution order: R13 → R19 → R2→R3→R4→R5 (timeline spine), R6/R7/R8/R9/R10/R11/R12 independent.
 - Review artifacts: screenshots in /tmp/aegis-shots/ (ephemeral), CDP driver scripts /tmp/aegis-shots.mjs + /tmp/aegis-debug*.mjs (to be committed as R19).
+
+### Task R13 — data/cameras.json is the only camera store
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: `uv run pytest tests/` → 140 passed (4 new tests in `tests/test_camera_store.py`: stray root file ignored, legacy fallback, save writes only data/, atomic write leaves no .tmp). `ruff check .` clean. Live smoke: `CAMERAS_FILE` resolves to `data/cameras.json`, loads the same 2 cameras as before (macbook disabled + test_camera); root `cameras.json` untracked (`git rm`) + `/cameras.json` added to `.gitignore`; `cameras.json.example` gained the `"file"` dev type.
+- **Deviations**: none — root and data files were identical, so the plan's migration-guard step was a no-op.
 
 ### Session 10 — 2026-09-21 (Phase 5: Scrypted Settings Suite, Camera CRUD, Diagnostics, Auth)
 - Completed Phase 5:
