@@ -57,7 +57,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 |------|-------------|------|--------|--------|-------|
 | R13 | Restore data/cameras.json as only camera store; untrack root cameras.json (P0) | — | ✅ | (this commit) | 4 new tests; root file was identical to data/ (no migration needed) |
 | R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ✅ | b42a52d+1 | 9/9 shots verified against live servers |
-| R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ⬜ | | frontend-only; absorbs timezone bug |
+| R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ✅ | (this commit) | found+fixed P0: segment type mismatch made ALL seeks no-ops |
 | R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ⬜ | | default 400px/hour |
 | R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ⬜ | | extract pure placement fn to lib/timeline.ts |
 | R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
@@ -407,6 +407,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run pytest tests/` → 140 passed (4 new tests in `tests/test_camera_store.py`: stray root file ignored, legacy fallback, save writes only data/, atomic write leaves no .tmp). `ruff check .` clean. Live smoke: `CAMERAS_FILE` resolves to `data/cameras.json`, loads the same 2 cameras as before (macbook disabled + test_camera); root `cameras.json` untracked (`git rm`) + `/cameras.json` added to `.gitignore`; `cameras.json.example` gained the `"file"` dev type.
 - **Deviations**: none — root and data files were identical, so the plan's migration-guard step was a no-op.
+
+### Task R2 — timeline local-time axis + exact segment coverage
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: 141 pytest green (new `test_timeline_tz_window_matches_client_local_day`), ruff clean, `npm run lint` + `tsc -b && vite build` clean. **Live CDP deep-link test**: `/playback?cam=test_camera&ts=<14:30Z>` → `<video>` loads `20260921_140000.mp4` with `currentTime=1800` (exact offset); playhead badge "4:30:12 PM" sits on the 4:30 PM tick (CEST — badge/tick agreement, was 2h off before); coverage renders the 3 seeded segments contiguously 3:00–5:55 PM local (shot: /tmp/aegis-shots/11-r2-seek-verify.png).
+- **Deviations**: (1) **found a P0 the review missed**: frontend `TimelineSegment` declared `start_epoch/duration_seconds/filename` but the API returns `{start,end,file}` — every seek path compared against `undefined`, so the new PlaybackPage had never loaded any video (rail clicks, deep-links, auto-advance all no-ops). Fixed via a client-side normalization (`NormalizedSegment`) used by onSeek/auto-advance/rail. (2) Plan said "backend change: none" — added a small `tz` query param to `GET /recordings/{cam}/timeline` (Annotated style) so the server returns the client-LOCAL day window (otherwise local-day edges lose segments at UTC boundaries); +1 test. (3) Coverage bars de-chromed (flat accent color) — pulled forward from R4 while touching the block.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

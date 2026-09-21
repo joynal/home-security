@@ -101,10 +101,18 @@ export interface TimelineHour {
   event_count: number;
 }
 
+/** Raw shape returned by GET /recordings/{cam}/timeline — ISO UTC instants + absolute path. */
 export interface TimelineSegment {
-  filename: string;
-  start_epoch: number;
-  duration_seconds: number;
+  start: string;
+  end: string;
+  file: string;
+}
+
+/** Client-normalized segment for seeking + rail coverage (epoch seconds, basename). */
+export interface NormalizedSegment {
+  name: string;
+  startEpoch: number;
+  endEpoch: number;
 }
 
 export interface TimelineResponse {

@@ -131,3 +131,36 @@ def test_summary_lists_days(env):
 
 def test_summary_empty(env):
   assert recordings_summary() == {'days': []}
+
+
+def test_timeline_tz_window_matches_client_local_day(env):
+  """Task R2: tz shifts the day window — a segment at 23:30Z lands on different
+  calendar days depending on the client offset (UTC+2 → tz=-120). Cameras are
+  separate so the index's contiguous-backfill (end = next file's start) can't
+  glue ranges together across the boundary."""
+  db, rec_dir, idx = env
+  import os
+
+  def seed(cam, name, utc_start):
+    path = rec_dir / cam / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b'x' * 2048)
+    end = (utc_start + timedelta(minutes=15)).timestamp()
+    os.utime(path, (end, end))
+
+  # 23:30Z Sep 20: inside UTC+2 local day "Sep 21" (22:00Z Sep 20 → 22:00Z Sep 21),
+  # outside the plain UTC day "Sep 21"
+  seed('tz_east', '20260920_233000.mp4', datetime(2026, 9, 20, 23, 30, tzinfo=UTC))
+  # 23:30Z Sep 21: inside the UTC day "Sep 21", outside the UTC+2 local day above
+  seed('tz_utc', '20260921_233000.mp4', datetime(2026, 9, 21, 23, 30, tzinfo=UTC))
+  idx.scan_directory()
+
+  east = camera_timeline('tz_east', date='2026-09-21', tz=-120)
+  assert [s['file'].split('/')[-1] for s in east['segments']] == ['20260920_233000.mp4']
+  east_utc_day = camera_timeline('tz_east', date='2026-09-21', tz=0)
+  assert east_utc_day['segments'] == []
+
+  utc = camera_timeline('tz_utc', date='2026-09-21', tz=0)
+  assert [s['file'].split('/')[-1] for s in utc['segments']] == ['20260921_233000.mp4']
+  utc_east_day = camera_timeline('tz_utc', date='2026-09-21', tz=-120)
+  assert utc_east_day['segments'] == []

@@ -18,6 +18,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -89,18 +90,21 @@ def recordings_summary(_: str = Depends(get_current_user)):
 @router.get('/{camera_id}/timeline')
 def camera_timeline(
   camera_id: str,
-  date: str = Query(..., description='UTC date, YYYY-MM-DD'),
+  date: Annotated[str, Query(description='Local calendar date, YYYY-MM-DD')],
+  tz: Annotated[int, Query(description='Client UTC offset in minutes, as JS getTimezoneOffset() reports it (UTC+2 → -120). Shifts the day window to cover the client-local day.')] = 0,
   _: str = Depends(get_current_user),
 ):
   """
   Per-day timeline data for the scrubber UI:
-    hours:    [{hour, segment_minutes, events, unknowns}]
-    segments: exact [{start, end, file}] overlapping the day
+    hours:    [{hour, segment_minutes, events, unknowns}] (keyed to the UTC calendar date — vestigial)
+    segments: exact [{start, end, file}] overlapping the client-local day
   """
   if state.recording_index is None or state.event_db is None:
     raise HTTPException(status_code=503, detail='Recording index not initialized')
   try:
-    day_start = _parse_date(date)
+    # tz shifts UTC midnight to the client's local midnight (getTimezoneOffset sign:
+    # UTC+2 → -120 → local midnight is 2h BEFORE UTC midnight of the same date).
+    day_start = _parse_date(date) + timedelta(minutes=tz)
   except ValueError as exc:
     raise HTTPException(status_code=422, detail=str(exc)) from exc
   day_end = day_start + timedelta(days=1)

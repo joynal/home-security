@@ -6,9 +6,15 @@ export const recordingService = {
     return apiFetch<RecordingsSummaryResponse>('/recordings/summary');
   },
 
-  async getTimeline(cameraId: string, date: string): Promise<TimelineResponse> {
+  /**
+   * Timeline for a LOCAL calendar date. tz is the client's UTC offset in minutes
+   * exactly as getTimezoneOffset() reports it (UTC+2 → -120); the server shifts
+   * the day window accordingly so segments at UTC-day edges land on the right day.
+   */
+  async getTimeline(cameraId: string, date: string, tzMinutes?: number): Promise<TimelineResponse> {
+    const tz = tzMinutes ?? new Date().getTimezoneOffset();
     return apiFetch<TimelineResponse>(
-      `/recordings/${encodeURIComponent(cameraId)}/timeline?date=${encodeURIComponent(date)}`,
+      `/recordings/${encodeURIComponent(cameraId)}/timeline?date=${encodeURIComponent(date)}&tz=${tz}`,
     );
   },
 

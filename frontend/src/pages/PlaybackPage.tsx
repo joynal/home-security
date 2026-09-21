@@ -8,7 +8,7 @@
  * - Keyboard shortcuts: Space, J, K, L, [, ], F
  * - Clip Exporter (Task S3.3) for downloading MP4 ranges
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -32,7 +32,7 @@ import { cameraService } from '@/services/cameras';
 import { eventService } from '@/services/events';
 import { recordingService } from '@/services/recordings';
 import { tokens } from '@/theme/designTokens';
-import type { Camera, SecurityEvent, TimelineResponse } from '@/types';
+import type { Camera, NormalizedSegment, SecurityEvent, TimelineResponse } from '@/types';
 
 interface PlaybackMode {
   url: string;
@@ -283,10 +283,20 @@ function localDateStr(d = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** The LOCAL calendar day [start, end) — the timeline renders local time end-to-end. */
 function dayRange(date: string): { start: Date; end: Date } {
   const [y, m, d] = date.split('-').map(Number);
-  const start = new Date(Date.UTC(y, m - 1, d));
+  const start = new Date(y, m - 1, d);
   return { start, end: new Date(start.getTime() + 86400000) };
+}
+
+/** Parse a ?ts= query value: epoch seconds or ISO string → epoch seconds (null if unusable). */
+function parseTsParam(v: string | null): number | null {
+  if (!v) return null;
+  const n = Number(v);
+  if (!Number.isNaN(n) && n > 0) return n;
+  const iso = new Date(v).getTime() / 1000;
+  return !Number.isNaN(iso) && iso > 0 ? iso : null;
 }
 
 export default function PlaybackPage() {
@@ -296,15 +306,31 @@ export default function PlaybackPage() {
   const navigate = useNavigate();
 
   const camParam = searchParams.get('cam');
-  const dateParam = searchParams.get('date') || localDateStr();
-  const tsParam = searchParams.get('ts');
+  const tsEpoch = parseTsParam(searchParams.get('ts'));
 
   const [cameras, setCameras] = useState<Camera[]>([]);
-  const date = dateParam;
+  // Deep-linked ?ts= without an explicit date: derive the day from the timestamp,
+  // otherwise the seek targets the wrong (default: today) day and silently no-ops.
+  const date = searchParams.get('date') || (tsEpoch ? localDateStr(new Date(tsEpoch * 1000)) : localDateStr());
   const activeCameraId = pathCamId || camParam || (cameras.length > 0 ? cameras[0].id : '');
   const [timeline, setTimeline] = useState<TimelineResponse>({ hours: [], segments: [] });
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [days, setDays] = useState<string[]>([]);
+
+  // API segments ({start,end,file} ISO/abs-path) → normalized epoch/basename view.
+  // NOTE: the API never returned start_epoch/duration_seconds — the previous
+  // mismatch made every seek compare against undefined (playback never loaded).
+  const segs = useMemo<NormalizedSegment[]>(
+    () =>
+      timeline.segments
+        .map((s) => ({
+          name: s.file.split('/').pop() ?? s.file,
+          startEpoch: Date.parse(s.start) / 1000,
+          endEpoch: Date.parse(s.end) / 1000,
+        }))
+        .sort((a, b) => a.startEpoch - b.startEpoch),
+    [timeline.segments],
+  );
 
   const [mode, setMode] = useState<Mode>('live');
   const [playTs, setPlayTs] = useState<number | null>(null);
@@ -336,19 +362,10 @@ export default function PlaybackPage() {
 
   // Set pending timestamp from query parameter (?ts=)
   useEffect(() => {
-    if (tsParam) {
-      const parsed = Number(tsParam);
-      if (!isNaN(parsed) && parsed > 0) {
-        pendingTs.current = parsed;
-      } else {
-        // Try parsing ISO date string
-        const parsedIso = new Date(tsParam).getTime() / 1000;
-        if (!isNaN(parsedIso) && parsedIso > 0) {
-          pendingTs.current = parsedIso;
-        }
-      }
+    if (tsEpoch) {
+      pendingTs.current = tsEpoch;
     }
-  }, [tsParam]);
+  }, [tsEpoch]);
 
   // Load timeline & events when camera or date changes
   useEffect(() => {
@@ -374,18 +391,16 @@ export default function PlaybackPage() {
   const onSeek = useCallback(
     (epochS: number) => {
       if (!activeCameraId) return;
-      const seg = timeline.segments.find(
-        (s) => epochS >= s.start_epoch && epochS < s.start_epoch + s.duration_seconds,
-      );
+      const seg = segs.find((s) => epochS >= s.startEpoch && epochS < s.endEpoch);
 
       if (!seg) {
         setPlayTs(epochS);
         return;
       }
 
-      const offset = Math.max(0, epochS - seg.start_epoch);
-      const url = recordingService.getRecordingUrl(activeCameraId, seg.filename);
-      setMode({ url, startEpoch: seg.start_epoch, filename: seg.filename });
+      const offset = Math.max(0, epochS - seg.startEpoch);
+      const url = recordingService.getRecordingUrl(activeCameraId, seg.name);
+      setMode({ url, startEpoch: seg.startEpoch, filename: seg.name });
       setPlayTs(epochS);
 
       setTimeout(() => {
@@ -399,7 +414,7 @@ export default function PlaybackPage() {
         }
       }, 50);
     },
-    [activeCameraId, timeline.segments, playbackSpeed],
+    [activeCameraId, segs, playbackSpeed],
   );
 
   // Trigger pending seek when segments become available
@@ -466,16 +481,16 @@ export default function PlaybackPage() {
     const current = mode.startEpoch + videoRef.current.currentTime;
     setPlayTs(current);
 
-    // Auto-advance across 15-minute segments
+    // Auto-advance to the next recorded segment
     if (
       videoRef.current.duration &&
       videoRef.current.currentTime >= videoRef.current.duration - 0.5
     ) {
-      const idx = timeline.segments.findIndex((s) => s.filename === mode.filename);
-      if (idx >= 0 && idx + 1 < timeline.segments.length) {
-        const next = timeline.segments[idx + 1];
-        const url = recordingService.getRecordingUrl(activeCameraId, next.filename);
-        setMode({ url, startEpoch: next.start_epoch, filename: next.filename });
+      const idx = segs.findIndex((s) => s.name === mode.filename);
+      if (idx >= 0 && idx + 1 < segs.length) {
+        const next = segs[idx + 1];
+        const url = recordingService.getRecordingUrl(activeCameraId, next.name);
+        setMode({ url, startEpoch: next.startEpoch, filename: next.name });
         setTimeout(() => {
           if (videoRef.current) {
             videoRef.current.playbackRate = playbackSpeed;
@@ -489,8 +504,8 @@ export default function PlaybackPage() {
 
   const shiftDate = (deltaDays: number) => {
     const [y, m, d] = date.split('-').map(Number);
-    const next = new Date(Date.UTC(y, m - 1, d + deltaDays));
-    const nextStr = localDateStr(next);
+    // Local-math day navigation (UTC construction breaks next-day in negative offsets)
+    const nextStr = localDateStr(new Date(y, m - 1, d + deltaDays));
     setSearchParams({ cam: activeCameraId, date: nextStr });
   };
 
@@ -808,7 +823,7 @@ export default function PlaybackPage() {
           <div css={timelineScrollStyles}>
             <TimelineRail
               date={date}
-              hours={timeline.hours}
+              segments={segs}
               events={events}
               playTs={playTs}
               onSeek={onSeek}

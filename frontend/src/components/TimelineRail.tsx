@@ -12,11 +12,11 @@ import { useMemo, useState, useRef, type KeyboardEvent, type PointerEvent } from
 import { AlertTriangle, UserCheck, User, Clock, CircleAlert } from 'lucide-react';
 import { eventService } from '@/services/events';
 import { tokens } from '@/theme/designTokens';
-import type { SecurityEvent, TimelineHour } from '@/types';
+import type { NormalizedSegment, SecurityEvent } from '@/types';
 
 export interface TimelineRailProps {
   date: string;
-  hours: TimelineHour[];
+  segments: NormalizedSegment[];
   events: SecurityEvent[];
   playTs: number | null;
   onSeek: (epochS: number) => void;
@@ -94,9 +94,8 @@ const coverageBarStyles = (top: number, height: number) => ({
   right: '1px',
   top,
   height,
-  background: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+  background: tokens.colors.accent.primary,
   borderRadius: '2px',
-  boxShadow: '0 0 8px rgba(59, 130, 246, 0.35)',
 });
 
 const eventRowStyles = (top: number) => ({
@@ -265,9 +264,10 @@ const playheadBadgeStyles = {
   whiteSpace: 'nowrap' as const,
 };
 
+/** Local midnight of the calendar date, in epoch seconds — the rail renders LOCAL time. */
 function dayStartEpoch(date: string): number {
   const [y, m, d] = date.split('-').map(Number);
-  return Date.UTC(y, m - 1, d) / 1000;
+  return new Date(y, m - 1, d).getTime() / 1000;
 }
 
 function fmtHour(h: number): string {
@@ -298,7 +298,7 @@ function getEventIcon(type: string) {
   return <User size={11} strokeWidth={2.2} />;
 }
 
-export default function TimelineRail({ date, hours, events, playTs, onSeek }: TimelineRailProps) {
+export default function TimelineRail({ date, segments, events, playTs, onSeek }: TimelineRailProps) {
   const day0 = dayStartEpoch(date);
   const totalPx = 24 * HOUR_PX;
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -413,18 +413,20 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }: Ti
           if (e.key === 'ArrowDown') onSeek((playTs ?? day0) - 60);
         }}
       >
-        {/* Continuous recording coverage bars (blue) */}
+        {/* Exact recording coverage from the segments index (contiguous runs, gaps = downtime) */}
         <div css={railTrackStyles}>
-          {hours.map((h) => {
-            if (h.segment_minutes <= 0) return null;
-            // Top of this hour (hour 23 is at top, hour 0 at bottom)
-            const hourTop = TOP_PAD + (23 - h.hour) * HOUR_PX;
-            const barHeight = Math.max(4, (h.segment_minutes / 60) * (HOUR_PX - 2));
+          {segments.map((seg) => {
+            const dayEnd = day0 + 86400;
+            const clampedStart = Math.max(seg.startEpoch, day0);
+            const clampedEnd = Math.min(seg.endEpoch, dayEnd);
+            if (clampedEnd - clampedStart <= 0) return null;
+            const top = tsToY(clampedEnd); // later time = higher on the rail
+            const height = Math.max(2, tsToY(clampedStart) - tsToY(clampedEnd));
             return (
               <div
-                key={h.hour}
-                css={coverageBarStyles(hourTop + 1, barHeight)}
-                title={`${h.hour}:00 - ${h.segment_minutes}m recorded`}
+                key={`${seg.name}-${seg.startEpoch}`}
+                css={coverageBarStyles(top, height)}
+                title={`${fmtTime(clampedStart)} – ${fmtTime(clampedEnd)} · ${seg.name}`}
               />
             );
           })}
