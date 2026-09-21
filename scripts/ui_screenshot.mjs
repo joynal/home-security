@@ -143,7 +143,12 @@ for (const [name, path, settle] of pages) {
 if (DO_MOBILE) {
   await navigate(`${BASE}/playback?date=${today}`, 4000);
   await shot('07-playback-mobile', { width: 390, height: 844, mobile: true });
-  await evalJS('document.querySelector(".app-shell__main").scrollBy(0, 900); void 0');
+  // Scroll whatever actually scrolls on the playback page (the shell div; falls
+  // back to .app-shell__main for pages whose body scrolls there).
+  await evalJS(`(() => {
+    const shell = document.querySelector('.app-shell__main > div');
+    (shell && shell.scrollHeight > shell.clientHeight ? shell : document.querySelector('.app-shell__main')).scrollBy(0, 900);
+  })()`);
   await sleep(800);
   await shot('08-playback-mobile-scrolled', { width: 390, height: 844, mobile: true });
   await navigate(`${BASE}/`, 3000);

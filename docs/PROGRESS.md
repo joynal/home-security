@@ -61,7 +61,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ✅ | (this commit) | default 2h (400px/h); pure helpers in lib/timeline.ts |
 | R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ✅ | (this commit) | 132 events → 27 clustered pins; scrollHeight = rail height |
 | R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
-| R6 | Mobile playback scroll fix (P0) | — | ⬜ | | shellStyles needs flex:1 + minHeight:0 |
+| R6 | Mobile playback scroll fix (P0) | — | ✅ | (this commit) | flex:1 + minHeight:0 on the mobile shell |
 | R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ⬜ | | App.tsx:33 + PlaybackPage.tsx:304 |
 | R8 | Alert settings: live rebuild + data/settings.json persistence | — | ⬜ | | inference.py imports by value today |
 | R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ⬜ | | unify pipelines on state.pipelines |
@@ -425,6 +425,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: lint + tsc/vite clean; `grep linear-gradient|glow|halo src/components/TimelineRail.tsx` → 0. Live CDP with the 132-event test day: **27 pins, 24 with cluster badges** (+32/+6/+21… — bursts collapse instead of cascading); `scrollHeight` 9640 = the zoomed rail itself (24h × 400px + padding) — no content beyond the scale, position = time everywhere; pin badges sit against matching ticks (5:35 PM pin between 5:00/6:00; 3:38 PM just under 3:30). Zero-interaction control run: no video, no playhead — nothing auto-seeks (a playhead seen in one headless shot was a synthetic-input artifact). Shots: /tmp/aegis-shots/15-r4-pins-2h.png, 16 (6h).
 - **Deviations**: beyond plan — every event now also renders a flat 6px severity dot ON the rail at its true y (density view survives thumbnail clustering, Scrypted-style); thumbnails 120px (pane-fit) instead of 128; pin thumbnails hidden below 240px/hour (`THUMBS_AT_PXH`), dots remain at all zooms.
+
+### Task R6 — mobile playback scroll
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: harness `--mobile` pass (/tmp/r6-verify): scrolled shot 08 now shows rail content moving under the docked sticky 16:9 player (hour ticks 9:00/8:30/8:00 PM pass beneath) where the pre-fix shot was pixel-identical to unscrolled. Harness mobile scroll retargeted to the real scroller (shell div, with fallback). lint + build clean.
+- **Deviations**: none.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

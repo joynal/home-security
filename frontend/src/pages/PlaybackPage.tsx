@@ -156,6 +156,12 @@ const shellStyles = {
   '@media (max-width: 768px)': {
     display: 'flex',
     flexDirection: 'column' as const,
+    // flex:1 + minHeight:0 let the shell shrink inside .app-shell__main
+    // (overflow:hidden flex parent) and become the real scroll container —
+    // without these the 24h rail is clipped and unscrollable, and the
+    // player's position:sticky never engages.
+    flex: 1,
+    minHeight: 0,
     height: 'auto',
     overflowY: 'auto' as const,
   },
