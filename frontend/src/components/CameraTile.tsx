@@ -95,9 +95,21 @@ export default function CameraTile({ camera, onSelect }: CameraTileProps) {
   // Snapshot refresh while idle (visible + not live-streaming)
   useEffect(() => {
     if (!visible || hovering || !camera.online) return;
-    const t = setInterval(() => setSnapBust(Date.now()), SNAPSHOT_REFRESH_MS);
+    const t = setInterval(() => {
+      setSnapBust(Date.now());
+      setHasError(false); // retry snapshot on next tick
+    }, SNAPSHOT_REFRESH_MS);
     return () => clearInterval(t);
   }, [visible, hovering, camera.online]);
+
+  const handleHoverStart = () => {
+    setHovering(true);
+    setHasError(false);
+  };
+
+  const handleHoverEnd = () => {
+    setHovering(false);
+  };
 
   const showLive = camera.online && !hasError && visible && hovering;
   const showSnapshot = camera.online && !hasError && visible && !hovering;
@@ -112,15 +124,15 @@ export default function CameraTile({ camera, onSelect }: CameraTileProps) {
       ref={ref}
       css={tileStyles}
       onClick={() => onSelect?.(camera.id)}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onFocus={() => setHovering(true)}
-      onBlur={() => setHovering(false)}
+      onMouseEnter={handleHoverStart}
+      onMouseLeave={handleHoverEnd}
+      onFocus={handleHoverStart}
+      onBlur={handleHoverEnd}
       aria-label={`Open ${camera.name}`}
     >
       {src ? (
         <img
-          key={showLive ? 'live' : `snap-${snapBust}`}
+          key={showLive ? 'live' : 'snapshot'}
           src={src}
           crossOrigin="use-credentials"
           alt={`${camera.name} ${showLive ? 'live feed' : 'snapshot'}`}

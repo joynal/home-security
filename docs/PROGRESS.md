@@ -74,7 +74,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | U3.1 | Grid hero | U2.1 | ✅ | (v2 run) | ⚠️ visual user |
 | U3.3 | Story strip | U2.1, B5 | ✅ | (v2 run) | replaced EventSidebar |
 | U3.4 | Stream gating | U3.1 | ✅ | (v2 run) | off-screen/hidden-tab pauses |
-| U3.5 | Snapshot-idle tiles (opt) | B7.1 | ⬜ | | |
+| U3.5 | Snapshot-idle tiles (opt) | B7.1 | ✅ | 60d9590 | 10s idle snapshot polling + hover/focus live stream gating |
 | U4.1 | Camera detail: player shell | B2, U2.1 | ✅ | (v2 run) | /camera/:id, date nav, live↔playback |
 | U4.2 | Timeline rail | U4.1, B2.1 | ✅ | (v2 run) | blobs+thumbs+playhead; ⚠️ visual user |
 | U4.3 | Scrub-to-playback | U4.2, B3 | ✅ | (v2 run) | E2E data-path verified |
@@ -146,6 +146,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Deviations**: <none | what changed vs plan and why>
 -->
 
+### Task U3.5 — snapshot-idle grid tiles
+- **Status**: ✅
+- **Commit**: 60d9590 + (this commit)
+- **Verified**: `CameraTile.tsx` polls cheap stills via `getSnapshotUrl(camera.id, snapBust)` every 10s (`SNAPSHOT_REFRESH_MS = 10_000`) while idle; activates full MJPEG stream on hover or keyboard focus; stable image key (`key={showLive ? 'live' : 'snapshot'}`) prevents DOM re-mount and white flicker on 10s snapshot refresh; error states reset smoothly on user interactions and interval ticks; `npm run lint` clean (0 errors), `npm run build` (tsc + vite) clean, `uv run ruff check .` clean, 124/124 pytest tests green.
+- **Deviations**: Refresh interval set to 10s (matching camera status polling responsiveness) rather than 60s for immediate tile availability while preserving bandwidth.
+
 ### Task B0 — single aegis.db
 - **Status**: ✅
 - **Commit**: (this commit)
@@ -204,7 +210,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Auth restructure**: `/auth/login` sets an HttpOnly `access_token` cookie + `/auth/logout` clears it; `extract_token(request)` reads query → cookie → Bearer. I completed the design: `get_current_user` now routes through `extract_token` too, so **cookie auth works for XHR endpoints, not just media tags** (verified live: cookie-only /cameras, /events/summary, /faces → 200; no-auth → 401; feed 200 via cookie; logout clears). CORS uses explicit localhost origins + regex + credentials (no wildcard trap).
 - **Gates after rework**: `npm run build` (tsc+vite) ✓, `npm run lint` exit 0 ✓, `ruff` ✓, 118 tests ✓.
 - Data note from user testing: `data/known_faces` is empty (Joynal removed) → 216 unknown_face events accumulated; re-enroll to restore recognition.
-- **Remaining (optional)**: U3.5 snapshot-idle tiles, B7.2 clip extraction (ffmpeg), `/faces` person-detail page (U6.3 gallery exists). Everything else in plan v2 is DONE.
+- **Remaining (optional)**: `/faces` person-detail page (U6.3 gallery exists). Everything else in plan v2 is DONE.
 
 ### Session 6 — 2026-09-20 (Phase U: U1–U4 done)
 - User live-verified the events API (B5.1 known-face sightings ✅).
