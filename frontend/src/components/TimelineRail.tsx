@@ -8,9 +8,10 @@
  * - Draggable horizontal playhead rule with live time badge
  * - Click or drag anywhere to seek
  */
-import { useMemo, useState, useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useState, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { AlertTriangle, UserCheck, User, Clock, CircleAlert } from 'lucide-react';
 import { eventService } from '@/services/events';
+import { TOP_PAD, dayStartEpoch, railHeight, tsToY, yToTs } from '@/lib/timeline';
 import { tokens } from '@/theme/designTokens';
 import type { NormalizedSegment, SecurityEvent } from '@/types';
 
@@ -20,12 +21,12 @@ export interface TimelineRailProps {
   events: SecurityEvent[];
   playTs: number | null;
   onSeek: (epochS: number) => void;
+  /** Vertical scale — px per hour. Zoom presets live in the parent. */
+  pxPerHour: number;
   cameraId?: string;
   token?: string | null;
 }
 
-const HOUR_PX = 58; // vertical scale: 58px per hour (Scrypted standard)
-const TOP_PAD = 16;
 const RAIL_WIDTH = 12; // coverage rail width
 
 const tlContainerStyles = {
@@ -59,11 +60,11 @@ const hourLabelStyles = {
   whiteSpace: 'nowrap' as const,
 };
 
-const tickStyles = {
-  width: '8px',
+const tickStyles = (major: boolean) => ({
+  width: major ? '8px' : '5px',
   height: '1px',
-  background: tokens.colors.border.strong,
-};
+  background: major ? tokens.colors.border.strong : tokens.colors.border.subtle,
+});
 
 const canvasStyles = (height: number) => ({
   position: 'relative' as const,
@@ -264,12 +265,6 @@ const playheadBadgeStyles = {
   whiteSpace: 'nowrap' as const,
 };
 
-/** Local midnight of the calendar date, in epoch seconds — the rail renders LOCAL time. */
-function dayStartEpoch(date: string): number {
-  const [y, m, d] = date.split('-').map(Number);
-  return new Date(y, m - 1, d).getTime() / 1000;
-}
-
 function fmtHour(h: number): string {
   const ampm = h < 12 ? 'AM' : 'PM';
   const hr = h % 12 === 0 ? 12 : h % 12;
@@ -298,32 +293,33 @@ function getEventIcon(type: string) {
   return <User size={11} strokeWidth={2.2} />;
 }
 
-export default function TimelineRail({ date, segments, events, playTs, onSeek }: TimelineRailProps) {
+export default function TimelineRail({
+  date,
+  segments,
+  events,
+  playTs,
+  onSeek,
+  pxPerHour,
+}: TimelineRailProps) {
   const day0 = dayStartEpoch(date);
-  const totalPx = 24 * HOUR_PX;
+  const totalPx = 24 * pxPerHour;
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Time conversion: Top is latest (day0 + 86400), bottom is earliest (day0)
-  const tsToY = (ts: number) => {
-    const offsetFromTop = day0 + 86400 - ts;
-    return TOP_PAD + (offsetFromTop / 86400) * totalPx;
-  };
+  const toY = (ts: number) => tsToY(ts, day0, pxPerHour);
+  const fromY = (y: number) => yToTs(y, day0, pxPerHour);
 
-  const yToTs = (y: number) => {
-    const clampedY = Math.max(0, Math.min(totalPx, y - TOP_PAD));
-    const offsetFromTop = (clampedY / totalPx) * 86400;
-    return Math.round(day0 + 86400 - offsetFromTop);
-  };
-
-  // Pinned events with anti-collision vertical positioning
-  const positionedEvents = useMemo(() => {
+  // Pinned events with anti-collision vertical positioning.
+  // (Plain computation — React Compiler memoizes; the stagger loop mutates, so a
+  // manual useMemo couldn't be preserved. R4 replaces this with true-position
+  // clustering from lib/timeline.ts.)
+  const positionedEvents = (() => {
     const raw = events
       .map((ev) => {
         const ts = new Date(ev.timestamp).getTime() / 1000;
         const off = ts - day0;
         if (off < 0 || off > 86400) return null;
-        const targetY = TOP_PAD + ((day0 + 86400 - ts) / 86400) * totalPx;
+        const targetY = tsToY(ts, day0, pxPerHour);
         const severity = getEventSeverity(ev.event_type);
         return {
           ...ev,
@@ -345,13 +341,13 @@ export default function TimelineRail({ date, segments, events, playTs, onSeek }:
       }
     }
     return staggered;
-  }, [events, day0, totalPx]);
+  })();
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const epochS = yToTs(y);
+    const epochS = fromY(y);
     onSeek(epochS);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -360,7 +356,7 @@ export default function TimelineRail({ date, segments, events, playTs, onSeek }:
     if (!isDragging) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const epochS = yToTs(y);
+    const epochS = fromY(y);
     onSeek(epochS);
   };
 
@@ -377,27 +373,37 @@ export default function TimelineRail({ date, segments, events, playTs, onSeek }:
 
   return (
     <div css={tlContainerStyles}>
-      {/* Time axis scale (newest hour 23 down to 0) */}
+      {/* Time axis scale — quarter-hour ticks, hourly labels (thinned at low zoom) */}
       <div css={scaleStyles}>
-        {Array.from({ length: 25 }, (_, i) => {
-          // i = 0 represents hour 24 (top/now), i = 24 represents hour 0 (bottom/midnight)
-          const hourNum = 24 - i;
-          const top = TOP_PAD + i * HOUR_PX;
-          return (
-            <div key={i} css={hourRowStyles(top)}>
-              <span css={hourLabelStyles} className="tnum">
-                {fmtHour(hourNum % 24)}
-              </span>
-              <span css={tickStyles} />
-            </div>
-          );
-        })}
+        {(() => {
+          const showMinor = pxPerHour >= 200; // 15-min ticks only when zoomed in
+          const labelEveryHours = pxPerHour < 60 ? 3 : pxPerHour < 120 ? 2 : 1;
+          return Array.from({ length: 97 }, (_, q) => {
+            const minutesFromDayEnd = q * 15; // q=0 is the top (end of day)
+            const isHour = minutesFromDayEnd % 60 === 0;
+            if (!isHour && !showMinor) return null;
+            const hour = (minutesFromDayEnd / 60) % 24;
+            const showLabel = isHour && (q === 96 || hour % labelEveryHours === 0);
+            const top = TOP_PAD + (minutesFromDayEnd / 1440) * totalPx;
+            return (
+              <div key={q} css={hourRowStyles(top)}>
+                <span
+                  css={{ ...hourLabelStyles, visibility: showLabel ? ('visible' as const) : ('hidden' as const) }}
+                  className="tnum"
+                >
+                  {fmtHour(hour)}
+                </span>
+                <span css={tickStyles(isHour)} />
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {/* Rail canvas */}
       <div
         ref={canvasRef}
-        css={canvasStyles(totalPx + TOP_PAD * 2)}
+        css={canvasStyles(railHeight(pxPerHour))}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -420,8 +426,8 @@ export default function TimelineRail({ date, segments, events, playTs, onSeek }:
             const clampedStart = Math.max(seg.startEpoch, day0);
             const clampedEnd = Math.min(seg.endEpoch, dayEnd);
             if (clampedEnd - clampedStart <= 0) return null;
-            const top = tsToY(clampedEnd); // later time = higher on the rail
-            const height = Math.max(2, tsToY(clampedStart) - tsToY(clampedEnd));
+            const top = toY(clampedEnd); // later time = higher on the rail
+            const height = Math.max(2, toY(clampedStart) - toY(clampedEnd));
             return (
               <div
                 key={`${seg.name}-${seg.startEpoch}`}
@@ -485,7 +491,7 @@ export default function TimelineRail({ date, segments, events, playTs, onSeek }:
 
         {/* Draggable playhead line + badge */}
         {playTs !== null && playTs >= day0 && playTs <= day0 + 86400 && (
-          <div css={playheadStyles(tsToY(playTs), isDragging)}>
+          <div css={playheadStyles(toY(playTs), isDragging)}>
             <div css={playheadHandleStyles} aria-label="Draggable playhead handle" />
             <span css={playheadBadgeStyles} className="tnum">
               {fmtTime(playTs)}

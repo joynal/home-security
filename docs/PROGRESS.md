@@ -58,7 +58,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R13 | Restore data/cameras.json as only camera store; untrack root cameras.json (P0) | — | ✅ | (this commit) | 4 new tests; root file was identical to data/ (no migration needed) |
 | R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ✅ | b42a52d+1 | 9/9 shots verified against live servers |
 | R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ✅ | (this commit) | found+fixed P0: segment type mismatch made ALL seeks no-ops |
-| R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ⬜ | | default 400px/hour |
+| R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ✅ | (this commit) | default 2h (400px/h); pure helpers in lib/timeline.ts |
 | R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ⬜ | | extract pure placement fn to lib/timeline.ts |
 | R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
 | R6 | Mobile playback scroll fix (P0) | — | ⬜ | | shellStyles needs flex:1 + minHeight:0 |
@@ -413,6 +413,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 141 pytest green (new `test_timeline_tz_window_matches_client_local_day`), ruff clean, `npm run lint` + `tsc -b && vite build` clean. **Live CDP deep-link test**: `/playback?cam=test_camera&ts=<14:30Z>` → `<video>` loads `20260921_140000.mp4` with `currentTime=1800` (exact offset); playhead badge "4:30:12 PM" sits on the 4:30 PM tick (CEST — badge/tick agreement, was 2h off before); coverage renders the 3 seeded segments contiguously 3:00–5:55 PM local (shot: /tmp/aegis-shots/11-r2-seek-verify.png).
 - **Deviations**: (1) **found a P0 the review missed**: frontend `TimelineSegment` declared `start_epoch/duration_seconds/filename` but the API returns `{start,end,file}` — every seek path compared against `undefined`, so the new PlaybackPage had never loaded any video (rail clicks, deep-links, auto-advance all no-ops). Fixed via a client-side normalization (`NormalizedSegment`) used by onSeek/auto-advance/rail. (2) Plan said "backend change: none" — added a small `tz` query param to `GET /recordings/{cam}/timeline` (Annotated style) so the server returns the client-LOCAL day window (otherwise local-day edges lose segments at UTC boundaries); +1 test. (3) Coverage bars de-chromed (flat accent color) — pulled forward from R4 while touching the block.
+
+### Task R3 — timeline zoom, ticks, scroll-to-now
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: lint + tsc/vite clean. Live CDP: zoom presets render (4 buttons + Now); 2h default shows hourly labels + 15-min minor ticks with ~2h visible; scroll-to-now anchors present-time ~26% from top; 24h preset drops minor ticks and thins labels to every 3h (hidden-label probe artifact noted: DOM contains visibility:hidden placeholders — visual confirms thinning). Shots: /tmp/aegis-shots/12-r3-zoom-2h.png, 13 (24h), 14 (1h). Pin badges align with the scale (5:26 PM pin under the 5:00 PM tick).
+- **Deviations**: (1) Created `frontend/src/lib/timeline.ts` with the pure geometry helpers one task early (R4 needs it too). (2) `positionedEvents` useMemo → plain IIFE — React Compiler couldn't preserve the manual memo (mutating stagger loop); block is replaced by R4 anyway.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

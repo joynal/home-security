@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/useAuth';
 import TimelineRail from '@/components/TimelineRail';
+import { dayStartEpoch, tsToY } from '@/lib/timeline';
 import { cameraService } from '@/services/cameras';
 import { eventService } from '@/services/events';
 import { recordingService } from '@/services/recordings';
@@ -41,6 +42,15 @@ interface PlaybackMode {
 }
 
 type Mode = 'live' | PlaybackMode;
+
+/** Timeline zoom presets — px-per-hour (rail is ~790px tall). */
+const ZOOM_PRESETS = [
+  { label: '1h', pxPerHour: 800 },
+  { label: '2h', pxPerHour: 400 },
+  { label: '6h', pxPerHour: 132 },
+  { label: '24h', pxPerHour: 33 },
+] as const;
+const DEFAULT_ZOOM = ZOOM_PRESETS[1];
 
 const headerStyles = {
   display: 'flex',
@@ -236,7 +246,7 @@ const timelinePaneStyles = {
 const timelineHeaderStyles = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
+  gap: tokens.spacing.sm,
   padding: '10px 14px',
   borderBottom: `1px solid ${tokens.colors.border.subtle}`,
   color: tokens.colors.text.secondary,
@@ -244,6 +254,21 @@ const timelineHeaderStyles = {
   fontWeight: tokens.fontWeights.semibold,
   flexShrink: 0,
 };
+
+const zoomBtnStyles = (active: boolean) => ({
+  height: '22px',
+  padding: '0 8px',
+  borderRadius: tokens.radii.sm,
+  border: `1px solid ${active ? tokens.colors.accent.primary : tokens.colors.border.subtle}`,
+  background: active ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+  color: active ? tokens.colors.accent.hover : tokens.colors.text.muted,
+  fontSize: '11px',
+  fontWeight: tokens.fontWeights.medium,
+  cursor: 'pointer',
+  '&:hover': {
+    color: tokens.colors.text.primary,
+  },
+});
 
 const timelineScrollStyles = {
   flex: 1,
@@ -336,6 +361,7 @@ export default function PlaybackPage() {
   const [playTs, setPlayTs] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [pxPerHour, setPxPerHour] = useState<number>(DEFAULT_ZOOM.pxPerHour);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [exportDuration, setExportDuration] = useState<number>(30); // 30s default
   const [exportNotice, setExportNotice] = useState<string | null>(null);
@@ -343,6 +369,21 @@ export default function PlaybackPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const pendingTs = useRef<number | null>(null);
+  const timelineScrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep the rail viewport anchored around "now" (or day end) on date/zoom changes
+  const scrollToNow = useCallback(() => {
+    const el = timelineScrollRef.current;
+    if (!el) return;
+    const day0 = dayStartEpoch(date);
+    const target = Math.min(Date.now() / 1000, day0 + 86400);
+    const y = tsToY(target, day0, pxPerHour);
+    el.scrollTop = Math.max(0, y - el.clientHeight * 0.3);
+  }, [date, pxPerHour]);
+
+  useEffect(() => {
+    scrollToNow();
+  }, [scrollToNow]);
 
   // Initial cameras & recording summary load
   useEffect(() => {
@@ -815,18 +856,42 @@ export default function PlaybackPage() {
               <Clock size={14} color={tokens.colors.accent.primary} />
               <span>Timeline</span>
             </div>
+            <span style={{ flex: 1 }} />
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {ZOOM_PRESETS.map((z) => (
+                <button
+                  key={z.label}
+                  type="button"
+                  css={zoomBtnStyles(pxPerHour === z.pxPerHour)}
+                  onClick={() => setPxPerHour(z.pxPerHour)}
+                  title={`${z.label} window`}
+                  aria-pressed={pxPerHour === z.pxPerHour}
+                >
+                  {z.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                css={zoomBtnStyles(false)}
+                onClick={scrollToNow}
+                title="Scroll the timeline to now"
+              >
+                Now
+              </button>
+            </div>
             <span className="tnum" css={{ color: tokens.colors.text.muted, fontSize: '11px' }}>
               {events.length} events
             </span>
           </div>
 
-          <div css={timelineScrollStyles}>
+          <div css={timelineScrollStyles} ref={timelineScrollRef}>
             <TimelineRail
               date={date}
               segments={segs}
               events={events}
               playTs={playTs}
               onSeek={onSeek}
+              pxPerHour={pxPerHour}
               cameraId={activeCameraId}
               token={token}
             />
