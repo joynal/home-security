@@ -330,15 +330,20 @@ def inference_loop() -> None:
           if cam_id == state.registration_camera_id:
             raw_results = state.recognizer.process_frame(frame)
             if raw_results:
-              x, y, w, h, _, _, landmarks = raw_results[0]
+              x, y, w, h, _, _, landmarks = raw_results[0][:7]
               if landmarks is not None:
                 pose_info = compute_pose(landmarks, [x, y, x + w, y + h])
                 with state.face_status_lock:
-                  state.latest_face_status = {'face_found': True, **pose_info}
+                  state.latest_face_status = {
+                    'face_found': True,
+                    'bbox': [x, y, x + w, y + h],
+                    **pose_info,
+                  }
               else:
                 with state.face_status_lock:
                   state.latest_face_status = {
                     'face_found': True,
+                    'bbox': [x, y, x + w, y + h],
                     'pose': 'center',
                     'offset_x': 0.0,
                     'offset_y': 0.0,
@@ -388,6 +393,41 @@ def inference_loop() -> None:
                 cooldown=KNOWN_EVENT_COOLDOWN_SECONDS,
                 person_name=name,
               )
+
+              # Task S4.4: Passive auto-enrichment loop
+              sim = det.get('similarity', 0.0)
+              if (
+                sim >= 0.62 and det.get('landmarks') is not None and state.person_store is not None
+              ):
+                pose_info = compute_pose(det['landmarks'], det['bbox'])
+                if pose_info['pose'] == 'center':
+                  person = state.person_store.get_person(name=name)
+                  if person and len(state.person_store.images_for(person['id'])) < 12:
+                    from src.api.enroll_jobs import quality_check
+                    from src.config import KNOWN_FACES_DIR
+
+                    left, top, w_b, h_b = det['bbox']
+                    passed, _ = quality_check(frame, [left, top, left + w_b, top + h_b])
+                    if passed:
+                      h_f, w_f = frame.shape[:2]
+                      pad_x = int(w_b * 0.25)
+                      pad_y = int(h_b * 0.25)
+                      x1 = max(0, left - pad_x)
+                      y1 = max(0, top - pad_y)
+                      x2 = min(w_f, left + w_b + pad_x)
+                      y2 = min(h_f, top + h_b + pad_y)
+                      crop = frame[y1:y2, x1:x2]
+                      if crop.size > 0:
+                        person_dir = KNOWN_FACES_DIR / name
+                        person_dir.mkdir(parents=True, exist_ok=True)
+                        fname = f'auto_{int(time.time())}_{det["track_id"]}.jpg'
+                        save_path = person_dir / fname
+                        if not save_path.exists():
+                          cv2.imwrite(str(save_path), crop)
+                          state.person_store.add_image(person['id'], save_path, source='auto')
+                          with state.pending_lock:
+                            state.pending_embeddings.append({'name': name, 'frame': crop})
+                          print(f"[AutoEnrich] Auto-enrolled frontal crop for '{name}'")
             if det.get('loitering'):
               # Fires once per track (detector's alerted flag);
               # zone + duration included in the event

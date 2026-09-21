@@ -119,11 +119,12 @@ class EventDatabase:
     person_name: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
+    q: str | None = None,
     limit: int = 100,
     offset: int = 0,
   ) -> list[dict]:
     """Query events with optional filters. newest first."""
-    conditions, params = self._build_filters(camera_id, event_type, person_name, since, until)
+    conditions, params = self._build_filters(camera_id, event_type, person_name, since, until, q)
     where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
     with self._lock:
@@ -140,8 +141,9 @@ class EventDatabase:
     person_name: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
+    q: str | None = None,
   ) -> int:
-    conditions, params = self._build_filters(camera_id, event_type, person_name, since, until)
+    conditions, params = self._build_filters(camera_id, event_type, person_name, since, until, q)
     where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
 
     with self._lock:
@@ -154,6 +156,7 @@ class EventDatabase:
     person_name: str | None,
     since: datetime | None,
     until: datetime | None,
+    q: str | None = None,
   ) -> tuple[list[str], list]:
     conditions, params = [], []
     if camera_id:
@@ -171,6 +174,12 @@ class EventDatabase:
     if until:
       conditions.append('timestamp <= ?')
       params.append(until.isoformat())
+    if q and q.strip():
+      like_term = f'%{q.strip()}%'
+      conditions.append(
+        '(person_name LIKE ? OR camera_id LIKE ? OR event_type LIKE ? OR metadata LIKE ?)'
+      )
+      params.extend([like_term, like_term, like_term, like_term])
     return conditions, params
 
   def get_by_id(self, event_id: int) -> dict | None:

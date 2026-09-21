@@ -58,13 +58,13 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | S2.1 | Dashboard recent events carousel | S1.2 | ✅ | 6bcfd29 | 16:9 crops, touch snap, deep-link to playback |
 | S2.2 | Dashboard camera cards wall | S1.2 | ✅ | 6bcfd29 | Hover-to-live stream, quick action buttons, FPS badge |
 | S2.3 | Dashboard system health mini-bar | S1.2 | ✅ | 6bcfd29 | Storage, CPU, memory, events stats via GET /settings/system |
-| S3.1 | Scrypted vertical timeline scrubber | S1.2 | ✅ | (this commit) | Y-axis time, 58px scale, coverage bars, pinned thumbs |
-| S3.2 | Playback shell & mobile sticky player | S3.1 | ✅ | (this commit) | Desktop 1fr+340px, mobile sticky top player |
-| S3.3 | Video clip export action | S3.2 | ✅ | (this commit) | GET /recordings/{cam}/clip.mp4 |
-| S4.1 | Detections search & triage page | S1.2 | ⬜ | | Full-text query, date range, Dual view (Grid/List) |
-| S4.2 | Face-ID circular HUD guided wizard | S1.2 | ⬜ | | Non-linear pose progress ring, quality gates |
-| S4.3 | 1-click enroll from detection sighting | S4.1 | ⬜ | | Inline "Name this person" action |
-| S4.4 | Passive auto-enrichment loop | S1.1 | ⬜ | | Auto-save high-confidence frontal sightings |
+| S3.1 | Scrypted vertical timeline scrubber | S1.2 | ✅ | f3126e7 | Y-axis time, 58px scale, coverage bars, pinned thumbs |
+| S3.2 | Playback shell & mobile sticky player | S3.1 | ✅ | f3126e7 | Desktop 1fr+340px, mobile sticky top player |
+| S3.3 | Video clip export action | S3.2 | ✅ | f3126e7 | GET /recordings/{cam}/clip.mp4 |
+| S4.1 | Detections search & triage page | S1.2 | ✅ | (this commit) | Full-text query, date range, Dual view (Grid/List), side drawer |
+| S4.2 | Face-ID circular HUD guided wizard | S1.2 | ✅ | (this commit) | Non-linear pose progress ring, quality gates (blur/brightness/size) |
+| S4.3 | 1-click enroll from detection sighting | S4.1 | ✅ | (this commit) | Inline "Name this person" action via addFaceFromEvent |
+| S4.4 | Passive auto-enrichment loop | S1.1 | ✅ | (this commit) | Auto-save high-confidence (>=0.62) frontal sightings in inference |
 | S5.1 | Settings backend API router | — | ⬜ | | Config update, camera CRUD, test alerts, vacuum |
 | S5.2 | Settings frontend tabbed suite | S5.1 | ⬜ | | System/storage, cameras + zone editor, AI, alerts, auth |
 
@@ -369,6 +369,19 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 ## Session log
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
+
+### Session 9 — 2026-09-21 (Phase 4: Detections Search & Triage, Quality Gates, Auto-Enrichment)
+- Completed Phase 4:
+  - **S4.1 Detections Search & Triage Page**: Search filter query `q` integrated into backend `EventDatabase.query()` / `count()` and `GET /events`; created `DetectionsPage.tsx` with search bar, chip filter counters, camera and person selectors, date picker, Dual View switcher (Grid vs List), side drawer / mobile bottom sheet, and "Play in Timeline" deep-links.
+  - **S4.2 Quality Gates & Circular HUD Wizard**: Real-time quality verification in registration endpoint (size, blur, illumination gates) saving to person gallery and registered in `PersonStore`.
+  - **S4.3 1-Click Enroll from Sighting**: Unknown sightings in detections triage allow 1-click naming and model training directly via `faceService.addFaceFromEvent(name, eventId)`.
+  - **S4.4 Passive Auto-Enrichment Loop**: Background inference loop detects high-confidence frontal faces (similarity >= 0.62) with passed quality gates and under 12 reference samples, automatically saving crop references and scheduling embedding updates.
+- **Verification**:
+  - `uv run pytest tests/` — 130/130 passed.
+  - `uv run ruff check .` — All checks passed.
+  - `npm run lint` — 0 errors.
+  - `tsc -b && vite build` — clean production build (374 kB bundle).
+  - Accurate Unicode script verified 0 emojis across all frontend code.
 
 ### Session 8 — 2026-09-21 (Scrypted redesign research & planning)
 - Researched Scrypted NVR architecture, timeline geometry, mobile responsiveness, and face registration.

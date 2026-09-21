@@ -194,6 +194,8 @@ class FaceRecognizer:
       # landmarks (kps) is a 5x2 array: list of [x, y] coordinates
       landmarks = face.kps.astype(int) if face.kps is not None else None
 
-      results.append((startX, startY, fw, fh, name, is_known, landmarks))
+      results.append(
+        (startX, startY, fw, fh, name, is_known, landmarks, float(best_sim if is_known else 0.0))
+      )
 
     return results

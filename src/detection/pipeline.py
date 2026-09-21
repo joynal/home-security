@@ -104,7 +104,11 @@ class DetectionPipeline:
 
           if face_results:
             # Use the first face found in the person crop
-            _, _, _, _, name, is_known, landmarks = face_results[0]
+            first_match = face_results[0]
+            name = first_match[4]
+            is_known = first_match[5]
+            landmarks = first_match[6]
+            sim = first_match[7] if len(first_match) > 7 else 0.0
             self.tracker.cache_identity(track_id, name, is_known)
             results.append(
               {
@@ -116,6 +120,7 @@ class DetectionPipeline:
                   float(tracked.confidence[i]) if tracked.confidence is not None else 0.0
                 ),
                 'landmarks': landmarks,
+                'similarity': float(sim),
                 'source': 'recognized',
               }
             )

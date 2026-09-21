@@ -44,7 +44,8 @@ def face_debug(_: str = Depends(get_current_user)):
 def capture_face(name: str, step: str, _: str = Depends(get_current_user)):
   """
   Snapshot the current raw frame for *name* at pose *step*.
-  The frame is saved to disk and queued for incremental embedding (no restart needed).
+  Applies quality check (size, blur, illumination), saves to disk, records in PersonStore,
+  and queues for incremental embedding (no restart needed).
   """
   with state.raw_frame_lock:
     frame = state.latest_raw_frame.copy() if state.latest_raw_frame is not None else None
@@ -52,12 +53,30 @@ def capture_face(name: str, step: str, _: str = Depends(get_current_user)):
   if frame is None:
     raise HTTPException(status_code=503, detail='No camera frame available yet.')
 
+  # Quality check gate
+  with state.face_status_lock:
+    status = dict(state.latest_face_status)
+
+  if status.get('face_found') and status.get('bbox'):
+    from src.api.enroll_jobs import quality_check
+
+    passed, reason = quality_check(frame, status['bbox'])
+    if not passed:
+      raise HTTPException(
+        status_code=422,
+        detail=f'Face quality gate failed: {reason}',
+      )
+
   # Persist to disk
   person_dir = Path(KNOWN_FACES_DIR) / name
   os.makedirs(person_dir, exist_ok=True)
   ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
   filepath = person_dir / f'{step}_{ts}.jpg'
   cv2.imwrite(str(filepath), frame)
+
+  if state.person_store is not None:
+    person_id = state.person_store.get_or_create(name)
+    state.person_store.add_image(person_id, filepath, source='wizard')
 
   # Hand off to inference thread — avoids concurrent ONNX calls
   with state.pending_lock:

@@ -60,6 +60,7 @@ def list_events(
   person_name: str | None = None,
   since: str | None = None,  # ISO format
   until: str | None = None,  # ISO format
+  q: str | None = None,
   limit: int = Query(50, le=500),
   offset: int = 0,
   _: str = Depends(get_current_user),
@@ -77,6 +78,7 @@ def list_events(
     person_name=person_name,
     since=since_dt,
     until=until_dt,
+    q=q,
     limit=limit,
     offset=offset,
   )
@@ -86,6 +88,7 @@ def list_events(
     person_name=person_name,
     since=since_dt,
     until=until_dt,
+    q=q,
   )
 
   return {'events': _attach_playback(events), 'total': total}

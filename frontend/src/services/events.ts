@@ -9,6 +9,7 @@ export interface GetEventsParams {
   offset?: number;
   eventType?: string;
   personName?: string;
+  q?: string;
 }
 
 export const eventService = {
@@ -20,6 +21,7 @@ export const eventService = {
     offset,
     eventType,
     personName,
+    q,
   }: GetEventsParams = {}): Promise<EventsResponse> {
     const params = new URLSearchParams();
     if (cameraId) params.set('camera_id', cameraId);
@@ -29,6 +31,7 @@ export const eventService = {
     if (offset !== undefined) params.set('offset', String(offset));
     if (eventType) params.set('event_type', eventType);
     if (personName) params.set('person_name', personName);
+    if (q) params.set('q', q);
     const qs = params.toString();
     return apiFetch<EventsResponse>(`/events${qs ? `?${qs}` : ''}`);
   },

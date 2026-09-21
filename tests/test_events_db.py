@@ -148,3 +148,27 @@ def test_thread_safety():
 
   assert not errors
   assert db.count() == 200
+
+
+def test_query_full_text_search(db):
+  db.insert(_event(camera_id='driveway', event_type='unknown_face'))
+  db.insert(_event(camera_id='front_door', event_type='known_face', person_name='Joynal'))
+  db.insert(_event(camera_id='porch', event_type='loitering', metadata='Package delivered'))
+
+  # Search by person name
+  assert db.count(q='joynal') == 1
+  res = db.query(q='joynal')
+  assert len(res) == 1
+  assert res[0]['person_name'] == 'Joynal'
+
+  # Search by camera
+  assert db.count(q='driveway') == 1
+
+  # Search by metadata
+  assert db.count(q='package') == 1
+
+  # Search by event type
+  assert db.count(q='loitering') == 1
+
+  # Non-matching
+  assert db.count(q='intruder') == 0
