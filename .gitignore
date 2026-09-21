@@ -21,3 +21,6 @@ yolov8n.pt
 
 # Camera config lives in data/ (gitignored) — never commit real RTSP credentials
 /cameras.json
+
+# UI screenshot harness output (scripts/ui_screenshot.mjs)
+ui-shots/

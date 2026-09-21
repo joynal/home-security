@@ -56,7 +56,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
 | R13 | Restore data/cameras.json as only camera store; untrack root cameras.json (P0) | — | ✅ | (this commit) | 4 new tests; root file was identical to data/ (no migration needed) |
-| R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ⬜ | | verification instrument for all UI tasks |
+| R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ✅ | b42a52d+1 | 9/9 shots verified against live servers |
 | R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ⬜ | | frontend-only; absorbs timezone bug |
 | R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ⬜ | | default 400px/hour |
 | R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ⬜ | | extract pure placement fn to lib/timeline.ts |
@@ -407,6 +407,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: `uv run pytest tests/` → 140 passed (4 new tests in `tests/test_camera_store.py`: stray root file ignored, legacy fallback, save writes only data/, atomic write leaves no .tmp). `ruff check .` clean. Live smoke: `CAMERAS_FILE` resolves to `data/cameras.json`, loads the same 2 cameras as before (macbook disabled + test_camera); root `cameras.json` untracked (`git rm`) + `/cameras.json` added to `.gitignore`; `cameras.json.example` gained the `"file"` dev type.
 - **Deviations**: none — root and data files were identical, so the plan's migration-guard step was a no-op.
+
+### Task R19 — UI screenshot harness
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: `node scripts/ui_screenshot.mjs --base http://localhost:5174 --out /tmp/r19-verify --mobile` → 9/9 PNGs (6 desktop + 3 mobile), real login through the UI, exit 0. `ui-shots/` gitignored. Zero npm deps (Node ≥21 global WebSocket); options: `--base --api --out --user --pass --mobile`.
+- **Deviations**: none.
 
 ### Session 10 — 2026-09-21 (Phase 5: Scrypted Settings Suite, Camera CRUD, Diagnostics, Auth)
 - Completed Phase 5:
