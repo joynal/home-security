@@ -96,7 +96,10 @@ def test_resolve_clip_range_padding_and_clamp(env):
   assert out2 is not None and out2[1] == 0.0
 
   # Nothing covering → None
-  assert resolve_clip_range('cam', start.timestamp() + 99999, start.timestamp() + 100000, 5.0, idx) is None
+  assert (
+    resolve_clip_range('cam', start.timestamp() + 99999, start.timestamp() + 100000, 5.0, idx)
+    is None
+  )
 
 
 def test_endpoint_serves_real_clip(env):

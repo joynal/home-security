@@ -129,3 +129,23 @@ export interface AuthContextValue {
   logout: () => void;
   authHeaders: () => { Authorization: string };
 }
+
+export interface SystemDiskHealth {
+  total_gb: number;
+  free_gb: number;
+  used_gb: number;
+  percent_used: number;
+  recordings_gb: number;
+  thumbnails_gb: number;
+  database_mb: number;
+}
+
+export interface SystemHealthResponse {
+  cpu_percent: number;
+  memory_mb: number;
+  disk: SystemDiskHealth;
+  uptime_seconds: number;
+  cameras_online: number;
+  cameras_total: number;
+  events_today: number;
+}

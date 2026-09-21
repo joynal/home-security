@@ -20,6 +20,7 @@ from src.api.routers import stream
 from src.api.routers.auth_router import router as auth_router
 from src.api.routers.events import router as events_router
 from src.api.routers.recordings import router as recordings_router
+from src.api.routers.settings import router as settings_router
 
 
 @asynccontextmanager
@@ -102,6 +103,7 @@ app.include_router(stream.router)
 app.include_router(register.router)
 app.include_router(events_router)
 app.include_router(recordings_router)
+app.include_router(settings_router)
 
 
 if __name__ == '__main__':

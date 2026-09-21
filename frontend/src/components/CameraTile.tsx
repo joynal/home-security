@@ -16,6 +16,7 @@ import type { Camera } from '@/types';
 export interface CameraTileProps {
   camera: Camera;
   onSelect?: (cameraId: string) => void;
+  forceLive?: boolean;
 }
 
 const SNAPSHOT_REFRESH_MS = 10_000;
@@ -86,21 +87,23 @@ const statusStyles = {
   pointerEvents: 'none' as const,
 };
 
-export default function CameraTile({ camera, onSelect }: CameraTileProps) {
+export default function CameraTile({ camera, onSelect, forceLive }: CameraTileProps) {
   const [hasError, setHasError] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [snapBust, setSnapBust] = useState(() => Date.now());
   const [ref, visible] = useVisible<HTMLButtonElement>();
 
+  const isLive = hovering || !!forceLive;
+
   // Snapshot refresh while idle (visible + not live-streaming)
   useEffect(() => {
-    if (!visible || hovering || !camera.online) return;
+    if (!visible || isLive || !camera.online) return;
     const t = setInterval(() => {
       setSnapBust(Date.now());
       setHasError(false); // retry snapshot on next tick
     }, SNAPSHOT_REFRESH_MS);
     return () => clearInterval(t);
-  }, [visible, hovering, camera.online]);
+  }, [visible, isLive, camera.online]);
 
   const handleHoverStart = () => {
     setHovering(true);
@@ -111,8 +114,8 @@ export default function CameraTile({ camera, onSelect }: CameraTileProps) {
     setHovering(false);
   };
 
-  const showLive = camera.online && !hasError && visible && hovering;
-  const showSnapshot = camera.online && !hasError && visible && !hovering;
+  const showLive = camera.online && !hasError && visible && isLive;
+  const showSnapshot = camera.online && !hasError && visible && !isLive;
   const src = showLive
     ? cameraService.getVideoFeedUrl(camera.id)
     : showSnapshot

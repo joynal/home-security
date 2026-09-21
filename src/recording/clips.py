@@ -20,9 +20,7 @@ FFMPEG_TIMEOUT_S = 30.0
 
 def ffmpeg_available() -> bool:
   try:
-    subprocess.run(
-      ['ffmpeg', '-version'], capture_output=True, timeout=5, check=False
-    )
+    subprocess.run(['ffmpeg', '-version'], capture_output=True, timeout=5, check=False)
     return True
   except (FileNotFoundError, subprocess.TimeoutExpired):
     return False
@@ -44,14 +42,23 @@ def extract_clip(segment_path: Path, start_offset: float, end_offset: float) -> 
 
   cache_file.parent.mkdir(parents=True, exist_ok=True)
   cmd = [
-    'ffmpeg', '-hide_banner', '-loglevel', 'error',
+    'ffmpeg',
+    '-hide_banner',
+    '-loglevel',
+    'error',
     # -ss before -i = fast seek to keyframe; stream copy, no re-encode
-    '-ss', f'{max(0.0, start_offset):.3f}',
-    '-to', f'{max(start_offset + 0.5, end_offset):.3f}',
-    '-i', str(segment_path),
-    '-c', 'copy',
-    '-movflags', '+faststart',
-    '-y', str(cache_file),
+    '-ss',
+    f'{max(0.0, start_offset):.3f}',
+    '-to',
+    f'{max(start_offset + 0.5, end_offset):.3f}',
+    '-i',
+    str(segment_path),
+    '-c',
+    'copy',
+    '-movflags',
+    '+faststart',
+    '-y',
+    str(cache_file),
   ]
   try:
     result = subprocess.run(cmd, capture_output=True, timeout=FFMPEG_TIMEOUT_S)
@@ -64,8 +71,9 @@ def extract_clip(segment_path: Path, start_offset: float, end_offset: float) -> 
   return cache_file
 
 
-def resolve_clip_range(camera_id: str, start_epoch: float, end_epoch: float,
-                       padding: float, index) -> tuple[Path, float, float] | None:
+def resolve_clip_range(
+  camera_id: str, start_epoch: float, end_epoch: float, padding: float, index
+) -> tuple[Path, float, float] | None:
   """
   Map an absolute [start,end] epoch range onto a covering segment.
   Returns (segment_path, clip_start_offset, clip_end_offset) with padding

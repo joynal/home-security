@@ -20,6 +20,7 @@ import src.api.state as state
 from src.alerts.console import ConsoleAlert
 from src.alerts.telegram import TelegramAlert
 from src.api.pose import compute_pose
+from src.camera.osd import draw_timestamp_osd
 from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
 from src.camera.video_file import VideoFileCamera
@@ -401,15 +402,7 @@ def inference_loop() -> None:
                 cooldown=0.0,  # the detector already dedupes per track
               )
 
-          cv2.putText(
-            frame,
-            stream.name,
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (255, 255, 255),
-            2,
-          )
+          draw_timestamp_osd(frame, stream.name)
 
           # Encode each camera's JPEG once per loop — MJPEG generators
           # serve these cached bytes instead of re-encoding per client.

@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Cctv, LogOut, ScanFace, ShieldCheck } from 'lucide-react';
+import {
+  Film,
+  Grid,
+  LayoutDashboard,
+  LogOut,
+  ScanFace,
+  Search,
+  Settings,
+  ShieldCheck,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/useAuth';
 import { tokens } from '@/theme/designTokens';
 
@@ -14,6 +23,24 @@ const railStyles = {
   alignItems: 'center',
   padding: `${tokens.spacing.md} 0`,
   gap: tokens.spacing.sm,
+  zIndex: 100,
+  '@media (max-width: 768px)': {
+    position: 'fixed' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    height: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+    padding: `0 ${tokens.spacing.sm} env(safe-area-inset-bottom, 0px)`,
+    flexDirection: 'row' as const,
+    justifyContent: 'space-around',
+    borderRight: 'none',
+    borderTop: `1px solid ${tokens.colors.border.subtle}`,
+    background: 'rgba(16, 16, 20, 0.95)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    gap: 0,
+  },
 };
 
 const logoStyles = {
@@ -24,6 +51,9 @@ const logoStyles = {
   width: '36px',
   height: '36px',
   marginBottom: tokens.spacing.sm,
+  '@media (max-width: 768px)': {
+    display: 'none',
+  },
 };
 
 const navStyles = {
@@ -31,6 +61,13 @@ const navStyles = {
   flexDirection: 'column' as const,
   gap: tokens.spacing.xs,
   flex: 1,
+  '@media (max-width: 768px)': {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    gap: 0,
+  },
 };
 
 const railItemStyles = {
@@ -62,6 +99,14 @@ const railItemStyles = {
       width: '2px',
       borderRadius: '1px',
       background: tokens.colors.accent.primary,
+      '@media (max-width: 768px)': {
+        left: '6px',
+        right: '6px',
+        top: 'auto',
+        bottom: '-6px',
+        width: 'auto',
+        height: '2px',
+      },
     },
   },
 };
@@ -81,6 +126,10 @@ const avatarStyles = {
 
 const footerStyles = {
   position: 'relative' as const,
+  '@media (max-width: 768px)': {
+    display: 'flex',
+    alignItems: 'center',
+  },
 };
 
 const menuStyles = {
@@ -93,7 +142,12 @@ const menuStyles = {
   boxShadow: tokens.shadows.menu,
   padding: '6px',
   minWidth: '150px',
-  zIndex: 50,
+  zIndex: 150,
+  '@media (max-width: 768px)': {
+    bottom: '56px',
+    left: 'auto',
+    right: '8px',
+  },
 };
 
 const menuUserStyles = {
@@ -155,20 +209,40 @@ export default function AppRail() {
           end
           css={railItemStyles}
           className={({ isActive }) => (isActive ? 'active' : '')}
-          title="Live grid"
-          aria-label="Live grid"
+          title="Dashboard"
+          aria-label="Dashboard"
         >
-          <Cctv size={19} strokeWidth={1.8} />
+          <LayoutDashboard size={19} strokeWidth={1.8} />
         </NavLink>
 
         <NavLink
-          to="/events"
+          to="/grid"
           css={railItemStyles}
           className={({ isActive }) => (isActive ? 'active' : '')}
-          title="Events"
-          aria-label="Events"
+          title="Camera Grid"
+          aria-label="Camera Grid"
         >
-          <Bell size={19} strokeWidth={1.8} />
+          <Grid size={19} strokeWidth={1.8} />
+        </NavLink>
+
+        <NavLink
+          to="/playback"
+          css={railItemStyles}
+          className={({ isActive }) => (isActive ? 'active' : '')}
+          title="Playback"
+          aria-label="Playback"
+        >
+          <Film size={19} strokeWidth={1.8} />
+        </NavLink>
+
+        <NavLink
+          to="/detections"
+          css={railItemStyles}
+          className={({ isActive }) => (isActive ? 'active' : '')}
+          title="Detections"
+          aria-label="Detections"
+        >
+          <Search size={19} strokeWidth={1.8} />
         </NavLink>
 
         <NavLink
@@ -179,6 +253,16 @@ export default function AppRail() {
           aria-label="Known people"
         >
           <ScanFace size={19} strokeWidth={1.8} />
+        </NavLink>
+
+        <NavLink
+          to="/settings"
+          css={railItemStyles}
+          className={({ isActive }) => (isActive ? 'active' : '')}
+          title="Settings"
+          aria-label="Settings"
+        >
+          <Settings size={19} strokeWidth={1.8} />
         </NavLink>
       </nav>
 

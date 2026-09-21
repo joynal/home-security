@@ -4,7 +4,7 @@
 > Any agent (or human) resuming work reads this file FIRST to know where things stand.
 > Update it in the same commit as the work it describes — never in a separate "bookkeeping" commit.
 
-Source plan: [implementation-plan.md](./implementation-plan.md) · Research: [research.md](./research.md)
+Source plans: [scrypted-redesign-plan.md](./scrypted-redesign-plan.md) (Current) · [implementation-plan-v2.md](./implementation-plan-v2.md) · [implementation-plan.md](./implementation-plan.md)
 
 ---
 
@@ -45,6 +45,28 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 ---
 
 ## Task status
+
+### Phase S — Scrypted Redesign & Streamline (Current Plan)
+
+> Implementation guide: [scrypted-redesign-plan.md](./scrypted-redesign-plan.md)
+
+| Task | Description | Deps | Status | Commit | Notes |
+|------|-------------|------|--------|--------|-------|
+| S1.1 | Timestamp OSD Module (`src/camera/osd.py`) | — | ✅ | (this commit) | Top-right pill overlay, 4/4 tests passed |
+| S1.2 | Navigation rail + mobile bottom bar + routes | S1.1 | ✅ | (this commit) | 6 Lucide icons, safe-area-inset for mobile, clean build |
+| S1.3 | Camera Grid page (`CameraGridPage.tsx`) | S1.2 | ✅ | (this commit) | Auto/1x1/2x2/3x3/1+5 layouts, fullscreen F |
+| S2.1 | Dashboard recent events carousel | S1.2 | ✅ | (this commit) | 16:9 crops, touch snap, deep-link to playback |
+| S2.2 | Dashboard camera cards wall | S1.2 | ✅ | (this commit) | Hover-to-live stream, quick action buttons, FPS badge |
+| S2.3 | Dashboard system health mini-bar | S1.2 | ✅ | (this commit) | Storage, CPU, memory, events stats via GET /settings/system |
+| S3.1 | Scrypted vertical timeline scrubber | S1.2 | ⬜ | | Y-axis time, 58px scale, coverage bars, pinned thumbs |
+| S3.2 | Playback shell & mobile sticky player | S3.1 | ⬜ | | Desktop 1fr+340px, mobile sticky top player |
+| S3.3 | Video clip export action | S3.2 | ⬜ | | GET /recordings/{cam}/clip.mp4 |
+| S4.1 | Detections search & triage page | S1.2 | ⬜ | | Full-text query, date range, Dual view (Grid/List) |
+| S4.2 | Face-ID circular HUD guided wizard | S1.2 | ⬜ | | Non-linear pose progress ring, quality gates |
+| S4.3 | 1-click enroll from detection sighting | S4.1 | ⬜ | | Inline "Name this person" action |
+| S4.4 | Passive auto-enrichment loop | S1.1 | ⬜ | | Auto-save high-confidence frontal sightings |
+| S5.1 | Settings backend API router | — | ⬜ | | Config update, camera CRUD, test alerts, vacuum |
+| S5.2 | Settings frontend tabbed suite | S5.1 | ⬜ | | System/storage, cameras + zone editor, AI, alerts, auth |
 
 ### Phase B — Backend: timeline + faces (plan v2)
 
@@ -347,6 +369,28 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 ## Session log
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
+
+### Session 8 — 2026-09-21 (Scrypted redesign research & planning)
+- Researched Scrypted NVR architecture, timeline geometry, mobile responsiveness, and face registration.
+- Decided on 6-page navigation: Dashboard (`/`, recent events on top + camera cards), Camera Grid (`/grid`), Playback (`/playback`, vertical timeline), Detections (`/detections`, search & triage), Faces (`/faces`), Settings (`/settings`).
+- Selected top-right timestamp OSD (`Camera Name | YYYY-MM-DD HH:MM:SS`) with high-contrast translucent pill.
+- Dropped stories/LLM dependencies for low-cost hardware execution.
+- Strict design guardrails: `lucide-react` icons exclusively (0 emoji), design tokens from `tokens`, Emotion CSS, mobile responsiveness with fixed bottom bar and sticky top player on mobile playback.
+- Planned 4 backend changes: OSD module, Settings API router, Face quality gates & auto-enrichment, and Detections search/range query API.
+- Written to [scrypted-redesign-plan.md](./scrypted-redesign-plan.md) and initialized Phase S tasks in this file.
+
+### Session 6 — 2026-09-21 (Phase 1 & Phase 2: Scrypted Parity & Dashboard Polish)
+- Completed Phase 1 (S1.1 Timestamp OSD, S1.2 AppRail Navigation & Routing, S1.3 Camera Grid Page).
+- Completed Phase 2:
+  - **S2.1 Recent Events Carousel**: 16:9 thumbnail cards with severity color accents (Red = Unknown, Amber = Loitering, Green = Known), smooth horizontal scroll with touch snap (`scroll-snap-type: x mandatory`), and deep-linking to `/playback?cam={cam_id}&ts={ts}`.
+  - **S2.2 Camera Cards Wall & Actions**: 16:9 cards with live status dot, live FPS pill, snapshot-idle with hover-to-live stream, and quick action buttons (Play, Snapshot capture download, Expand).
+  - **S2.3 System Health Mini-Bar**: Added `GET /settings/system` endpoint (disk volume usage, CPU load, memory, events today, online cameras) and frontend `SystemHealthBar` component.
+- **Verification**:
+  - `uv run pytest tests/` — 129/129 passed (including `test_settings_api.py` and `test_osd.py`).
+  - `npm run lint` — 0 errors.
+  - `tsc -b && vite build` — clean production build (355 kB bundle).
+  - Prettier formatting applied cleanly.
+  - Zero emoji across all TS/TSX verified with script (Lucide icons only).
 
 ### Session 3 — 2026-09-19 (UI redesign research)
 - User verified manual testing end-to-end (face registration + detection) ✅.

@@ -182,6 +182,12 @@ img {
   overflow: hidden;
 }
 
+@media (max-width: 768px) {
+  .app-shell__main {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Standard page header: title + one status + actions */
 .page-header {
   display: flex;
