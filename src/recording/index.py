@@ -80,7 +80,9 @@ class RecordingIndex:
     Backfill the index from the recordings directory. Start times come from
     filenames; end times from the next segment's start (or file mtime for the
     newest segment of each camera). Only inserts rows for paths not yet indexed
-    (or whose size changed) — safe to run on every startup.
+    (or whose size changed) — safe to run on every startup. Index rows whose
+    files vanished (external deletion) are pruned, so the timeline never
+    shows ghost segments.
 
     Returns the number of segments indexed.
     """
@@ -92,6 +94,8 @@ class RecordingIndex:
       if camera_id is None
       else [camera_id]
     )
+
+    self._prune_missing_files()
 
     known = self._known_paths()
     indexed = 0
@@ -129,6 +133,17 @@ class RecordingIndex:
     with self._lock:
       rows = self._conn.execute('SELECT path, size_bytes FROM recordings').fetchall()
       return {r['path']: r['size_bytes'] for r in rows}
+
+  def _prune_missing_files(self) -> int:
+    """Drop index rows whose segment files no longer exist on disk."""
+    with self._lock:
+      rows = self._conn.execute('SELECT id, path FROM recordings').fetchall()
+      gone = [r['id'] for r in rows if not Path(r['path']).exists()]
+      for row_id in gone:
+        self._conn.execute('DELETE FROM recordings WHERE id = ?', (row_id,))
+      if gone:
+        self._conn.commit()
+      return len(gone)
 
   # ── Reads ──────────────────────────────────────────────
 

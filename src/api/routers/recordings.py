@@ -31,6 +31,9 @@ from src.api.auth import extract_token
 from src.api.auth import get_current_user
 from src.api.auth import verify_token_param
 from src.config import RECORDINGS_DIR  # env-overridable — same path the recorder writes to
+from src.recording.clips import extract_clip
+from src.recording.clips import ffmpeg_available
+from src.recording.clips import resolve_clip_range
 from src.recording.frames import get_cached_frame
 
 router = APIRouter(prefix='/recordings')
@@ -182,6 +185,36 @@ def frame_at_time(
   if jpeg is None:
     raise HTTPException(status_code=404, detail='Could not decode frame at that time')
   return FileResponse(jpeg, media_type='image/jpeg')
+
+
+@router.get('/{camera_id}/clip.mp4')
+def camera_clip(
+  camera_id: str,
+  start: float = Query(..., description='UTC epoch seconds'),
+  end: float = Query(..., description='UTC epoch seconds'),
+  padding: float = Query(5.0, ge=0.0, le=60.0),
+  request: Request = None,  # type: ignore[assignment] — injected by FastAPI
+  token: str | None = Query(None),
+):
+  """
+  MP4 clip for an absolute time range, cut from the covering segment via
+  ffmpeg stream copy (lead-in padding included). Cached per range.
+  """
+  verify_token_param(extract_token(request, token))
+  if state.recording_index is None:
+    raise HTTPException(status_code=503, detail='Recording index not initialized')
+  if not ffmpeg_available():
+    raise HTTPException(status_code=503, detail='ffmpeg binary not installed')
+
+  resolved = resolve_clip_range(camera_id, start, end, padding, state.recording_index)
+  if resolved is None:
+    raise HTTPException(status_code=404, detail='No recording covers that time range')
+  seg_path, clip_start, clip_end = resolved
+
+  clip = extract_clip(seg_path, clip_start, clip_end)
+  if clip is None:
+    raise HTTPException(status_code=500, detail='Clip extraction failed')
+  return FileResponse(clip, media_type='video/mp4')
 
 
 @router.get('/{camera_id}')

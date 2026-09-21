@@ -92,17 +92,25 @@ class CameraRecorder:
   def _build_ffmpeg_cmd(self) -> list[str]:
     """Build the FFmpeg command for segment recording."""
     output_pattern = str(self.output_dir / '%Y%m%d_%H%M%S.mp4')
-    return [
-      'ffmpeg',
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-rtsp_transport',
-      'tcp',
+    cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error']
+    # RTSP-specific input options break non-RTSP sources (file/testsrc dev
+    # overrides) — ffmpeg exits instantly with "Option rtsp_transport not
+    # found". Only add them for actual rtsp:// URLs.
+    if self.source_url.startswith('rtsp://'):
+      cmd += ['-rtsp_transport', 'tcp']
+      input_url = self.source_url
+    else:
+      # Local file dev override — absolutize so the subprocess cwd doesn't
+      # matter (Path.resolve() on a URL would mangle it). NOTE: file sources
+      # are consumed faster than real-time under stream copy (-re can't pace
+      # -c copy), so wall-clock segment spans run short vs content duration;
+      # real RTSP cameras don't have this quirk.
+      input_url = str(Path(self.source_url).resolve())
+    cmd += [
       '-use_wallclock_as_timestamps',
       '1',
       '-i',
-      self.source_url,  # go2rtc proxy, not camera directly
+      input_url,
       '-vcodec',
       'copy',
       '-acodec',
@@ -121,6 +129,7 @@ class CameraRecorder:
       '1',
       output_pattern,
     ]
+    return cmd
 
   def _run_with_restart(self):
     """Run FFmpeg and auto-restart on crash (with backoff)."""
@@ -132,12 +141,17 @@ class CameraRecorder:
         # stderr=DEVNULL prevents pipe deadlock: with PIPE + wait(),
         # a full stderr pipe blocks ffmpeg and wait() never returns.
         self.process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Poll instead of blocking wait(): each pass re-indexes the output
-        # directory, so rotated segments land in the index within ~a minute
+        # Poll in short liveness ticks: notice a dead ffmpeg within ~1s
+        # (its final segment then gets indexed immediately), and re-index
+        # the output directory every INDEX_POLL_SECONDS so rotations land
         # and the in-progress segment's size/end-time stay fresh.
+        alive_seconds = 0.0
         while self.is_running and self.process.poll() is None:
-          time.sleep(INDEX_POLL_SECONDS)
-          self._rescan_index()
+          time.sleep(1.0)
+          alive_seconds += 1.0
+          if alive_seconds >= INDEX_POLL_SECONDS:
+            alive_seconds = 0.0
+            self._rescan_index()
         if self.is_running:
           print(f'[Recorder] FFmpeg exited for {self.config.id} (code={self.process.returncode})')
       except Exception as e:
