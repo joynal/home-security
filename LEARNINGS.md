@@ -116,6 +116,15 @@ In `tsconfig.app.json`, set `"jsxImportSource": "@emotion/react"`. In `src/vite-
 
 ---
 
+## Collaboration
+
+### Concurrent Sessions Edit This Repo
+> "Impossible" file behavior during 2026-09-20: writes vanished, grep and python disagreed on file contents mid-command.
+
+Cause: a second agent/session was reworking the same tree concurrently (TS migration + Emotion + auth). Before fighting "ghost" reverts or tool bugs, check `git log`/`git branch` for foreign commits and ask the user — the repository had moved to a new branch (`develop`) mid-session. Commit early and often; per-task commits recovered cleanly.
+
+<!-- AGENTS: append above this line -->
+
 <!-- 
   AGENTS: Append new learnings above this line.
   Keep entries concise and actionable.
