@@ -11,7 +11,7 @@
 import { useState, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { AlertTriangle, UserCheck, User, Clock, CircleAlert } from 'lucide-react';
 import { eventService } from '@/services/events';
-import { TOP_PAD, dayStartEpoch, railHeight, tsToY, yToTs } from '@/lib/timeline';
+import { TOP_PAD, dayStartEpoch, placePins, railHeight, tsToY, yToTs } from '@/lib/timeline';
 import { tokens } from '@/theme/designTokens';
 import type { NormalizedSegment, SecurityEvent } from '@/types';
 
@@ -28,6 +28,9 @@ export interface TimelineRailProps {
 }
 
 const RAIL_WIDTH = 12; // coverage rail width
+const THUMB_W = 120; // pin thumbnail width (16:9 → ~68px tall)
+const PIN_MIN_GAP = 78; // thumbnail height + margin — closer events cluster
+const THUMBS_AT_PXH = 240; // show thumbnail pins only when zoomed in enough
 
 const tlContainerStyles = {
   display: 'flex',
@@ -111,25 +114,23 @@ const eventRowStyles = (top: number) => ({
   pointerEvents: 'auto' as const,
 });
 
-const blobStyles = (severity: string) => {
-  const bg =
+/** Flat severity dot ON the rail at the event's true y — every event, no glow. */
+const railDotStyles = (top: number, severity: string) => ({
+  position: 'absolute' as const,
+  left: `${RAIL_WIDTH / 2}px`,
+  width: '6px',
+  height: '6px',
+  borderRadius: tokens.radii.full,
+  background:
     severity === 'alert'
       ? tokens.colors.status.danger
       : severity === 'warn'
         ? tokens.colors.status.warning
-        : tokens.colors.status.live;
-  return {
-    position: 'absolute' as const,
-    left: `${RAIL_WIDTH / 2}px`,
-    width: '10px',
-    height: '10px',
-    borderRadius: tokens.radii.full,
-    background: bg,
-    transform: 'translateX(-50%)',
-    boxShadow: `0 0 0 2px ${tokens.colors.surface.default}, 0 0 8px ${bg}`,
-    zIndex: 4,
-  };
-};
+        : tokens.colors.status.live,
+  transform: 'translate(-50%, -50%)',
+  zIndex: 4,
+  top,
+});
 
 const connectorStyles = {
   position: 'absolute' as const,
@@ -139,30 +140,22 @@ const connectorStyles = {
   background: tokens.colors.border.strong,
 };
 
-const iconWrapperStyles = (severity: string) => {
-  const color =
+/** Bare colored object-class icon — no chip, no border (zero-chrome guardrail). */
+const iconStyles = (severity: string) => ({
+  marginLeft: '18px',
+  display: 'flex',
+  alignItems: 'center',
+  flexShrink: 0,
+  color:
     severity === 'alert'
       ? tokens.colors.status.danger
       : severity === 'warn'
         ? tokens.colors.status.warning
-        : tokens.colors.status.live;
-  return {
-    marginLeft: '26px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '20px',
-    height: '20px',
-    borderRadius: tokens.radii.sm,
-    background: tokens.colors.surface.raised,
-    color,
-    flexShrink: 0,
-    border: `1px solid ${color}40`,
-  };
-};
+        : tokens.colors.status.live,
+});
 
 const thumbStyles = {
-  width: '64px',
+  width: `${THUMB_W}px`,
   aspectRatio: '16 / 9',
   borderRadius: tokens.radii.sm,
   objectFit: 'cover' as const,
@@ -171,17 +164,16 @@ const thumbStyles = {
   flexShrink: 0,
   marginLeft: '6px',
   cursor: 'pointer',
-  transition: `transform ${tokens.transitions.fast}, border-color ${tokens.transitions.fast}, box-shadow ${tokens.transitions.fast}`,
+  transition: `transform ${tokens.transitions.fast}, border-color ${tokens.transitions.fast}`,
   '&:hover': {
-    transform: 'scale(1.08)',
+    transform: 'scale(1.15)',
     borderColor: tokens.colors.accent.primary,
-    boxShadow: tokens.shadows.card,
     zIndex: 10,
   },
 };
 
 const thumbEmptyStyles = {
-  width: '64px',
+  width: `${THUMB_W}px`,
   aspectRatio: '16 / 9',
   borderRadius: tokens.radii.sm,
   border: `1px solid ${tokens.colors.border.subtle}`,
@@ -197,6 +189,17 @@ const thumbEmptyStyles = {
   '&:hover': {
     borderColor: tokens.colors.accent.primary,
   },
+};
+
+const clusterBadgeStyles = {
+  fontSize: '10px',
+  fontWeight: tokens.fontWeights.semibold,
+  color: tokens.colors.accent.hover,
+  background: 'rgba(59, 130, 246, 0.15)',
+  borderRadius: tokens.radii.sm,
+  padding: '1px 5px',
+  marginLeft: '5px',
+  flexShrink: 0,
 };
 
 const labelInfoStyles = {
@@ -221,13 +224,12 @@ const whenStyles = {
   color: tokens.colors.text.muted,
 };
 
-const playheadStyles = (top: number, isDragging: boolean) => ({
+const playheadStyles = (top: number) => ({
   position: 'absolute' as const,
   left: 0,
   right: 0,
   height: 0,
   borderTop: `2px solid ${tokens.colors.accent.primary}`,
-  boxShadow: isDragging ? '0 0 12px rgba(59, 130, 246, 0.8)' : '0 0 6px rgba(59, 130, 246, 0.4)',
   pointerEvents: 'none' as const,
   zIndex: 15,
   top,
@@ -309,39 +311,28 @@ export default function TimelineRail({
   const toY = (ts: number) => tsToY(ts, day0, pxPerHour);
   const fromY = (y: number) => yToTs(y, day0, pxPerHour);
 
-  // Pinned events with anti-collision vertical positioning.
-  // (Plain computation — React Compiler memoizes; the stagger loop mutates, so a
-  // manual useMemo couldn't be preserved. R4 replaces this with true-position
-  // clustering from lib/timeline.ts.)
-  const positionedEvents = (() => {
-    const raw = events
-      .map((ev) => {
-        const ts = new Date(ev.timestamp).getTime() / 1000;
-        const off = ts - day0;
-        if (off < 0 || off > 86400) return null;
-        const targetY = tsToY(ts, day0, pxPerHour);
-        const severity = getEventSeverity(ev.event_type);
-        return {
-          ...ev,
-          ts,
-          top: targetY,
-          severity,
-        };
-      })
-      .filter((e): e is NonNullable<typeof e> => Boolean(e))
-      .sort((a, b) => a.top - b.top); // sorted from top to bottom
+  // Every event gets a flat dot on the rail at its TRUE position (density view).
+  const inDayEvents = events
+    .map((ev) => {
+      const ts = new Date(ev.timestamp).getTime() / 1000;
+      const off = ts - day0;
+      if (off < 0 || off > 86400) return null;
+      return { ...ev, ts, severity: getEventSeverity(ev.event_type) };
+    })
+    .filter((e): e is NonNullable<typeof e> => Boolean(e));
 
-    // Stagger close events so thumbnails don't overlap completely (min 36px vertical gap)
-    const staggered = [...raw];
-    for (let i = 1; i < staggered.length; i++) {
-      const prev = staggered[i - 1];
-      const curr = staggered[i];
-      if (curr.top - prev.top < 38) {
-        curr.top = prev.top + 38;
-      }
-    }
-    return staggered;
-  })();
+  const railDots = inDayEvents.map((ev) => ({ ...ev, y: toY(ev.ts) }));
+
+  // Thumbnail pins at true positions; collisions cluster onto the newer pin.
+  const showThumbs = pxPerHour >= THUMBS_AT_PXH;
+  const pins = showThumbs
+    ? placePins(
+        inDayEvents,
+        (ev) => ev.ts,
+        (ts) => toY(ts),
+        PIN_MIN_GAP,
+      )
+    : [];
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     setIsDragging(true);
@@ -438,8 +429,18 @@ export default function TimelineRail({
           })}
         </div>
 
-        {/* Pinned event rows */}
-        {positionedEvents.map((ev) => {
+        {/* Flat severity dots on the rail — every event at its true time */}
+        {railDots.map((ev) => (
+          <span
+            key={`dot-${ev.id}`}
+            css={railDotStyles(ev.y, ev.severity)}
+            title={`${ev.person_name || ev.event_type.replace('_', ' ')} · ${fmtTime(ev.ts)}`}
+          />
+        ))}
+
+        {/* Thumbnail pins (zoomed in) — clustered, never displaced */}
+        {pins.map((pin) => {
+          const ev = pin.event;
           const personOrType =
             ev.person_name ||
             (ev.event_type === 'unknown_face'
@@ -449,10 +450,9 @@ export default function TimelineRail({
                 : ev.event_type.replace('_', ' '));
 
           return (
-            <div key={ev.id} css={eventRowStyles(ev.top)}>
-              <span css={blobStyles(ev.severity)} />
+            <div key={ev.id} css={eventRowStyles(pin.y)}>
               <span css={connectorStyles} />
-              <span css={iconWrapperStyles(ev.severity)}>{getEventIcon(ev.event_type)}</span>
+              <span css={iconStyles(ev.severity)}>{getEventIcon(ev.event_type)}</span>
 
               {ev.thumbnail_path ? (
                 <img
@@ -465,7 +465,7 @@ export default function TimelineRail({
                     e.stopPropagation();
                     onSeek(ev.ts);
                   }}
-                  title={`${personOrType} · ${fmtTime(ev.ts)}`}
+                  title={`${personOrType}${pin.clusterCount ? ` +${pin.clusterCount} more` : ''} · ${fmtTime(ev.ts)}`}
                 />
               ) : (
                 <span
@@ -480,7 +480,14 @@ export default function TimelineRail({
               )}
 
               <div css={labelInfoStyles}>
-                <span css={personNameStyles}>{personOrType}</span>
+                <span css={personNameStyles}>
+                  {personOrType}
+                  {pin.clusterCount > 0 && (
+                    <span className="tnum" css={clusterBadgeStyles}>
+                      +{pin.clusterCount}
+                    </span>
+                  )}
+                </span>
                 <span css={whenStyles} className="tnum">
                   {fmtTime(ev.ts)}
                 </span>
@@ -491,7 +498,7 @@ export default function TimelineRail({
 
         {/* Draggable playhead line + badge */}
         {playTs !== null && playTs >= day0 && playTs <= day0 + 86400 && (
-          <div css={playheadStyles(toY(playTs), isDragging)}>
+          <div css={playheadStyles(toY(playTs))} data-dragging={isDragging || undefined}>
             <div css={playheadHandleStyles} aria-label="Draggable playhead handle" />
             <span css={playheadBadgeStyles} className="tnum">
               {fmtTime(playTs)}

@@ -59,7 +59,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ✅ | b42a52d+1 | 9/9 shots verified against live servers |
 | R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ✅ | (this commit) | found+fixed P0: segment type mismatch made ALL seeks no-ops |
 | R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ✅ | (this commit) | default 2h (400px/h); pure helpers in lib/timeline.ts |
-| R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ⬜ | | extract pure placement fn to lib/timeline.ts |
+| R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ✅ | (this commit) | 132 events → 27 clustered pins; scrollHeight = rail height |
 | R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
 | R6 | Mobile playback scroll fix (P0) | — | ⬜ | | shellStyles needs flex:1 + minHeight:0 |
 | R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ⬜ | | App.tsx:33 + PlaybackPage.tsx:304 |
@@ -419,6 +419,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: lint + tsc/vite clean. Live CDP: zoom presets render (4 buttons + Now); 2h default shows hourly labels + 15-min minor ticks with ~2h visible; scroll-to-now anchors present-time ~26% from top; 24h preset drops minor ticks and thins labels to every 3h (hidden-label probe artifact noted: DOM contains visibility:hidden placeholders — visual confirms thinning). Shots: /tmp/aegis-shots/12-r3-zoom-2h.png, 13 (24h), 14 (1h). Pin badges align with the scale (5:26 PM pin under the 5:00 PM tick).
 - **Deviations**: (1) Created `frontend/src/lib/timeline.ts` with the pure geometry helpers one task early (R4 needs it too). (2) `positionedEvents` useMemo → plain IIFE — React Compiler couldn't preserve the manual memo (mutating stagger loop); block is replaced by R4 anyway.
+
+### Task R4 — true-position pins, clustering, de-chrome
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: lint + tsc/vite clean; `grep linear-gradient|glow|halo src/components/TimelineRail.tsx` → 0. Live CDP with the 132-event test day: **27 pins, 24 with cluster badges** (+32/+6/+21… — bursts collapse instead of cascading); `scrollHeight` 9640 = the zoomed rail itself (24h × 400px + padding) — no content beyond the scale, position = time everywhere; pin badges sit against matching ticks (5:35 PM pin between 5:00/6:00; 3:38 PM just under 3:30). Zero-interaction control run: no video, no playhead — nothing auto-seeks (a playhead seen in one headless shot was a synthetic-input artifact). Shots: /tmp/aegis-shots/15-r4-pins-2h.png, 16 (6h).
+- **Deviations**: beyond plan — every event now also renders a flat 6px severity dot ON the rail at its true y (density view survives thumbnail clustering, Scrypted-style); thumbnails 120px (pane-fit) instead of 128; pin thumbnails hidden below 240px/hour (`THUMBS_AT_PXH`), dots remain at all zooms.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅
