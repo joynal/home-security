@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { css } from '@emotion/react';
+import { AlertCircle, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/useAuth';
 import { tokens } from '@/theme/designTokens';
 
@@ -227,14 +228,8 @@ export default function LoginPage() {
 
           {error && (
             <div className="lp-error">
-              <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              {error}
+              <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
           )}
 
@@ -243,19 +238,8 @@ export default function LoginPage() {
               <span className="lp-spinner" />
             ) : (
               <>
-                Sign In
-                <svg
-                  viewBox="0 0 24 24"
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" />
-                </svg>
+                <span>Sign In</span>
+                <LogIn size={15} strokeWidth={2} />
               </>
             )}
           </button>

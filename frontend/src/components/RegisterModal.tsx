@@ -1,5 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type ComponentType } from 'react';
 import { css } from '@emotion/react';
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Camera,
+  Check,
+  CheckCircle2,
+  Crosshair,
+  X,
+} from 'lucide-react';
 import { registerService } from '@/services/register';
 import { cameraService } from '@/services/cameras';
 import { tokens } from '@/theme/designTokens';
@@ -60,23 +71,23 @@ const modalStyles = css`
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.04);
-    color: #7a879e;
+    border: 1px solid ${tokens.colors.border.subtle};
+    background: ${tokens.colors.surface.subtle};
+    color: ${tokens.colors.text.muted};
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     z-index: 10;
     transition:
-      background 0.15s,
-      color 0.15s,
-      border-color 0.15s;
+      background ${tokens.transitions.fast},
+      color ${tokens.transitions.fast},
+      border-color ${tokens.transitions.fast};
   }
   .rm-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #e8eaf0;
-    border-color: rgba(255, 255, 255, 0.16);
+    background: ${tokens.colors.surface.raised};
+    color: ${tokens.colors.text.primary};
+    border-color: ${tokens.colors.border.strong};
   }
 
   .rm-name-phase {
@@ -89,43 +100,46 @@ const modalStyles = css`
   }
 
   .rm-face-art {
-    width: 100px;
-    height: 100px;
+    width: 90px;
+    height: 90px;
     margin-top: 4px;
+    color: ${tokens.colors.accent.primary};
   }
   .rm-bracket {
-    stroke: #3b9eff;
+    stroke: ${tokens.colors.accent.primary};
     stroke-width: 2.5;
     opacity: 0.85;
   }
   .rm-face-oval {
-    stroke: rgba(59, 158, 255, 0.3);
+    stroke: ${tokens.colors.accent.primary};
     stroke-width: 1.5;
     stroke-dasharray: 4 3;
+    opacity: 0.4;
   }
   .rm-eye,
   .rm-nose,
   .rm-mouth {
-    stroke: rgba(59, 158, 255, 0.45);
+    stroke: ${tokens.colors.accent.primary};
     stroke-width: 1.5;
+    opacity: 0.5;
   }
   .rm-dot {
-    fill: #3b9eff;
-    opacity: 0.7;
+    fill: ${tokens.colors.accent.primary};
+    opacity: 0.8;
   }
   .rm-scanline {
-    stroke: #3b9eff;
+    stroke: ${tokens.colors.accent.primary};
     stroke-width: 1.5;
     opacity: 0.8;
     animation: rm-scan 2.4s ease-in-out infinite alternate;
   }
   @keyframes rm-scan {
     from {
-      transform: translateY(-30px);
-      opacity: 0.2;
+      transform: translateY(-24px);
+      opacity: 0.3;
     }
     to {
-      transform: translateY(30px);
+      transform: translateY(24px);
       opacity: 0.9;
     }
   }
@@ -138,14 +152,14 @@ const modalStyles = css`
   .rm-name-title {
     margin: 0;
     font-size: 20px;
-    font-weight: 700;
-    color: #e8eaf0;
+    font-weight: ${tokens.fontWeights.bold};
+    color: ${tokens.colors.text.primary};
     letter-spacing: -0.3px;
   }
   .rm-name-sub {
     margin: 0;
     font-size: 13px;
-    color: #7a879e;
+    color: ${tokens.colors.text.muted};
   }
 
   .rm-step-chips {
@@ -159,19 +173,19 @@ const modalStyles = css`
     align-items: center;
     gap: 5px;
     padding: 4px 10px;
-    border-radius: 99px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: ${tokens.radii.full};
+    background: ${tokens.colors.surface.subtle};
+    border: 1px solid ${tokens.colors.border.subtle};
     font-size: 12px;
-    color: #7a879e;
+    color: ${tokens.colors.text.secondary};
   }
   .rm-chip__icon {
-    font-size: 14px;
-    opacity: 0.8;
-    font-style: normal;
+    display: flex;
+    align-items: center;
+    color: ${tokens.colors.accent.primary};
   }
   .rm-chip__label {
-    font-weight: 500;
+    font-weight: ${tokens.fontWeights.medium};
   }
 
   .rm-field {
@@ -179,36 +193,37 @@ const modalStyles = css`
     display: flex;
     flex-direction: column;
     gap: 6px;
+    text-align: left;
   }
   .rm-field__label {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: ${tokens.fontWeights.semibold};
     letter-spacing: 0.5px;
-    color: #7a879e;
+    color: ${tokens.colors.text.muted};
     text-transform: uppercase;
   }
   .rm-field__input {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 14px 18px;
-    font-size: 15px;
+    background: ${tokens.colors.surface.subtle};
+    border: 1px solid ${tokens.colors.border.subtle};
+    border-radius: ${tokens.radii.md};
+    padding: 12px 16px;
+    font-size: 14.5px;
     font-family: inherit;
-    color: #e8eaf0;
+    color: ${tokens.colors.text.primary};
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color ${tokens.transitions.fast};
     width: 100%;
     box-sizing: border-box;
   }
   .rm-field__input:focus {
-    border-color: rgba(59, 158, 255, 0.45);
+    border-color: ${tokens.colors.accent.primary};
   }
   .rm-field__input--err {
-    border-color: rgba(248, 113, 113, 0.5);
+    border-color: ${tokens.colors.status.danger};
   }
   .rm-field__error {
     font-size: 12px;
-    color: #f87171;
+    color: ${tokens.colors.status.danger};
   }
 
   .rm-cta {
@@ -217,21 +232,21 @@ const modalStyles = css`
     justify-content: center;
     gap: 8px;
     width: 100%;
-    padding: 15px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #2563eb, #6366f1);
-    font-size: 15px;
-    font-weight: 600;
+    padding: 13px;
+    border-radius: ${tokens.radii.md};
+    background: ${tokens.colors.accent.primary};
+    font-size: 14.5px;
+    font-weight: ${tokens.fontWeights.semibold};
     font-family: inherit;
     color: white;
     border: none;
     cursor: pointer;
     transition:
-      opacity 0.15s,
+      background ${tokens.transitions.fast},
       transform 0.1s;
   }
   .rm-cta:hover {
-    opacity: 0.88;
+    background: ${tokens.colors.accent.hover};
     transform: translateY(-1px);
   }
 
@@ -254,15 +269,15 @@ const modalStyles = css`
   }
   .rm-step-num {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: ${tokens.fontWeights.bold};
     letter-spacing: 1px;
-    color: #3b9eff;
+    color: ${tokens.colors.accent.primary};
     text-transform: uppercase;
   }
   .rm-step-name {
     font-size: 14px;
-    font-weight: 600;
-    color: #e8eaf0;
+    font-weight: ${tokens.fontWeights.semibold};
+    color: ${tokens.colors.text.primary};
   }
 
   .rm-dots {
@@ -272,34 +287,33 @@ const modalStyles = css`
   .rm-dot-pip {
     width: 24px;
     height: 4px;
-    border-radius: 99px;
-    background: rgba(255, 255, 255, 0.08);
+    border-radius: ${tokens.radii.full};
+    background: ${tokens.colors.surface.raised};
     transition: background 0.3s;
   }
   .rm-dot-pip--active {
-    background: #3b9eff;
+    background: ${tokens.colors.accent.primary};
   }
   .rm-dot-pip--done {
-    background: #22d3a5;
+    background: ${tokens.colors.status.live};
   }
 
   .rm-video-wrap {
     position: relative;
-    border-radius: 18px;
+    border-radius: ${tokens.radii.lg};
     overflow: hidden;
     background: #000;
-    aspect-ratio: 4/3;
-    border: 2px solid rgba(255, 255, 255, 0.05);
+    aspect-ratio: 4 / 3;
+    border: 2px solid ${tokens.colors.border.subtle};
     transition:
       border-color 0.3s,
       box-shadow 0.3s;
   }
   .rm-video-wrap--ok {
-    border-color: rgba(34, 211, 165, 0.4);
-    box-shadow: 0 0 28px rgba(34, 211, 165, 0.15);
+    border-color: ${tokens.colors.status.live};
   }
   .rm-video-wrap--flash {
-    border-color: white;
+    border-color: #fff;
   }
 
   .rm-video {
@@ -314,30 +328,27 @@ const modalStyles = css`
     top: 50%;
     left: 50%;
     transform: translate(-50%, -52%);
-    width: 42%;
-    aspect-ratio: 3/4;
+    width: 44%;
+    aspect-ratio: 3 / 4;
     border-radius: 50%;
-    border: none;
+    border: 2px dashed rgba(255, 255, 255, 0.25);
     overflow: hidden;
     transition: border-color 0.3s;
+    pointer-events: none;
   }
   .rm-oval--ok {
-    border-color: #22d3a5;
+    border-color: ${tokens.colors.status.live};
+    border-style: solid;
   }
   .rm-oval--warn {
-    border-color: rgba(248, 113, 113, 0.4);
+    border-color: ${tokens.colors.status.danger};
   }
 
   .rm-oval__scan {
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(59, 158, 255, 0.04) 40%,
-      rgba(59, 158, 255, 0.12) 50%,
-      transparent 60%
-    );
+    border-bottom: 2px solid ${tokens.colors.accent.primary};
+    background: rgba(59, 130, 246, 0.08);
     animation: rm-scan-sweep 2s ease-in-out infinite alternate;
   }
   @keyframes rm-scan-sweep {
@@ -355,10 +366,7 @@ const modalStyles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 26px;
-    font-weight: 700;
-    color: #3b9eff;
-    filter: drop-shadow(0 0 8px rgba(59, 158, 255, 0.8));
+    color: ${tokens.colors.accent.primary};
     animation: rm-arrow-pulse 0.9s ease-in-out infinite alternate;
   }
   .rm-dir-arrow--left {
@@ -385,9 +393,11 @@ const modalStyles = css`
   @keyframes rm-arrow-pulse {
     from {
       opacity: 0.4;
+      transform: scale(0.92);
     }
     to {
       opacity: 1;
+      transform: scale(1.08);
     }
   }
 
@@ -404,8 +414,8 @@ const modalStyles = css`
   }
   .rm-countdown-num {
     font-size: 48px;
-    font-weight: 800;
-    color: #22d3a5;
+    font-weight: ${tokens.fontWeights.bold};
+    color: ${tokens.colors.status.live};
     line-height: 1;
     animation: rm-count-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
@@ -421,8 +431,8 @@ const modalStyles = css`
   }
   .rm-countdown-sub {
     font-size: 11px;
-    font-weight: 600;
-    color: #22d3a5;
+    font-weight: ${tokens.fontWeights.semibold};
+    color: ${tokens.colors.status.live};
     letter-spacing: 0.5px;
     text-transform: uppercase;
   }
@@ -448,63 +458,62 @@ const modalStyles = css`
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: ${tokens.radii.md};
+    background: ${tokens.colors.surface.subtle};
+    border: 1px solid ${tokens.colors.border.subtle};
     transition:
       background 0.3s,
       border-color 0.3s;
   }
   .rm-guide--ok {
-    background: rgba(34, 211, 165, 0.07);
-    border-color: rgba(34, 211, 165, 0.25);
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.3);
   }
   .rm-guide-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #7a879e;
+    background: ${tokens.colors.text.muted};
     flex-shrink: 0;
     transition: background 0.3s;
   }
   .rm-guide--ok .rm-guide-dot {
-    background: #22d3a5;
-    box-shadow: 0 0 6px #22d3a5;
+    background: ${tokens.colors.status.live};
   }
   .rm-guide-text {
     font-size: 13px;
-    font-weight: 500;
-    color: #e8eaf0;
+    font-weight: ${tokens.fontWeights.medium};
+    color: ${tokens.colors.text.primary};
     flex: 1;
   }
 
   .rm-err-msg {
     font-size: 12px;
-    color: #f87171;
+    color: ${tokens.colors.status.danger};
     text-align: center;
-    background: rgba(248, 113, 113, 0.08);
-    border: 1px solid rgba(248, 113, 113, 0.2);
-    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: ${tokens.radii.sm};
     padding: 6px 12px;
   }
 
   .rm-manual-btn {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 12px;
-    padding: 12px;
+    background: ${tokens.colors.surface.subtle};
+    border: 1px solid ${tokens.colors.border.subtle};
+    border-radius: ${tokens.radii.md};
+    padding: 11px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: ${tokens.fontWeights.medium};
     font-family: inherit;
-    color: #7a879e;
+    color: ${tokens.colors.text.secondary};
     cursor: pointer;
     transition:
-      background 0.15s,
-      color 0.15s;
+      background ${tokens.transitions.fast},
+      color ${tokens.transitions.fast};
   }
   .rm-manual-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e8eaf0;
+    background: ${tokens.colors.surface.raised};
+    color: ${tokens.colors.text.primary};
   }
   .rm-manual-btn:disabled {
     opacity: 0.3;
@@ -521,13 +530,15 @@ const modalStyles = css`
   }
 
   .rm-success-circle {
-    width: 88px;
-    height: 88px;
-    animation: rm-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${tokens.colors.status.live};
+    animation: rm-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   @keyframes rm-pop {
     from {
-      transform: scale(0.2);
+      transform: scale(0.3);
       opacity: 0;
     }
     to {
@@ -536,50 +547,17 @@ const modalStyles = css`
     }
   }
 
-  .rm-check-svg {
-    width: 100%;
-    height: 100%;
-  }
-
-  .rm-check-ring {
-    stroke: #22d3a5;
-    stroke-width: 3;
-    fill: rgba(34, 211, 165, 0.08);
-    stroke-dasharray: 226;
-    stroke-dashoffset: 226;
-    animation: rm-ring-draw 0.5s 0.2s ease forwards;
-  }
-  @keyframes rm-ring-draw {
-    to {
-      stroke-dashoffset: 0;
-    }
-  }
-
-  .rm-check-path {
-    stroke: #22d3a5;
-    stroke-width: 4;
-    fill: none;
-    stroke-dasharray: 50;
-    stroke-dashoffset: 50;
-    animation: rm-check-draw 0.4s 0.6s ease forwards;
-  }
-  @keyframes rm-check-draw {
-    to {
-      stroke-dashoffset: 0;
-    }
-  }
-
   .rm-success-title {
     margin: 0;
     font-size: 22px;
-    font-weight: 700;
-    color: #e8eaf0;
+    font-weight: ${tokens.fontWeights.bold};
+    color: ${tokens.colors.text.primary};
     letter-spacing: -0.3px;
   }
   .rm-success-sub {
     margin: 0;
     font-size: 13px;
-    color: #7a879e;
+    color: ${tokens.colors.text.muted};
     max-width: 340px;
     line-height: 1.65;
   }
@@ -590,7 +568,7 @@ interface StepItem {
   label: string;
   instruction: string;
   arrowDir: 'left' | 'right' | 'up' | 'down' | null;
-  icon: string;
+  Icon: ComponentType<{ size?: number | string; strokeWidth?: number | string }>;
 }
 
 const STEPS: StepItem[] = [
@@ -599,35 +577,35 @@ const STEPS: StepItem[] = [
     label: 'Center',
     instruction: 'Look directly into the camera',
     arrowDir: null,
-    icon: '◎',
+    Icon: Crosshair,
   },
   {
     id: 'left',
     label: 'Turn Left',
     instruction: 'Slowly turn your head to the left',
     arrowDir: 'left',
-    icon: '←',
+    Icon: ArrowLeft,
   },
   {
     id: 'right',
     label: 'Turn Right',
     instruction: 'Slowly turn your head to the right',
     arrowDir: 'right',
-    icon: '→',
+    Icon: ArrowRight,
   },
   {
     id: 'up',
     label: 'Look Up',
     instruction: 'Tilt your head slightly upward',
     arrowDir: 'up',
-    icon: '↑',
+    Icon: ArrowUp,
   },
   {
     id: 'down',
     label: 'Look Down',
     instruction: 'Tilt your head slightly downward',
     arrowDir: 'down',
-    icon: '↓',
+    Icon: ArrowDown,
   },
 ];
 
@@ -640,7 +618,6 @@ function FaceScanArt() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Corner scan brackets */}
       <path
         d="M24 68 L24 24 L68 24"
         className="rm-bracket"
@@ -665,36 +642,37 @@ function FaceScanArt() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Face oval */}
       <ellipse cx="110" cy="108" rx="55" ry="68" className="rm-face-oval" />
-      {/* Eyes */}
       <ellipse cx="90" cy="96" rx="7" ry="5" className="rm-eye" />
       <ellipse cx="130" cy="96" rx="7" ry="5" className="rm-eye" />
-      {/* Subtle nose */}
       <path d="M110 104 L106 118 Q110 121 114 118 L110 104" className="rm-nose" />
-      {/* Mouth */}
       <path d="M96 132 Q110 142 124 132" className="rm-mouth" />
-      {/* Landmark dots */}
       <circle cx="90" cy="96" r="2.5" className="rm-dot" />
       <circle cx="130" cy="96" r="2.5" className="rm-dot" />
       <circle cx="110" cy="114" r="2.5" className="rm-dot" />
       <circle cx="97" cy="132" r="2.5" className="rm-dot" />
       <circle cx="123" cy="132" r="2.5" className="rm-dot" />
-      {/* Scan line */}
       <line x1="55" y1="110" x2="165" y2="110" className="rm-scanline" />
     </svg>
   );
 }
 
-/* ── Animated direction arrows overlay ─────────────────── */
+/* ── Direction arrows overlay ─────────────────────────── */
 function DirectionArrow({ dir }: { dir: 'left' | 'right' | 'up' | 'down' | null }) {
   if (!dir) return null;
-  const arrows = { left: '←', right: '→', up: '↑', down: '↓' };
-  return (
-    <div className={`rm-dir-arrow rm-dir-arrow--${dir}`}>
-      <span>{arrows[dir]}</span>
-    </div>
-  );
+  const renderIcon = () => {
+    switch (dir) {
+      case 'left':
+        return <ArrowLeft size={36} strokeWidth={2.5} />;
+      case 'right':
+        return <ArrowRight size={36} strokeWidth={2.5} />;
+      case 'up':
+        return <ArrowUp size={36} strokeWidth={2.5} />;
+      case 'down':
+        return <ArrowDown size={36} strokeWidth={2.5} />;
+    }
+  };
+  return <div className={`rm-dir-arrow rm-dir-arrow--${dir}`}>{renderIcon()}</div>;
 }
 
 export default function RegisterModal({ initialName, onClose, onSuccess }: RegisterModalProps) {
@@ -793,7 +771,6 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
       }, 1000);
     } else if (!isCorrectPose) {
       if (countdownRef.current) clearInterval(countdownRef.current);
-      // deferred out of the effect body
       setTimeout(() => setCountdown(null), 0);
     }
     return () => {
@@ -833,18 +810,7 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
       <div className="rm-panel">
         {/* ── Persistent close button ── */}
         <button className="rm-close" onClick={onClose} aria-label="Close">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <line x1="4" y1="4" x2="20" y2="20" />
-            <line x1="20" y1="4" x2="4" y2="20" />
-          </svg>
+          <X size={16} strokeWidth={2} />
         </button>
 
         {/* ════════ PHASE: name ════════ */}
@@ -858,12 +824,17 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
             </div>
 
             <div className="rm-step-chips">
-              {STEPS.map((s) => (
-                <div key={s.id} className="rm-chip">
-                  <span className="rm-chip__icon">{s.icon}</span>
-                  <span className="rm-chip__label">{s.label}</span>
-                </div>
-              ))}
+              {STEPS.map((s) => {
+                const StepIcon = s.Icon;
+                return (
+                  <div key={s.id} className="rm-chip">
+                    <span className="rm-chip__icon">
+                      <StepIcon size={12} strokeWidth={2} />
+                    </span>
+                    <span className="rm-chip__label">{s.label}</span>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="rm-field">
@@ -883,19 +854,8 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
             </div>
 
             <button className="rm-cta" onClick={handleStart}>
-              Begin Scan
-              <svg
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
+              <span>Begin Scan</span>
+              <ArrowRight size={16} strokeWidth={2} />
             </button>
           </div>
         )}
@@ -944,7 +904,6 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
               <div
                 className={`rm-oval ${isCorrectPose ? 'rm-oval--ok' : ''} ${!faceStatus.face_found ? 'rm-oval--warn' : ''}`}
               >
-                {/* Animated scan line inside oval */}
                 <div className="rm-oval__scan" />
               </div>
 
@@ -978,6 +937,11 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
               onClick={doCapture}
               disabled={!faceStatus.face_found || capturing}
             >
+              <Camera
+                size={14}
+                strokeWidth={1.75}
+                style={{ verticalAlign: 'middle', marginRight: 6 }}
+              />
               Take photo manually
             </button>
           </div>
@@ -987,15 +951,7 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
         {phase === 'success' && (
           <div className="rm-success-phase">
             <div className="rm-success-circle">
-              <svg viewBox="0 0 80 80" fill="none" className="rm-check-svg">
-                <circle cx="40" cy="40" r="36" className="rm-check-ring" />
-                <path
-                  d="M24 40 L35 51 L56 29"
-                  className="rm-check-path"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <CheckCircle2 size={56} strokeWidth={2} />
             </div>
             <h2 className="rm-success-title">Welcome, {name}!</h2>
             <p className="rm-success-sub">
@@ -1008,7 +964,8 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
                 onClose();
               }}
             >
-              Done
+              <Check size={16} strokeWidth={2} />
+              <span>Done</span>
             </button>
           </div>
         )}

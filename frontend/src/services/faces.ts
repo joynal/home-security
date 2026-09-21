@@ -12,6 +12,13 @@ export const faceService = {
     });
   },
 
+  async renameFace(name: string, newName: string): Promise<{ status: string; name: string }> {
+    return apiFetch<{ status: string; name: string }>(`/faces/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ new_name: newName.trim() }),
+    });
+  },
+
   async importFaces(name: string, files: File[]): Promise<FaceImportResponse> {
     const form = new FormData();
     form.append('name', name.trim());

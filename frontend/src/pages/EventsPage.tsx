@@ -83,20 +83,30 @@ const evSelectStyles = {
   maxWidth: '150px',
 };
 
-const eventRowStyles = {
+const eventRowStyles = (tone: string) => ({
   display: 'flex',
   gap: tokens.spacing.md,
   alignItems: 'center',
-  padding: '10px 4px',
+  padding: '10px 12px',
   borderBottom: `1px solid ${tokens.colors.border.subtle}`,
+  borderLeft: `2px solid ${
+    tone === 'alert'
+      ? tokens.colors.status.alert
+      : tone === 'warn'
+        ? tokens.colors.status.warning
+        : 'transparent'
+  }`,
   width: '100%',
   textAlign: 'left' as const,
+  background: 'transparent',
+  borderRadius: 0,
+  transition: `background ${tokens.transitions.fast}`,
   '&:hover': { background: tokens.colors.surface.default },
   '&:focus-visible': {
     outline: `2px solid ${tokens.colors.accent.primary}`,
     outlineOffset: '-2px',
   },
-};
+});
 
 const eventRowThumbStyles = {
   width: '96px',
@@ -234,20 +244,20 @@ const evDrawerNameRowStyles = {
     flex: 1,
     height: '32px',
     padding: '0 12px',
-    background: 'var(--surface-2)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--text-1)',
+    background: tokens.colors.surface.subtle,
+    border: `1px solid ${tokens.colors.border.subtle}`,
+    borderRadius: tokens.radii.sm,
+    color: tokens.colors.text.primary,
     fontFamily: 'inherit',
     fontSize: '13px',
-    '&:focus': { outline: 'none', borderColor: 'var(--accent)' },
+    '&:focus': { outline: 'none', borderColor: tokens.colors.accent.primary },
   },
 };
 
 const evNameResultStyles = (isOk: boolean) => ({
   fontSize: '12.5px',
   lineHeight: 1.5,
-  color: isOk ? 'var(--live)' : 'var(--alert)',
+  color: isOk ? tokens.colors.status.live : tokens.colors.status.alert,
 });
 
 interface EventTypeMeta {
@@ -479,19 +489,10 @@ export default function EventsPage() {
             return (
               <button
                 key={ev.id}
-                css={eventRowStyles}
+                css={eventRowStyles(meta.tone)}
                 className="event-row"
                 onClick={() => openEvent(ev)}
               >
-                {ev.thumbnail_path && (
-                  <img
-                    css={eventRowThumbStyles}
-                    src={eventService.getThumbnailUrl(ev.id)}
-                    crossOrigin="use-credentials"
-                    alt=""
-                    loading="lazy"
-                  />
-                )}
                 <div css={eventRowBodyStyles}>
                   <div css={eventRowTitleStyles(meta.tone)}>
                     <Icon size={14} strokeWidth={1.75} />
@@ -499,7 +500,15 @@ export default function EventsPage() {
                   </div>
                   <div css={eventRowMetaStyles} className="tnum">
                     <span>{ev.camera_id}</span>
+                    <span>·</span>
                     <span>{relTime(ev.timestamp)}</span>
+                    <span>·</span>
+                    <span>
+                      {new Date(ev.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
                   </div>
                 </div>
                 {ev.playback && (
@@ -508,6 +517,15 @@ export default function EventsPage() {
                     strokeWidth={1.75}
                     css={eventRowPlayStyles}
                     className="event-row__play"
+                  />
+                )}
+                {ev.thumbnail_path && (
+                  <img
+                    css={eventRowThumbStyles}
+                    src={eventService.getThumbnailUrl(ev.id)}
+                    crossOrigin="use-credentials"
+                    alt=""
+                    loading="lazy"
                   />
                 )}
               </button>

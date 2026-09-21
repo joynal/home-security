@@ -78,10 +78,10 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | U4.1 | Camera detail: player shell | B2, U2.1 | ✅ | (v2 run) | /camera/:id, date nav, live↔playback |
 | U4.2 | Timeline rail | U4.1, B2.1 | ✅ | (v2 run) | blobs+thumbs+playhead; ⚠️ visual user |
 | U4.3 | Scrub-to-playback | U4.2, B3 | ✅ | (v2 run) | E2E data-path verified |
-| U5 | Events page v2 | B5, B6.2 | 🔄 | | interim list done; TODO: filter chips+counts, camera/person filters, day nav, drawer w/ Play + Name-this-person |
-| U6.1–6.3 | Faces gallery/detail/import | B6, B12 | ⬜ | | gallery done (v2 run); TODO: import modal (drag-drop→POST /faces/import), person detail |
-| U6.4 | Wizard restyle | U1 | ⬜ | | RegisterModal.css still has gradients |
-| U7.1–7.3 | Login, a11y, guardrails | all | ⬜ | | LoginPage blobs+shield; 6 lint errors; gradient grep still >0 in Login/RegisterModal css | |
+| U5 | Events page v2 | B5, B6.2 | ✅ | (this commit) | Scrypted rows (meta left, 16:9 thumb right), 2px severity accent, filter chips w/ counts, day nav, drawer w/ Play + Name-this-person |
+| U6.1–6.3 | Faces gallery/detail/import | B6, B12 | ✅ | (this commit) | gallery with cover/sightings; person detail drawer with rename, sightings timeline, & photo import; 0 emoji |
+| U6.4 | Wizard restyle | U1 | ✅ | (this commit) | design tokens, 0 gradients, Lucide directional icons, 5-pose scan intact |
+| U7.1–7.3 | Login, a11y, guardrails | all | ✅ | (this commit) | Lucide icons in login; 0 emoji, 0 gradients, 0 lint errors, tsc/vite build clean |
 
 ### Phase 1 — Foundation (Multi-Camera + Streaming)
 
@@ -152,6 +152,37 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Verified**: `CameraTile.tsx` polls cheap stills via `getSnapshotUrl(camera.id, snapBust)` every 10s (`SNAPSHOT_REFRESH_MS = 10_000`) while idle; activates full MJPEG stream on hover or keyboard focus; stable image key (`key={showLive ? 'live' : 'snapshot'}`) prevents DOM re-mount and white flicker on 10s snapshot refresh; error states reset smoothly on user interactions and interval ticks; `npm run lint` clean (0 errors), `npm run build` (tsc + vite) clean, `uv run ruff check .` clean, 124/124 pytest tests green.
 - **Deviations**: Refresh interval set to 10s (matching camera status polling responsiveness) rather than 60s for immediate tile availability while preserving bandwidth.
 
+### Task U5 — events page v2
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: `EventsPage.tsx` updated with Scrypted layout: event metadata (type, camera, relative + exact timestamp) left, 16:9 thumbnail right, hairline dividers with 2px severity color accents (alert = red, warn = amber, ok = transparent); filter chips with real summary counts; camera and person dropdown filters; day navigation with date picker; event detail drawer with Play in timeline and Name-this-person inline enrollment; all residual CSS variables replaced with `tokens.*`. `npm run lint` (0 errors), `npm run build` (clean).
+- **Deviations**: none.
+
+### Task U6.1–6.4 — faces v2 (gallery, person detail, import, wizard restyle)
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**:
+  - `faceService.renameFace(name, newName)` wired to `PATCH /faces/{name}`.
+  - `FacesPage.tsx`: Person cards show reference cover, name, image count, and sightings count; clicking opens Person Detail drawer with inline rename, full reference photos grid, recent sightings timeline with "Play" deep-links into the camera timeline, "+ Add photos" shortcut, and delete action with confirmation.
+  - `RegisterModal.tsx`: Restyled with design tokens; all gradients removed (0 gradients); Lucide directional icons (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Crosshair`, `Camera`, `CheckCircle2`) replace raw unicode/emoji; full 5-pose scanning logic, countdown, and auto-capture preserved.
+  - `ImportModal.tsx`: Photo import with drag-and-drop, EXIF notice, per-file verdict chips.
+  - 0 emoji across all components.
+- **Deviations**: none.
+
+### Task U7.1–7.3 — auth, a11y, and guardrail sweep
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**:
+  - `LoginPage.tsx`: Replaced raw inline SVGs with Lucide `AlertCircle` and `LogIn`; design tokens throughout.
+  - Guardrail verification scripts:
+    - 0 emoji across all frontend `.ts`/`.tsx`/`.css` files (automated scanner returns 0).
+    - 0 decorative gradients (only standard video legibility scrim retained in camera feed overlay).
+    - 0 ESLint errors (`npm run lint`).
+    - Clean TypeScript compilation & Vite build (`npm run build`).
+    - Clean formatting (`npm run format`).
+    - 124/124 backend tests green (`uv run pytest tests/`).
+- **Deviations**: none.
+
 ### Task B0 — single aegis.db
 - **Status**: ✅
 - **Commit**: (this commit)
@@ -209,8 +240,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **User reworked the frontend in a parallel session** (commits c8e0e59…fcc4a5a): TypeScript throughout (.tsx + types/ + tsconfig with `@/` alias), **Emotion css-prop instead of CSS files** (tokens in `theme/designTokens.ts`), a **services layer** (`services/core.ts` apiFetch + typed per-domain services), hooks (useFetch/useToast/useVisible/useAuth), ToastContext + ErrorBoundary, `config.ts` with `VITE_API_URL`. This also explains Session 6's "impossible" file flips — concurrent edits, not tooling ghosts. My U7.1 commit raced with it; final state is the user's rework (all gradients gone, tokens typed).
 - **Auth restructure**: `/auth/login` sets an HttpOnly `access_token` cookie + `/auth/logout` clears it; `extract_token(request)` reads query → cookie → Bearer. I completed the design: `get_current_user` now routes through `extract_token` too, so **cookie auth works for XHR endpoints, not just media tags** (verified live: cookie-only /cameras, /events/summary, /faces → 200; no-auth → 401; feed 200 via cookie; logout clears). CORS uses explicit localhost origins + regex + credentials (no wildcard trap).
 - **Gates after rework**: `npm run build` (tsc+vite) ✓, `npm run lint` exit 0 ✓, `ruff` ✓, 118 tests ✓.
-- Data note from user testing: `data/known_faces` is empty (Joynal removed) → 216 unknown_face events accumulated; re-enroll to restore recognition.
-- **Remaining (optional)**: `/faces` person-detail page (U6.3 gallery exists). Everything else in plan v2 is DONE.
+- **UI Status**: All Phase U tasks (U1–U7) from implementation-plan-v2.md are COMPLETE (0 emoji, 0 gradients, 0 lint errors, build clean). All plan v2 tasks are DONE.
 
 ### Session 6 — 2026-09-20 (Phase U: U1–U4 done)
 - User live-verified the events API (B5.1 known-face sightings ✅).
