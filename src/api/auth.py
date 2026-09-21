@@ -16,11 +16,9 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 
-from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Request
 from fastapi import status
-from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.security import HTTPBearer
 from jose import JWTError
 from jose import jwt
@@ -116,11 +114,14 @@ def decode_token(token: str) -> str:
 # ──────────────────────────────────────────────────────────
 
 
-def get_current_user(
-  creds: HTTPAuthorizationCredentials = Depends(_bearer),  # noqa: B008
-) -> str:
-  """FastAPI dependency: validates Bearer token, returns username."""
-  return decode_token(creds.credentials)
+def get_current_user(request: Request) -> str:
+  """
+  FastAPI dependency: validates the session and returns the username.
+  Accepts Authorization Bearer header, the HttpOnly access_token cookie
+  (set by /auth/login), or a legacy ?token= query param — same precedence
+  as extract_token, so cookies work for XHR too, not just media tags.
+  """
+  return decode_token(extract_token(request))
 
 
 def extract_token(request: Request | None = None, token: str | None = None) -> str:

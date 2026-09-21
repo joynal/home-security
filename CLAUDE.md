@@ -19,7 +19,7 @@ and alerts when unknown individuals are detected. Full-stack: Python/FastAPI bac
 | Auth        | JWT (python-jose) + bcrypt (passlib) — file-based credentials  |
 | Alerts      | Console + Telegram + ntfy.sh (per-person cooldown)             |
 | Recording   | FFmpeg segment recorder + go2rtc stream proxy + disk-aware retention |
-| Events      | SQLite (`data/events.db`) + JPEG thumbnails                   |
+| Events      | SQLite (`data/aegis.db` — events + recordings index + persons) + JPEG thumbnails |
 | Pkg Manager | `uv` (Python), `npm` (frontend)                               |
 | Linting     | Ruff (Python), ESLint + typescript-eslint (TS/TSX)             |
 | Tests       | pytest (`uv run pytest tests/`) — 118 tests, no hardware needed |

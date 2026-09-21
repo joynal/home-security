@@ -199,6 +199,13 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - One API-quota blip mid-run (permission classifier) — resumed without loss; per-task commits held throughout.
 - **Next: Phase U (frontend)** — U1 tokens → U2 rail → U3 grid+story strip → U4 player+timeline-rail flagship (B2/B3 APIs all present) → U5 events → U6 faces (import backend ready) → U7 polish. Two user live-checks for the next camera session: known-face sightings populate (B5.1), photo import with real photos (B12.1).
 
+### Session 7 — 2026-09-21 (user rework + auth completion)
+- **User reworked the frontend in a parallel session** (commits c8e0e59…fcc4a5a): TypeScript throughout (.tsx + types/ + tsconfig with `@/` alias), **Emotion css-prop instead of CSS files** (tokens in `theme/designTokens.ts`), a **services layer** (`services/core.ts` apiFetch + typed per-domain services), hooks (useFetch/useToast/useVisible/useAuth), ToastContext + ErrorBoundary, `config.ts` with `VITE_API_URL`. This also explains Session 6's "impossible" file flips — concurrent edits, not tooling ghosts. My U7.1 commit raced with it; final state is the user's rework (all gradients gone, tokens typed).
+- **Auth restructure**: `/auth/login` sets an HttpOnly `access_token` cookie + `/auth/logout` clears it; `extract_token(request)` reads query → cookie → Bearer. I completed the design: `get_current_user` now routes through `extract_token` too, so **cookie auth works for XHR endpoints, not just media tags** (verified live: cookie-only /cameras, /events/summary, /faces → 200; no-auth → 401; feed 200 via cookie; logout clears). CORS uses explicit localhost origins + regex + credentials (no wildcard trap).
+- **Gates after rework**: `npm run build` (tsc+vite) ✓, `npm run lint` exit 0 ✓, `ruff` ✓, 118 tests ✓.
+- Data note from user testing: `data/known_faces` is empty (Joynal removed) → 216 unknown_face events accumulated; re-enroll to restore recognition.
+- **Remaining (optional)**: U3.5 snapshot-idle tiles, B7.2 clip extraction (ffmpeg), `/faces` person-detail page (U6.3 gallery exists). Everything else in plan v2 is DONE.
+
 ### Session 6 — 2026-09-20 (Phase U: U1–U4 done)
 - User live-verified the events API (B5.1 known-face sightings ✅).
 - **U1–U4 complete and committed** (`task U1.1` → `task U4`): zinc tokens + Lucide; 56px icon rail with pages/ (Live/Events/Faces + /camera/:id); grid hero + recent-activity strip + stream gating; the flagship camera detail — player left, vertical timeline rail right, scrub-to-playback with segment auto-advance.
