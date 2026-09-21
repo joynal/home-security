@@ -1,11 +1,15 @@
 /**
- * TimelineRail — Scrypted-style vertical timeline (time is the Y axis).
- * Newest at top. Event blobs on a rail; thumbnails pinned to timestamps
- * with thin connector lines; hour ticks with monospace labels; a playhead
- * line at the current playback/live position. Click anywhere to seek.
+ * TimelineRail — Task S3.1
+ * Scrypted NVR signature vertical timeline:
+ * - Time is on the vertical Y-axis (top = most recent / "Now", bottom = past)
+ * - 58px monospace hour scale with tick marks
+ * - Continuous recording coverage bars (RecordingIndex segments)
+ * - Pinned 16:9 event thumbnails with hairline connectors & object icons
+ * - Draggable horizontal playhead rule with live time badge
+ * - Click or drag anywhere to seek
  */
-import { useMemo, type KeyboardEvent, type MouseEvent, type ComponentType } from 'react';
-import { CircleAlert, PersonStanding, User } from 'lucide-react';
+import { useMemo, useState, useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { AlertTriangle, UserCheck, User, Clock, CircleAlert } from 'lucide-react';
 import { eventService } from '@/services/events';
 import { tokens } from '@/theme/designTokens';
 import type { SecurityEvent, TimelineHour } from '@/types';
@@ -20,38 +24,27 @@ export interface TimelineRailProps {
   token?: string | null;
 }
 
-interface SeverityConfig {
-  tone: 'alert' | 'warn' | 'ok';
-  icon: ComponentType<{ size?: number | string; strokeWidth?: number | string }>;
-}
-
-const HOUR_PX = 56; // vertical scale: px per hour
-const TOP_PAD = 12;
-
-const SEVERITY: Record<string, SeverityConfig> = {
-  unknown_face: { tone: 'alert', icon: CircleAlert },
-  loitering: { tone: 'warn', icon: PersonStanding },
-  known_face: { tone: 'ok', icon: User },
-  person_detected: { tone: 'ok', icon: PersonStanding },
-  motion: { tone: 'ok', icon: PersonStanding },
-};
+const HOUR_PX = 58; // vertical scale: 58px per hour (Scrypted standard)
+const TOP_PAD = 16;
+const RAIL_WIDTH = 12; // coverage rail width
 
 const tlContainerStyles = {
   display: 'flex',
   height: '100%',
   minHeight: 0,
   userSelect: 'none' as const,
+  position: 'relative' as const,
 };
 
 const scaleStyles = {
-  width: '58px',
+  width: '64px',
   flexShrink: 0,
   position: 'relative' as const,
 };
 
 const hourRowStyles = (top: number) => ({
   position: 'absolute' as const,
-  right: tokens.spacing.sm,
+  right: tokens.spacing.xs,
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
@@ -60,7 +53,7 @@ const hourRowStyles = (top: number) => ({
 });
 
 const hourLabelStyles = {
-  fontSize: '10.5px',
+  fontSize: '11px',
   color: tokens.colors.text.muted,
   fontVariantNumeric: 'tabular-nums',
   whiteSpace: 'nowrap' as const,
@@ -78,6 +71,7 @@ const canvasStyles = (height: number) => ({
   height,
   cursor: 'pointer',
   outline: 'none',
+  touchAction: 'none' as const,
   '&:focus-visible': {
     boxShadow: `inset 0 0 0 1px ${tokens.colors.accent.primary}`,
   },
@@ -85,139 +79,190 @@ const canvasStyles = (height: number) => ({
 
 const railTrackStyles = {
   position: 'absolute' as const,
-  left: '6px',
-  width: '2px',
+  left: '8px',
+  width: `${RAIL_WIDTH}px`,
   top: `${TOP_PAD}px`,
   bottom: `${TOP_PAD}px`,
-  background: tokens.colors.border.subtle,
+  background: 'rgba(255, 255, 255, 0.04)',
+  borderRadius: '4px',
+  border: `1px solid ${tokens.colors.border.subtle}`,
 };
 
 const coverageBarStyles = (top: number, height: number) => ({
   position: 'absolute' as const,
-  left: 0,
-  width: '2px',
+  left: '1px',
+  right: '1px',
   top,
   height,
-  background: tokens.colors.accent.primary,
-  opacity: 0.85,
+  background: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+  borderRadius: '2px',
+  boxShadow: '0 0 8px rgba(59, 130, 246, 0.35)',
 });
 
 const eventRowStyles = (top: number) => ({
   position: 'absolute' as const,
-  left: 0,
-  right: '6px',
+  left: '8px',
+  right: '10px',
   display: 'flex',
   alignItems: 'center',
   transform: 'translateY(-50%)',
   top,
+  zIndex: 3,
   pointerEvents: 'auto' as const,
 });
 
-const blobStyles = (tone: string) => {
+const blobStyles = (severity: string) => {
   const bg =
-    tone === 'alert'
-      ? tokens.colors.status.alert
-      : tone === 'warn'
+    severity === 'alert'
+      ? tokens.colors.status.danger
+      : severity === 'warn'
         ? tokens.colors.status.warning
         : tokens.colors.status.live;
   return {
     position: 'absolute' as const,
-    left: '3px',
-    width: '8px',
-    height: '8px',
+    left: `${RAIL_WIDTH / 2}px`,
+    width: '10px',
+    height: '10px',
     borderRadius: tokens.radii.full,
     background: bg,
     transform: 'translateX(-50%)',
-    boxShadow: `0 0 0 2px ${tokens.colors.surface.default}, 0 0 6px ${bg}`,
+    boxShadow: `0 0 0 2px ${tokens.colors.surface.default}, 0 0 8px ${bg}`,
+    zIndex: 4,
   };
 };
 
 const connectorStyles = {
   position: 'absolute' as const,
-  left: '8px',
-  width: '12px',
+  left: `${RAIL_WIDTH}px`,
+  width: '14px',
   height: '1px',
   background: tokens.colors.border.strong,
 };
 
-const iconWrapperStyles = (tone: string) => {
+const iconWrapperStyles = (severity: string) => {
   const color =
-    tone === 'alert'
-      ? tokens.colors.status.alert
-      : tone === 'warn'
+    severity === 'alert'
+      ? tokens.colors.status.danger
+      : severity === 'warn'
         ? tokens.colors.status.warning
         : tokens.colors.status.live;
   return {
-    marginLeft: '22px',
+    marginLeft: '26px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '18px',
-    height: '18px',
+    width: '20px',
+    height: '20px',
+    borderRadius: tokens.radii.sm,
+    background: tokens.colors.surface.raised,
     color,
     flexShrink: 0,
+    border: `1px solid ${color}40`,
   };
 };
 
 const thumbStyles = {
-  width: '56px',
+  width: '64px',
   aspectRatio: '16 / 9',
   borderRadius: tokens.radii.sm,
   objectFit: 'cover' as const,
   background: '#000',
   border: `1px solid ${tokens.colors.border.subtle}`,
   flexShrink: 0,
-  marginLeft: '4px',
+  marginLeft: '6px',
   cursor: 'pointer',
-  transition: 'transform 0.12s, border-color 0.12s',
+  transition: `transform ${tokens.transitions.fast}, border-color ${tokens.transitions.fast}, box-shadow ${tokens.transitions.fast}`,
   '&:hover': {
     transform: 'scale(1.08)',
     borderColor: tokens.colors.accent.primary,
-    zIndex: 5,
+    boxShadow: tokens.shadows.card,
+    zIndex: 10,
   },
 };
 
 const thumbEmptyStyles = {
-  width: '56px',
+  width: '64px',
   aspectRatio: '16 / 9',
   borderRadius: tokens.radii.sm,
   border: `1px solid ${tokens.colors.border.subtle}`,
   flexShrink: 0,
-  marginLeft: '4px',
+  marginLeft: '6px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   background: tokens.colors.surface.subtle,
   color: tokens.colors.text.muted,
   fontSize: '10px',
+  cursor: 'pointer',
+  '&:hover': {
+    borderColor: tokens.colors.accent.primary,
+  },
+};
+
+const labelInfoStyles = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  marginLeft: '6px',
+  minWidth: 0,
+  overflow: 'hidden',
+};
+
+const personNameStyles = {
+  fontSize: '11px',
+  fontWeight: tokens.fontWeights.medium,
+  color: tokens.colors.text.primary,
+  whiteSpace: 'nowrap' as const,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 };
 
 const whenStyles = {
   fontSize: '10px',
   color: tokens.colors.text.muted,
-  marginLeft: '7px',
 };
 
-const playheadStyles = (top: number) => ({
+const playheadStyles = (top: number, isDragging: boolean) => ({
   position: 'absolute' as const,
   left: 0,
   right: 0,
   height: 0,
   borderTop: `2px solid ${tokens.colors.accent.primary}`,
+  boxShadow: isDragging ? '0 0 12px rgba(59, 130, 246, 0.8)' : '0 0 6px rgba(59, 130, 246, 0.4)',
   pointerEvents: 'none' as const,
+  zIndex: 15,
   top,
 });
 
+const playheadHandleStyles = {
+  position: 'absolute' as const,
+  left: `${8 + RAIL_WIDTH / 2}px`,
+  top: '-7px',
+  width: '14px',
+  height: '14px',
+  borderRadius: tokens.radii.full,
+  background: tokens.colors.accent.primary,
+  border: '2px solid #fff',
+  boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+  transform: 'translateX(-50%)',
+  cursor: 'grab',
+  pointerEvents: 'auto' as const,
+  '&:active': {
+    cursor: 'grabbing',
+  },
+};
+
 const playheadBadgeStyles = {
   position: 'absolute' as const,
-  left: '2px',
-  top: '-11px',
+  right: '8px',
+  top: '-12px',
   background: tokens.colors.accent.primary,
-  color: tokens.colors.text.primary,
-  fontSize: '10px',
+  color: '#fff',
+  fontSize: '10.5px',
   fontWeight: tokens.fontWeights.semibold,
-  padding: '2px 7px',
+  padding: '2px 8px',
   borderRadius: tokens.radii.sm,
+  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.4)',
+  whiteSpace: 'nowrap' as const,
 };
 
 function dayStartEpoch(date: string): number {
@@ -232,46 +277,116 @@ function fmtHour(h: number): string {
 }
 
 function fmtTime(ts: number): string {
-  return new Date(ts * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return new Date(ts * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function getEventSeverity(type: string): 'alert' | 'warn' | 'ok' {
+  if (type === 'unknown_face') return 'alert';
+  if (type === 'loitering') return 'warn';
+  return 'ok';
+}
+
+function getEventIcon(type: string) {
+  if (type === 'unknown_face') return <CircleAlert size={11} strokeWidth={2.2} />;
+  if (type === 'loitering') return <Clock size={11} strokeWidth={2.2} />;
+  if (type === 'known_face') return <UserCheck size={11} strokeWidth={2.2} />;
+  if (type === 'motion') return <AlertTriangle size={11} strokeWidth={2.2} />;
+  return <User size={11} strokeWidth={2.2} />;
 }
 
 export default function TimelineRail({ date, hours, events, playTs, onSeek }: TimelineRailProps) {
   const day0 = dayStartEpoch(date);
   const totalPx = 24 * HOUR_PX;
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const positioned = useMemo(() => {
-    return events
+  // Time conversion: Top is latest (day0 + 86400), bottom is earliest (day0)
+  const tsToY = (ts: number) => {
+    const offsetFromTop = day0 + 86400 - ts;
+    return TOP_PAD + (offsetFromTop / 86400) * totalPx;
+  };
+
+  const yToTs = (y: number) => {
+    const clampedY = Math.max(0, Math.min(totalPx, y - TOP_PAD));
+    const offsetFromTop = (clampedY / totalPx) * 86400;
+    return Math.round(day0 + 86400 - offsetFromTop);
+  };
+
+  // Pinned events with anti-collision vertical positioning
+  const positionedEvents = useMemo(() => {
+    const raw = events
       .map((ev) => {
         const ts = new Date(ev.timestamp).getTime() / 1000;
         const off = ts - day0;
         if (off < 0 || off > 86400) return null;
-        const seg = SEVERITY[ev.event_type] || SEVERITY.motion;
-        return { ...ev, ts, top: TOP_PAD + (off / 86400) * totalPx, ...seg };
+        const targetY = TOP_PAD + ((day0 + 86400 - ts) / 86400) * totalPx;
+        const severity = getEventSeverity(ev.event_type);
+        return {
+          ...ev,
+          ts,
+          top: targetY,
+          severity,
+        };
       })
       .filter((e): e is NonNullable<typeof e> => Boolean(e))
-      .sort((a, b) => b.ts - a.ts); // newest first (top)
+      .sort((a, b) => a.top - b.top); // sorted from top to bottom
+
+    // Stagger close events so thumbnails don't overlap completely (min 36px vertical gap)
+    const staggered = [...raw];
+    for (let i = 1; i < staggered.length; i++) {
+      const prev = staggered[i - 1];
+      const curr = staggered[i];
+      if (curr.top - prev.top < 38) {
+        curr.top = prev.top + 38;
+      }
+    }
+    return staggered;
   }, [events, day0, totalPx]);
 
-  const tsToY = (ts: number) => TOP_PAD + ((ts - day0) / 86400) * totalPx;
-
-  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top - TOP_PAD;
-    const clampedY = Math.max(0, Math.min(totalPx, y));
-    const epochS = day0 + (clampedY / totalPx) * 86400;
-    onSeek(Math.round(epochS));
+    const y = e.clientY - rect.top;
+    const epochS = yToTs(y);
+    onSeek(epochS);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const epochS = yToTs(y);
+    onSeek(epochS);
+  };
+
+  const handlePointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture may have already been released
+      }
+    }
   };
 
   return (
     <div css={tlContainerStyles}>
-      {/* Time axis labels */}
+      {/* Time axis scale (newest hour 23 down to 0) */}
       <div css={scaleStyles}>
         {Array.from({ length: 25 }, (_, i) => {
+          // i = 0 represents hour 24 (top/now), i = 24 represents hour 0 (bottom/midnight)
+          const hourNum = 24 - i;
           const top = TOP_PAD + i * HOUR_PX;
           return (
             <div key={i} css={hourRowStyles(top)}>
               <span css={hourLabelStyles} className="tnum">
-                {fmtHour(i % 24)}
+                {fmtHour(hourNum % 24)}
               </span>
               <span css={tickStyles} />
             </div>
@@ -281,10 +396,14 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }: Ti
 
       {/* Rail canvas */}
       <div
+        ref={canvasRef}
         css={canvasStyles(totalPx + TOP_PAD * 2)}
-        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => setIsDragging(false)}
         role="slider"
-        aria-label="Timeline — click to seek"
+        aria-label="Timeline scrubber — drag or click to seek"
         aria-valuemin={0}
         aria-valuemax={86400}
         aria-valuenow={playTs ? Math.round(playTs - day0) : undefined}
@@ -294,61 +413,78 @@ export default function TimelineRail({ date, hours, events, playTs, onSeek }: Ti
           if (e.key === 'ArrowDown') onSeek((playTs ?? day0) - 60);
         }}
       >
-        {/* Recorded-segment coverage behind the rail (blue bars) */}
+        {/* Continuous recording coverage bars (blue) */}
         <div css={railTrackStyles}>
-          {hours.map((h, i) =>
-            h.segment_minutes > 0 ? (
+          {hours.map((h) => {
+            if (h.segment_minutes <= 0) return null;
+            // Top of this hour (hour 23 is at top, hour 0 at bottom)
+            const hourTop = TOP_PAD + (23 - h.hour) * HOUR_PX;
+            const barHeight = Math.max(4, (h.segment_minutes / 60) * (HOUR_PX - 2));
+            return (
               <div
-                key={i}
-                css={coverageBarStyles(
-                  TOP_PAD + i * HOUR_PX + 2,
-                  Math.max(3, (h.segment_minutes / 60) * (HOUR_PX - 4)),
-                )}
+                key={h.hour}
+                css={coverageBarStyles(hourTop + 1, barHeight)}
+                title={`${h.hour}:00 - ${h.segment_minutes}m recorded`}
               />
-            ) : null,
-          )}
+            );
+          })}
         </div>
 
-        {/* Event blobs + connector + thumbnail rows */}
-        {positioned.map((ev) => (
-          <div key={ev.id} css={eventRowStyles(ev.top)}>
-            <span css={blobStyles(ev.tone)} />
-            <span css={connectorStyles} />
-            <span css={iconWrapperStyles(ev.tone)}>
-              <ev.icon size={11} strokeWidth={2} />
-            </span>
-            {ev.thumbnail_path ? (
-              <img
-                css={thumbStyles}
-                src={eventService.getThumbnailUrl(ev.id)}
-                crossOrigin="use-credentials"
-                alt=""
-                loading="lazy"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSeek(ev.ts);
-                }}
-              />
-            ) : (
-              <span
-                css={thumbEmptyStyles}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSeek(ev.ts);
-                }}
-              >
-                {fmtTime(ev.ts)}
-              </span>
-            )}
-            <span css={whenStyles} className="tnum">
-              {fmtTime(ev.ts)}
-            </span>
-          </div>
-        ))}
+        {/* Pinned event rows */}
+        {positionedEvents.map((ev) => {
+          const personOrType =
+            ev.person_name ||
+            (ev.event_type === 'unknown_face'
+              ? 'Unknown'
+              : ev.event_type === 'loitering'
+                ? 'Loitering'
+                : ev.event_type.replace('_', ' '));
 
-        {/* Playhead marker line */}
+          return (
+            <div key={ev.id} css={eventRowStyles(ev.top)}>
+              <span css={blobStyles(ev.severity)} />
+              <span css={connectorStyles} />
+              <span css={iconWrapperStyles(ev.severity)}>{getEventIcon(ev.event_type)}</span>
+
+              {ev.thumbnail_path ? (
+                <img
+                  css={thumbStyles}
+                  src={eventService.getThumbnailUrl(ev.id)}
+                  crossOrigin="use-credentials"
+                  alt={personOrType}
+                  loading="lazy"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSeek(ev.ts);
+                  }}
+                  title={`${personOrType} · ${fmtTime(ev.ts)}`}
+                />
+              ) : (
+                <span
+                  css={thumbEmptyStyles}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSeek(ev.ts);
+                  }}
+                >
+                  {fmtTime(ev.ts)}
+                </span>
+              )}
+
+              <div css={labelInfoStyles}>
+                <span css={personNameStyles}>{personOrType}</span>
+                <span css={whenStyles} className="tnum">
+                  {fmtTime(ev.ts)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Draggable playhead line + badge */}
         {playTs !== null && playTs >= day0 && playTs <= day0 + 86400 && (
-          <div css={playheadStyles(tsToY(playTs))}>
+          <div css={playheadStyles(tsToY(playTs), isDragging)}>
+            <div css={playheadHandleStyles} aria-label="Draggable playhead handle" />
             <span css={playheadBadgeStyles} className="tnum">
               {fmtTime(playTs)}
             </span>

@@ -52,15 +52,15 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 | Task | Description | Deps | Status | Commit | Notes |
 |------|-------------|------|--------|--------|-------|
-| S1.1 | Timestamp OSD Module (`src/camera/osd.py`) | — | ✅ | (this commit) | Top-right pill overlay, 4/4 tests passed |
-| S1.2 | Navigation rail + mobile bottom bar + routes | S1.1 | ✅ | (this commit) | 6 Lucide icons, safe-area-inset for mobile, clean build |
-| S1.3 | Camera Grid page (`CameraGridPage.tsx`) | S1.2 | ✅ | (this commit) | Auto/1x1/2x2/3x3/1+5 layouts, fullscreen F |
-| S2.1 | Dashboard recent events carousel | S1.2 | ✅ | (this commit) | 16:9 crops, touch snap, deep-link to playback |
-| S2.2 | Dashboard camera cards wall | S1.2 | ✅ | (this commit) | Hover-to-live stream, quick action buttons, FPS badge |
-| S2.3 | Dashboard system health mini-bar | S1.2 | ✅ | (this commit) | Storage, CPU, memory, events stats via GET /settings/system |
-| S3.1 | Scrypted vertical timeline scrubber | S1.2 | ⬜ | | Y-axis time, 58px scale, coverage bars, pinned thumbs |
-| S3.2 | Playback shell & mobile sticky player | S3.1 | ⬜ | | Desktop 1fr+340px, mobile sticky top player |
-| S3.3 | Video clip export action | S3.2 | ⬜ | | GET /recordings/{cam}/clip.mp4 |
+| S1.1 | Timestamp OSD Module (`src/camera/osd.py`) | — | ✅ | 6bcfd29 | Top-right pill overlay, 4/4 tests passed |
+| S1.2 | Navigation rail + mobile bottom bar + routes | S1.1 | ✅ | 6bcfd29 | 6 Lucide icons, safe-area-inset for mobile, clean build |
+| S1.3 | Camera Grid page (`CameraGridPage.tsx`) | S1.2 | ✅ | 6bcfd29 | Auto/1x1/2x2/3x3/1+5 layouts, fullscreen F |
+| S2.1 | Dashboard recent events carousel | S1.2 | ✅ | 6bcfd29 | 16:9 crops, touch snap, deep-link to playback |
+| S2.2 | Dashboard camera cards wall | S1.2 | ✅ | 6bcfd29 | Hover-to-live stream, quick action buttons, FPS badge |
+| S2.3 | Dashboard system health mini-bar | S1.2 | ✅ | 6bcfd29 | Storage, CPU, memory, events stats via GET /settings/system |
+| S3.1 | Scrypted vertical timeline scrubber | S1.2 | ✅ | (this commit) | Y-axis time, 58px scale, coverage bars, pinned thumbs |
+| S3.2 | Playback shell & mobile sticky player | S3.1 | ✅ | (this commit) | Desktop 1fr+340px, mobile sticky top player |
+| S3.3 | Video clip export action | S3.2 | ✅ | (this commit) | GET /recordings/{cam}/clip.mp4 |
 | S4.1 | Detections search & triage page | S1.2 | ⬜ | | Full-text query, date range, Dual view (Grid/List) |
 | S4.2 | Face-ID circular HUD guided wizard | S1.2 | ⬜ | | Non-linear pose progress ring, quality gates |
 | S4.3 | 1-click enroll from detection sighting | S4.1 | ⬜ | | Inline "Name this person" action |
@@ -378,6 +378,18 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - Strict design guardrails: `lucide-react` icons exclusively (0 emoji), design tokens from `tokens`, Emotion CSS, mobile responsiveness with fixed bottom bar and sticky top player on mobile playback.
 - Planned 4 backend changes: OSD module, Settings API router, Face quality gates & auto-enrichment, and Detections search/range query API.
 - Written to [scrypted-redesign-plan.md](./scrypted-redesign-plan.md) and initialized Phase S tasks in this file.
+
+### Session 7 — 2026-09-21 (Phase 3: Scrypted Vertical Timeline & Playback Shell)
+- Completed Phase 3:
+  - **S3.1 Scrypted Vertical Timeline Scrubber**: Y-axis time scale (top = most recent, bottom = past), 58px monospace hour labels with ticks, 12px continuous recording coverage bars with blue glow, pinned 16:9 thumbnails with anti-collision vertical staggering, object class icons (🚶 Person, 👤 Face, 🚨 Unknown, ⏳ Loitering), and draggable playhead rule with live timestamp pill.
+  - **S3.2 Playback Shell & Sticky Mobile Player**: Desktop split view (1fr player + 340px timeline), mobile sticky top player (`position: sticky; top: 0; z-index: 30; aspect-ratio: 16/9; background: #000`) with smooth timeline scrolling underneath; controls bar with play/pause, ±10s jumps, prev/next event jumps, speed switcher (0.5x, 1x, 2x, 4x), keyboard shortcuts (Space, J, K, L, [, ], F), camera switcher, date navigator, and live stream toggle.
+  - **S3.3 Video Clip Exporter**: Modal & toolbar action calling `GET /recordings/{cam}/clip.mp4?start={ts}&end={ts}` with preset durations (15s, 30s, 60s, 2m) and graceful handling when ffmpeg is uninstalled.
+- **Verification**:
+  - `uv run pytest tests/` — 129/129 passed.
+  - `npm run lint` — 0 errors.
+  - `tsc -b && vite build` — clean production build (367 kB bundle).
+  - Prettier formatting applied cleanly.
+  - Zero emoji across all TS/TSX verified with script (Lucide icons only).
 
 ### Session 6 — 2026-09-21 (Phase 1 & Phase 2: Scrypted Parity & Dashboard Polish)
 - Completed Phase 1 (S1.1 Timestamp OSD, S1.2 AppRail Navigation & Routing, S1.3 Camera Grid Page).
