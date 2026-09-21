@@ -33,6 +33,7 @@ members = [
 line-length = 100
 target-version = "py313"
 indent-width = 2
+fix = true
 
 [tool.ruff.lint]
 select = [

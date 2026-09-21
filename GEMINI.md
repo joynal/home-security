@@ -146,7 +146,7 @@ uv run main.py                        # Backend on :8000
 cd frontend && npm run dev            # Frontend on :5173
 
 # Lint & Build & Format
-uv run ruff check . && uv run ruff format .
+uv run ruff check . && uv run ruff format .  # auto-fixes safe violations (removes unused imports) and formats
 cd frontend && npm run lint && npm run build
 cd frontend && npm run format         # Prettier formatting
 ```

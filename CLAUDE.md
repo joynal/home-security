@@ -243,7 +243,7 @@ cd frontend && npm install       # Install JS dependencies
 cd frontend && npm run dev       # Start Vite dev server (port 5173)
 
 # Linting & Build
-uv run ruff check .              # Python lint
+uv run ruff check .              # Python lint (auto-fixes safe violations & removes unused imports)
 uv run ruff format .             # Python format
 cd frontend && npm run lint      # TS/TSX lint
 cd frontend && npm run build     # TS typecheck & Vite build
