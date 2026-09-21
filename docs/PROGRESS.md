@@ -4,7 +4,7 @@
 > Any agent (or human) resuming work reads this file FIRST to know where things stand.
 > Update it in the same commit as the work it describes — never in a separate "bookkeeping" commit.
 
-Source plans: [scrypted-redesign-plan.md](./scrypted-redesign-plan.md) (Current) · [implementation-plan-v2.md](./implementation-plan-v2.md) · [implementation-plan.md](./implementation-plan.md)
+Source plans: [review-fix-plan.md](./review-fix-plan.md) (Current) · [scrypted-redesign-plan.md](./scrypted-redesign-plan.md) (complete, its UI verdict is what review-fix-plan addresses) · [implementation-plan-v2.md](./implementation-plan-v2.md) · [implementation-plan.md](./implementation-plan.md)
 
 ---
 
@@ -46,7 +46,31 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 ## Task status
 
-### Phase S — Scrypted Redesign & Streamline (Current Plan)
+### Phase R — Review fixes & Timeline v2 (Current Plan)
+
+> Implementation guide: [review-fix-plan.md](./review-fix-plan.md) — from the 2026-09-21 full
+> review of `0a761fe..HEAD` (code pass + live CDP screenshots). Phase S shipped all features;
+> this phase fixes correctness (config footgun, dead controls, alerting, CRUD liveness) and
+> rebuilds the timeline geometry so it actually reads like Scrypted.
+
+| Task | Description | Deps | Status | Commit | Notes |
+|------|-------------|------|--------|--------|-------|
+| R13 | Restore data/cameras.json as only camera store; untrack root cameras.json (P0) | — | ⬜ | | config.py:23 precedence + save_cameras sync must go |
+| R19 | Commit CDP screenshot harness as scripts/ui_screenshot.mjs | — | ⬜ | | verification instrument for all UI tasks |
+| R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ⬜ | | frontend-only; absorbs timezone bug |
+| R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ⬜ | | default 400px/hour |
+| R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ⬜ | | extract pure placement fn to lib/timeline.ts |
+| R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
+| R6 | Mobile playback scroll fix (P0) | — | ⬜ | | shellStyles needs flex:1 + minHeight:0 |
+| R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ⬜ | | App.tsx:33 + PlaybackPage.tsx:304 |
+| R8 | Alert settings: live rebuild + data/settings.json persistence | — | ⬜ | | inference.py imports by value today |
+| R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ⬜ | | unify pipelines on state.pipelines |
+| R10 | RegisterModal auto-capture retry after gate failure | — | ⬜ | | effect deps stall |
+| R11 | P2 grab-bag: FPS fabrication, hide-mobile, 3x3 btn, focus-tile swap, touch-live, time helpers | — | ⬜ | | see plan table |
+| R12 | Auto-enrichment per-track throttle (SQLite off hot path) | — | ⬜ | | inference.py:411 |
+| R14–R18 | Optional: landing reorder, tile/card unify, B7.2 clips (ffmpeg now installed!), CPU profile, doc sweep | R2..R12 | ⬜ | | see plan §RO |
+
+### Phase S — Scrypted Redesign & Streamline (complete)
 
 > Implementation guide: [scrypted-redesign-plan.md](./scrypted-redesign-plan.md)
 
@@ -369,6 +393,14 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 ## Session log
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
+
+### Session 11 — 2026-09-21 (full review of 0a761fe..HEAD + fix plan)
+- Reviewed all 7 commits since 0a761fe (~8.5k lines): background code-review pass + personal verification of every finding + **live UI review** (running backend on :8000, fresh Vite on :5174, headless-Chrome CDP login + screenshots of all pages; seeded 3 clock-aligned test segments via OpenCV into data/recordings/test_camera/ + today's events).
+- **Why it doesn't feel like Scrypted** (measured, not opinion): HOUR_PX=58 fits the whole day in one screen; anti-collision stagger cascades 132 events into a 5,483px stack (position ≠ time, most rows below the scale); UTC rail ticks vs local badges on the same axis; gradient/glow chrome violates our own guardrails; hourly coverage bars instead of exact segments. Detections/Settings/AppRail are on-target.
+- Verified bugs: root cameras.json (committed in 949e688) overrides data/cameras.json and save_cameras overwrites it + can commit RTSP creds (P0); mobile playback unscrollable (P0, scrollBy no-op); /camera/:id literal-param redirect; camera select dead on /playback/:id; alert PATCH not live + not persisted; camera CRUD persistence-only; RegisterModal auto-capture stall; "15 FPS" fabrication; auto-enrich SQLite on hot path (61.5% CPU measured).
+- Environment updates: **ffmpeg is now installed** (/opt/homebrew/bin — B7.2/R16 unblocked); CLAUDE.md test count stale (136 now).
+- **Wrote [review-fix-plan.md](./review-fix-plan.md) + Phase R task rows above. NO implementation started.** Execution order: R13 → R19 → R2→R3→R4→R5 (timeline spine), R6/R7/R8/R9/R10/R11/R12 independent.
+- Review artifacts: screenshots in /tmp/aegis-shots/ (ephemeral), CDP driver scripts /tmp/aegis-shots.mjs + /tmp/aegis-debug*.mjs (to be committed as R19).
 
 ### Session 10 — 2026-09-21 (Phase 5: Scrypted Settings Suite, Camera CRUD, Diagnostics, Auth)
 - Completed Phase 5:
