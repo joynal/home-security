@@ -59,8 +59,8 @@ class CameraRecorder:
 
   def start(self):
     """Start FFmpeg recording process."""
-    if not self.config.record.enabled:
-      print(f'[Recorder] Skipping {self.config.id} (recording disabled)')
+    if not self.config.enabled or not self.config.record.enabled:
+      print(f'[Recorder] Skipping {self.config.id} (camera or recording disabled)')
       return
 
     # Backfill the index from any segments already on disk (downtime, first
@@ -282,7 +282,7 @@ class RecordingManager:
     self.recorders = {
       cam.id: CameraRecorder(cam, recordings_dir=recordings_dir, index=index)
       for cam in cameras
-      if cam.record.enabled
+      if cam.enabled and cam.record.enabled
     }
 
   def start_all(self):

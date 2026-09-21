@@ -26,7 +26,20 @@ class VideoFileCamera(CameraSource):
     self._delay = 0.0
 
   def start(self):
-    self.cap = cv2.VideoCapture(self.path)
+    from pathlib import Path
+
+    p = Path(self.path)
+    if not p.exists():
+      if 'test_people' in self.path:
+        from scripts.make_test_video import make_people_clip
+
+        make_people_clip(p)
+      elif 'test_clip' in self.path:
+        from scripts.make_test_video import make_synthetic_clip
+
+        make_synthetic_clip(p)
+
+    self.cap = cv2.VideoCapture(str(p))
     if not self.cap.isOpened():
       raise RuntimeError(f'Could not open video file: {self.path}')
     fps = self.cap.get(cv2.CAP_PROP_FPS)

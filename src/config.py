@@ -18,7 +18,9 @@ from src.models import CameraConfig
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / 'data'
 KNOWN_FACES_DIR = DATA_DIR / 'known_faces'
-CAMERAS_FILE = DATA_DIR / 'cameras.json'
+ROOT_CAMERAS_FILE = BASE_DIR / 'cameras.json'
+DATA_CAMERAS_FILE = DATA_DIR / 'cameras.json'
+CAMERAS_FILE = ROOT_CAMERAS_FILE if ROOT_CAMERAS_FILE.exists() else DATA_CAMERAS_FILE
 
 # Ensure directories exist
 os.makedirs(KNOWN_FACES_DIR, exist_ok=True)
@@ -52,9 +54,12 @@ NTFY_TOPIC = os.getenv('NTFY_TOPIC', '')  # e.g., "aegis-vision-alerts"
 
 
 def load_cameras() -> list[CameraConfig]:
-  """Load camera configs from data/cameras.json, or fall back to the legacy format."""
-  if CAMERAS_FILE.exists():
-    raw = json.loads(CAMERAS_FILE.read_text())
+  """Load camera configs from cameras.json (root or data/), or fall back to legacy format."""
+  file_to_load = CAMERAS_FILE
+  if not file_to_load.exists() and DATA_CAMERAS_FILE.exists():
+    file_to_load = DATA_CAMERAS_FILE
+  if file_to_load.exists():
+    raw = json.loads(file_to_load.read_text())
     return [CameraConfig(**c) for c in raw]
   # Legacy fallback — map the old flat dicts so existing Tapo configs aren't dropped
   return [
@@ -77,11 +82,19 @@ CAMERAS: list[CameraConfig] = load_cameras()
 
 
 def save_cameras(cameras: list[CameraConfig]) -> None:
-  """Atomically save camera configs to data/cameras.json and update global CAMERAS."""
+  """Atomically save camera configs to cameras.json and update global CAMERAS."""
   global CAMERAS
-  DATA_DIR.mkdir(parents=True, exist_ok=True)
+  CAMERAS_FILE.parent.mkdir(parents=True, exist_ok=True)
   tmp_file = CAMERAS_FILE.with_suffix('.json.tmp')
   data = [c.model_dump() for c in cameras]
-  tmp_file.write_text(json.dumps(data, indent=2))
+  payload = json.dumps(data, indent=2)
+  tmp_file.write_text(payload)
   tmp_file.replace(CAMERAS_FILE)
+
+  # Keep data/cameras.json in sync if root cameras.json is the active target
+  if CAMERAS_FILE == ROOT_CAMERAS_FILE and DATA_DIR.exists():
+    data_tmp = DATA_CAMERAS_FILE.with_suffix('.json.tmp')
+    data_tmp.write_text(payload)
+    data_tmp.replace(DATA_CAMERAS_FILE)
+
   CAMERAS = cameras

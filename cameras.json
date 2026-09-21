@@ -1,0 +1,52 @@
+[
+  {
+    "id": "macbook_webcam",
+    "name": "MacBook Webcam",
+    "type": "macbook",
+    "enabled": false,
+    "camera_index": 0,
+    "detect": {
+      "width": 640,
+      "height": 360,
+      "fps": 5,
+      "enabled": true
+    },
+    "record": {
+      "enabled": false,
+      "retain_days": 30,
+      "delete_only_if_disk_full": true,
+      "min_disk_free_gb": 10.0
+    },
+    "zones": []
+  },
+  {
+    "id": "test_camera",
+    "name": "Test Simulation Camera",
+    "type": "file",
+    "enabled": true,
+    "rtsp_url": "data/test_people.mp4",
+    "detect": {
+      "width": 640,
+      "height": 360,
+      "fps": 5,
+      "enabled": true
+    },
+    "record": {
+      "enabled": true,
+      "retain_days": 14,
+      "delete_only_if_disk_full": true,
+      "min_disk_free_gb": 10.0
+    },
+    "zones": [
+      {
+        "name": "entryway",
+        "coordinates": [
+          [40, 40],
+          [350, 40],
+          [350, 320],
+          [40, 320]
+        ]
+      }
+    ]
+  }
+]
