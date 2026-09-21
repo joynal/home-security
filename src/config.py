@@ -74,3 +74,14 @@ def load_cameras() -> list[CameraConfig]:
 
 
 CAMERAS: list[CameraConfig] = load_cameras()
+
+
+def save_cameras(cameras: list[CameraConfig]) -> None:
+  """Atomically save camera configs to data/cameras.json and update global CAMERAS."""
+  global CAMERAS
+  DATA_DIR.mkdir(parents=True, exist_ok=True)
+  tmp_file = CAMERAS_FILE.with_suffix('.json.tmp')
+  data = [c.model_dump() for c in cameras]
+  tmp_file.write_text(json.dumps(data, indent=2))
+  tmp_file.replace(CAMERAS_FILE)
+  CAMERAS = cameras

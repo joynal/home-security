@@ -75,6 +75,34 @@ def verify_password(plain: str) -> bool:
   return _pwd_ctx.verify(plain, _creds['hashed_password'])
 
 
+def validate_password_strength(password: str) -> tuple[bool, str]:
+  """Validate password strength (min 8 chars, uppercase, lowercase, digit)."""
+  if len(password) < 8:
+    return False, 'Password must be at least 8 characters long.'
+  if not any(c.isupper() for c in password):
+    return False, 'Password must contain at least one uppercase letter.'
+  if not any(c.islower() for c in password):
+    return False, 'Password must contain at least one lowercase letter.'
+  if not any(c.isdigit() for c in password):
+    return False, 'Password must contain at least one digit.'
+  return True, ''
+
+
+def update_password(new_password: str) -> None:
+  """Update admin password, write to credentials.json atomically, and refresh in-memory cache."""
+  global _creds
+  valid, error_msg = validate_password_strength(new_password)
+  if not valid:
+    raise ValueError(error_msg)
+  hashed = _pwd_ctx.hash(new_password)
+  creds = _load_credentials()
+  creds['hashed_password'] = hashed
+  tmp_file = CREDENTIALS_FILE.with_suffix('.tmp')
+  tmp_file.write_text(json.dumps(creds, indent=2))
+  tmp_file.replace(CREDENTIALS_FILE)
+  _creds = creds
+
+
 def get_username() -> str:
   username = _creds.get('username')
   if not isinstance(username, str):

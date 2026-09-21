@@ -76,3 +76,8 @@ registration_camera_id: str | None = None  # Set to CAMERAS[0].id at startup
 # Main FastAPI event loop, used to schedule async background tasks
 # from synchronous threads (like the inference thread).
 main_loop: asyncio.AbstractEventLoop | None = None
+
+# ── AI & Detection parameters (configurable via Settings) ──
+face_similarity_threshold: float = 0.40
+loitering_seconds: float = 30.0
+auto_enrichment_enabled: bool = True

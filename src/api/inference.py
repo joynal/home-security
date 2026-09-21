@@ -397,7 +397,10 @@ def inference_loop() -> None:
               # Task S4.4: Passive auto-enrichment loop
               sim = det.get('similarity', 0.0)
               if (
-                sim >= 0.62 and det.get('landmarks') is not None and state.person_store is not None
+                getattr(state, 'auto_enrichment_enabled', True)
+                and sim >= 0.62
+                and det.get('landmarks') is not None
+                and state.person_store is not None
               ):
                 pose_info = compute_pose(det['landmarks'], det['bbox'])
                 if pose_info['pose'] == 'center':

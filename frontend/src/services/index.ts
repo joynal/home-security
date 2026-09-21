@@ -6,3 +6,4 @@ export * from './faces';
 export * from './recordings';
 export * from './register';
 export * from './system';
+export * from './settings';

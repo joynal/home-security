@@ -61,12 +61,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | S3.1 | Scrypted vertical timeline scrubber | S1.2 | ✅ | f3126e7 | Y-axis time, 58px scale, coverage bars, pinned thumbs |
 | S3.2 | Playback shell & mobile sticky player | S3.1 | ✅ | f3126e7 | Desktop 1fr+340px, mobile sticky top player |
 | S3.3 | Video clip export action | S3.2 | ✅ | f3126e7 | GET /recordings/{cam}/clip.mp4 |
-| S4.1 | Detections search & triage page | S1.2 | ✅ | (this commit) | Full-text query, date range, Dual view (Grid/List), side drawer |
-| S4.2 | Face-ID circular HUD guided wizard | S1.2 | ✅ | (this commit) | Non-linear pose progress ring, quality gates (blur/brightness/size) |
-| S4.3 | 1-click enroll from detection sighting | S4.1 | ✅ | (this commit) | Inline "Name this person" action via addFaceFromEvent |
-| S4.4 | Passive auto-enrichment loop | S1.1 | ✅ | (this commit) | Auto-save high-confidence (>=0.62) frontal sightings in inference |
-| S5.1 | Settings backend API router | — | ⬜ | | Config update, camera CRUD, test alerts, vacuum |
-| S5.2 | Settings frontend tabbed suite | S5.1 | ⬜ | | System/storage, cameras + zone editor, AI, alerts, auth |
+| S4.1 | Detections search & triage page | S1.2 | ✅ | 7136530 | Full-text query, date range, Dual view (Grid/List), side drawer |
+| S4.2 | Face-ID circular HUD guided wizard | S1.2 | ✅ | 7136530 | Non-linear pose progress ring, quality gates (blur/brightness/size) |
+| S4.3 | 1-click enroll from detection sighting | S4.1 | ✅ | 7136530 | Inline "Name this person" action via addFaceFromEvent |
+| S4.4 | Passive auto-enrichment loop | S1.1 | ✅ | 7136530 | Auto-save high-confidence (>=0.62) frontal sightings in inference |
+| S5.1 | Settings backend API router | — | ✅ | (this commit) | Config update, camera CRUD, test alerts, vacuum, password change |
+| S5.2 | Settings frontend tabbed suite | S5.1 | ✅ | (this commit) | 5-tab suite: storage bar, camera CRUD, AI sliders, test alerts, auth |
 
 ### Phase B — Backend: timeline + faces (plan v2)
 
@@ -369,6 +369,23 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 ## Session log
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
+
+### Session 10 — 2026-09-21 (Phase 5: Scrypted Settings Suite, Camera CRUD, Diagnostics, Auth)
+- Completed Phase 5:
+  - **S5.1 Settings Backend API Router**: Enhanced `src/api/routers/settings.py` with typed endpoints: `GET /settings/config` & `PATCH /settings/config` (storage retention, AI vision parameters, alerts provider), Camera CRUD (`POST /settings/cameras`, `PUT /settings/cameras/{id}`, `DELETE /settings/cameras/{id}`) with atomic POSIX file replacement (`data/cameras.json.tmp` -> `data/cameras.json`), stream connection verification `POST /settings/cameras/test` via OpenCV, test alert dispatch `POST /settings/alerts/test` (console, telegram, ntfy), database optimization `POST /settings/system/vacuum`, and admin password update `POST /settings/security/change-password` with strength validation and memory cache sync. Added comprehensive unit tests in `tests/test_settings_api.py`.
+  - **S5.2 Settings Frontend Tabbed Suite**: Implemented `frontend/src/pages/SettingsPage.tsx` with 5 Scrypted-style tabs:
+    - *System & Storage*: Live storage breakdown visual meter (recordings, thumbnails, SQLite db, free volume), retention window slider, minimum free disk space threshold input, and SQLite vacuum maintenance.
+    - *Cameras & Zones*: Camera cards wall with live stream resolution/FPS, Add Camera modal, RTSP / Webcam stream handshake tester, polygon activity zones viewer & editor, and delete confirmation dialog.
+    - *AI & Detection*: InsightFace ArcFace similarity matching threshold slider, loitering timeout slider, and passive auto-enrichment toggle.
+    - *Alerts & Notifications*: Provider selector (Console / Telegram / ntfy.sh), credential inputs with masking, and instant test alert trigger with toast feedback.
+    - *Security & Auth*: Admin password update form with eye reveal toggles and real-time password strength checklist.
+  - Created `frontend/src/services/settings.ts` service layer and updated `types/index.ts`.
+- **Verification**:
+  - `uv run pytest tests/` — 136/136 passed (all 7 new settings test suites green).
+  - `uv run ruff check . && uv run ruff format .` — All checks passed, clean formatting.
+  - `npm run lint` — 0 errors, 0 warnings.
+  - `tsc -b && vite build` — clean production build (410 kB bundle).
+  - Accurate Unicode script verified 0 emojis across all frontend code (exclusively Lucide icons).
 
 ### Session 9 — 2026-09-21 (Phase 4: Detections Search & Triage, Quality Gates, Auto-Enrichment)
 - Completed Phase 4:

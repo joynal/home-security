@@ -24,6 +24,7 @@ from passlib.context import CryptContext
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.api.auth import validate_password_strength
 from src.config import DATA_DIR
 
 
@@ -35,12 +36,10 @@ def get_credentials_file(data_dir: Path) -> Path:
 def load_credentials(creds_file: Path) -> dict:
   """Load existing credentials from file, or return default structure if file doesn't exist."""
   if not creds_file.exists():
-    # Return default credentials structure for new setup
     return {
       'username': 'admin',
       'hashed_password': '',
     }
-
   with open(creds_file) as f:
     return json.load(f)
 
@@ -50,28 +49,6 @@ def save_credentials(creds_file: Path, credentials: dict) -> None:
   creds_file.parent.mkdir(parents=True, exist_ok=True)
   with open(creds_file, 'w') as f:
     json.dump(credentials, f, indent=2)
-
-
-def validate_password_strength(password: str) -> tuple[bool, str]:
-  """
-  Validate password strength.
-
-  Returns:
-      tuple: (is_valid, error_message)
-  """
-  if len(password) < 8:
-    return False, 'Password must be at least 8 characters long.'
-
-  if not any(c.isupper() for c in password):
-    return False, 'Password must contain at least one uppercase letter.'
-
-  if not any(c.islower() for c in password):
-    return False, 'Password must contain at least one lowercase letter.'
-
-  if not any(c.isdigit() for c in password):
-    return False, 'Password must contain at least one digit.'
-
-  return True, ''
 
 
 def set_password(new_password: str, data_dir: Path) -> None:

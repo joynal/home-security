@@ -149,3 +149,78 @@ export interface SystemHealthResponse {
   cameras_total: number;
   events_today: number;
 }
+
+export interface AppRetentionConfig {
+  retain_days: number;
+  min_disk_free_gb: number;
+  delete_only_if_disk_full: boolean;
+}
+
+export interface AppAIConfig {
+  similarity_threshold: number;
+  loitering_seconds: number;
+  auto_enrichment: boolean;
+}
+
+export interface AppAlertsConfig {
+  active: string;
+  telegram_configured: boolean;
+  telegram_chat_id: string;
+  ntfy_topic: string;
+}
+
+export interface ZoneDto {
+  name: string;
+  coordinates: number[][];
+}
+
+export interface CameraConfigDto {
+  id: string;
+  name: string;
+  type: string;
+  enabled?: boolean;
+  rtsp_url?: string | null;
+  rtsp_sub_url?: string | null;
+  camera_index?: number;
+  detect?: {
+    width?: number;
+    height?: number;
+    fps?: number;
+    enabled?: boolean;
+  };
+  record?: {
+    enabled?: boolean;
+    retain_days?: number;
+    segment_seconds?: number;
+    delete_only_if_disk_full?: boolean;
+    min_disk_free_gb?: number;
+  };
+  zones?: ZoneDto[];
+}
+
+export interface AppSettingsConfig {
+  cameras: CameraConfigDto[];
+  active_alert: string;
+  retention: AppRetentionConfig;
+  ai: AppAIConfig;
+  alerts: AppAlertsConfig;
+}
+
+export interface VacuumResponse {
+  success: boolean;
+  size_before_mb: number;
+  size_after_mb: number;
+}
+
+export interface CameraTestResponse {
+  success: boolean;
+  width?: number;
+  height?: number;
+  fps?: number;
+  error?: string | null;
+}
+
+export interface AlertTestResponse {
+  success: boolean;
+  detail: string;
+}
