@@ -62,7 +62,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ✅ | (this commit) | 132 events → 27 clustered pins; scrollHeight = rail height |
 | R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
 | R6 | Mobile playback scroll fix (P0) | — | ✅ | (this commit) | flex:1 + minHeight:0 on the mobile shell |
-| R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ⬜ | | App.tsx:33 + PlaybackPage.tsx:304 |
+| R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ✅ | (this commit) | verified live via CDP both paths |
 | R8 | Alert settings: live rebuild + data/settings.json persistence | — | ⬜ | | inference.py imports by value today |
 | R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ⬜ | | unify pipelines on state.pipelines |
 | R10 | RegisterModal auto-capture retry after gate failure | — | ⬜ | | effect deps stall |
@@ -431,6 +431,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: harness `--mobile` pass (/tmp/r6-verify): scrolled shot 08 now shows rail content moving under the docked sticky 16:9 player (hour ticks 9:00/8:30/8:00 PM pass beneath) where the pre-fix shot was pixel-identical to unscrolled. Harness mobile scroll retargeted to the real scroller (shell div, with fallback). lint + build clean.
 - **Deviations**: none.
+
+### Task R7 — legacy redirect + camera selector
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: lint + build clean. Live CDP: `/camera/test_camera` → `/playback/test_camera` with the camera select holding `test_camera` (was: literal `:cameraId` broken page). Switching cameras from a `/playback/:id` URL → URL `/playback?cam=macbook_webcam&date=…` and the select keeps the new value (was: silent snap-back to the path camera).
+- **Deviations**: handleCameraChange navigates to the query-param form (replace) instead of setSearchParams — the path segment would keep shadowing `activeCameraId = pathCamId || camParam` otherwise.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

@@ -557,7 +557,11 @@ export default function PlaybackPage() {
   };
 
   const handleCameraChange = (newCamId: string) => {
-    setSearchParams({ cam: newCamId, date });
+    // Navigate to the query-param form (not just setSearchParams) — on a
+    // /playback/:id URL the stale path segment would keep shadowing the
+    // selection (activeCameraId = pathCamId || camParam) and the select
+    // would silently snap back.
+    navigate(`/playback?cam=${encodeURIComponent(newCamId)}&date=${date}`, { replace: true });
   };
 
   // Keyboard controls (Space, J, K, L, [, ], F)
