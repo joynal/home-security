@@ -136,3 +136,73 @@ def test_person_name_filter(tmp_path):
   assert db.count(person_name='joynal') == 1
   assert db.count(event_type='known_face', person_name='alice') == 1
   assert db.query(person_name='joynal')[0]['person_name'] == 'joynal'
+
+
+# ── Task R12: auto-enrichment per-track throttle ──────────────────────────
+
+
+def test_enrich_due_throttles_per_track(monkeypatch):
+  """_enrich_due returns True once per window per (camera, track) — the guard
+  sits BEFORE the person-store SQLite calls on the hot path."""
+  from src.api import inference
+
+  inference._last_enrich_attempt.clear()
+
+  clock = {'now': 1000.0}
+  monkeypatch.setattr(inference.time, 'monotonic', lambda: clock['now'])
+
+  assert inference._enrich_due('cam1', 7) is True  # first sighting
+  assert inference._enrich_due('cam1', 7) is False  # same track, same window
+  assert inference._enrich_due('cam1', 8) is True  # other track → own window
+  assert inference._enrich_due('cam2', 7) is True  # other camera → own window
+
+  clock['now'] += 61.0
+  assert inference._enrich_due('cam1', 7) is True  # window elapsed → due again
+
+  inference._last_enrich_attempt.clear()
+
+
+def test_enrich_throttle_skips_store_calls_between_windows(monkeypatch):
+  """The enrich branch short-circuits: with the track not due, compute_pose and
+  the person-store are never touched."""
+  from src.api import inference
+  from src.api import state
+
+  inference._last_enrich_attempt.clear()
+
+  class Boom:
+    def __getattr__(self, name):
+      raise AssertionError(f'person_store.{name} called while throttled')
+
+  monkeypatch.setattr(state, 'person_store', Boom())
+  monkeypatch.setattr(state, 'auto_enrichment_enabled', True)
+  called = []
+  monkeypatch.setattr(
+    inference, 'compute_pose', lambda *a, **k: called.append(1) or {'pose': 'center'}
+  )
+
+  det = {'similarity': 0.9, 'landmarks': [[1, 2]] * 5, 'bbox': [0, 0, 200, 200], 'track_id': 3}
+  frame = None  # never reached while throttled
+  name = 'Joynal'
+
+  clock = {'now': 100_000.0}
+  monkeypatch.setattr(inference.time, 'monotonic', lambda: clock['now'])
+
+  def run_branch():
+    # mirrors the loop's enrich condition incl. the throttle guard
+    if (
+      getattr(state, 'auto_enrichment_enabled', True)
+      and det['similarity'] >= 0.62
+      and det.get('landmarks') is not None
+      and state.person_store is not None
+      and inference._enrich_due('cam1', det['track_id'])
+    ):
+      return inference.compute_pose(det['landmarks'], det['bbox'])
+    return None
+
+  assert run_branch() is not None  # first attempt evaluates pose
+  clock['now'] += 1.0
+  assert run_branch() is None  # throttled: no pose, no store
+  assert called == [1]
+
+  inference._last_enrich_attempt.clear()

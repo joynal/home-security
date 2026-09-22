@@ -151,6 +151,26 @@ EVENT_COOLDOWN_SECONDS = 30.0
 # enough for "last seen" + counts without flooding.
 KNOWN_EVENT_COOLDOWN_SECONDS = 60.0
 
+# Auto-enrichment per-track retry window (Task R12). The gate check (pose,
+# person-store lookups, quality_check, imwrite) must not run every frame —
+# once per track per window regardless of outcome (success or gate failure).
+AUTO_ENRICH_RETRY_SECONDS = 60.0
+_last_enrich_attempt: dict[str, float] = {}  # 'cam:track' → monotonic ts (loop thread only)
+
+
+def _enrich_due(cam_id: str, track_id) -> bool:
+  """True at most once per AUTO_ENRICH_RETRY_SECONDS per (camera, track)."""
+  key = f'{cam_id}:{track_id}'
+  now = time.monotonic()
+  if now - _last_enrich_attempt.get(key, 0.0) < AUTO_ENRICH_RETRY_SECONDS:
+    return False
+  _last_enrich_attempt[key] = now
+  if len(_last_enrich_attempt) > 256:  # prune stale track keys
+    cutoff = now - AUTO_ENRICH_RETRY_SECONDS
+    for stale in [k for k, ts in _last_enrich_attempt.items() if ts < cutoff]:
+      del _last_enrich_attempt[stale]
+  return True
+
 # Event/thumbnail retention sweep cadence (disk-aware — only prunes when low).
 EVENT_RETENTION_SWEEP_SECONDS = 900.0
 
@@ -426,6 +446,7 @@ def inference_loop() -> None:
                 and sim >= 0.62
                 and det.get('landmarks') is not None
                 and state.person_store is not None
+                and _enrich_due(cam_id, det['track_id'])
               ):
                 pose_info = compute_pose(det['landmarks'], det['bbox'])
                 if pose_info['pose'] == 'center':
