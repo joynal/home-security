@@ -35,7 +35,6 @@ import src.api.state as state
 from src.api.auth import get_current_user
 from src.api.auth import update_password
 from src.api.auth import verify_password
-from src.config import CAMERAS
 from src.config import RECORDINGS_DIR
 from src.config import THUMBNAILS_DIR
 from src.config import save_cameras
@@ -139,11 +138,15 @@ def get_system_health(_: str = Depends(get_current_user)):
   except Exception:
     memory_mb = 0.0
 
-  # Cameras status
-  cameras_total = len(CAMERAS)
+  # Cameras status — read config live (module attr), count ENABLED cameras only
+  # (the by-value import went stale after camera CRUD; disabled cams aren't monitored)
+  import src.config as config
+
+  enabled_cams = [c for c in config.CAMERAS if c.enabled]
+  cameras_total = len(enabled_cams)
   cameras_online = 0
   with state.camera_status_lock:
-    for c in CAMERAS:
+    for c in enabled_cams:
       if state.camera_status.get(c.id, {}).get('online', False):
         cameras_online += 1
 
@@ -311,7 +314,7 @@ def update_config(req: ConfigUpdateRequest, _: str = Depends(get_current_user)):
 
 @router.post('/cameras')
 def add_camera(cam: CameraConfig, _: str = Depends(get_current_user)):
-  """Add a new camera configuration with atomic persistence."""
+  """Add a camera: persist AND start its stream/recorder live (Task R9)."""
   import src.config as config
 
   if any(c.id == cam.id for c in config.CAMERAS):
@@ -322,14 +325,20 @@ def add_camera(cam: CameraConfig, _: str = Depends(get_current_user)):
 
   new_cameras = list(config.CAMERAS) + [cam]
   save_cameras(new_cameras)
-  with state.camera_status_lock:
-    state.camera_status[cam.id] = {'online': False, 'fps': 0.0, 'last_frame_at': None}
+
+  from src.api.inference import start_camera_stream
+
+  if cam.enabled:
+    started = start_camera_stream(cam)
+    if state.recording_manager is not None and started:
+      state.recording_manager.start_camera(cam)
+
   return cam
 
 
 @router.put('/cameras/{camera_id}')
 def update_camera(camera_id: str, updated_cam: CameraConfig, _: str = Depends(get_current_user)):
-  """Update an existing camera configuration."""
+  """Update a camera; restart its stream live when connection params change."""
   import src.config as config
 
   idx = next((i for i, c in enumerate(config.CAMERAS) if c.id == camera_id), None)
@@ -338,15 +347,38 @@ def update_camera(camera_id: str, updated_cam: CameraConfig, _: str = Depends(ge
       status_code=status.HTTP_404_NOT_FOUND, detail=f"Camera '{camera_id}' not found"
     )
 
+  old = config.CAMERAS[idx]
   new_cameras = list(config.CAMERAS)
   new_cameras[idx] = updated_cam
   save_cameras(new_cameras)
+
+  from src.api.inference import ensure_pipeline
+  from src.api.inference import start_camera_stream
+  from src.api.inference import stop_camera_stream
+
+  connection_changed = (
+    old.type != updated_cam.type
+    or old.rtsp_url != updated_cam.rtsp_url
+    or old.rtsp_sub_url != updated_cam.rtsp_sub_url
+    or old.camera_index != updated_cam.camera_index
+    or old.enabled != updated_cam.enabled
+  )
+  if connection_changed:
+    if old.enabled:
+      stop_camera_stream(camera_id)
+    if updated_cam.enabled:
+      start_camera_stream(updated_cam)
+      if state.recording_manager is not None:
+        state.recording_manager.start_camera(updated_cam)
+  elif updated_cam.enabled and old.zones != updated_cam.zones:
+    ensure_pipeline(updated_cam)  # zones feed the pipeline; refresh in place
+
   return updated_cam
 
 
 @router.delete('/cameras/{camera_id}')
 def delete_camera(camera_id: str, _: str = Depends(get_current_user)):
-  """Delete a camera configuration and clean up its status."""
+  """Delete a camera: stop its live stream/pipeline/recorder, then persist."""
   import src.config as config
 
   idx = next((i for i, c in enumerate(config.CAMERAS) if c.id == camera_id), None)
@@ -358,11 +390,9 @@ def delete_camera(camera_id: str, _: str = Depends(get_current_user)):
   new_cameras = [c for c in config.CAMERAS if c.id != camera_id]
   save_cameras(new_cameras)
 
-  with state.camera_status_lock:
-    state.camera_status.pop(camera_id, None)
-  with state.frames_lock:
-    state.latest_frames.pop(camera_id, None)
-    state.latest_jpeg_bytes.pop(camera_id, None)
+  from src.api.inference import stop_camera_stream
+
+  stop_camera_stream(camera_id)  # stream + pipeline + recorder + caches + status
 
   return {'success': True, 'id': camera_id}
 

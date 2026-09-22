@@ -58,8 +58,8 @@ def env(tmp_path, monkeypatch):
     CameraConfig(id='cam1', name='Camera 1', type='macbook'),
     CameraConfig(id='cam2', name='Camera 2', type='macbook'),
   ]
+  # Task R9: the router reads src.config.CAMERAS live (no by-value import to patch)
   monkeypatch.setattr('src.config.CAMERAS', list(test_cameras))
-  monkeypatch.setattr('src.api.routers.settings.CAMERAS', list(test_cameras))
 
   # Set credentials for password tests
   pwd_ctx = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -144,36 +144,105 @@ def test_get_and_patch_config(env):
   assert updated_cfg['retention']['retain_days'] == 14
 
 
-def test_camera_crud(env):
-  # 1. Add camera
+def test_camera_crud(env, monkeypatch):
+  """Task R9: CRUD is LIVE — add starts a stream, delete stops it, connection
+  changes restart. Lifecycle helpers are patched so no real device opens."""
+  import src.api.inference as inference
+
+  lifecycle = {'started': [], 'stopped': []}
+  monkeypatch.setattr(inference, 'start_camera_stream', lambda cfg: lifecycle['started'].append(cfg.id) or True)
+  monkeypatch.setattr(inference, 'stop_camera_stream', lambda cam_id: lifecycle['stopped'].append(cam_id))
+
+  # 1. Add camera → stream started
   new_cam = CameraConfig(id='porch_cam', name='Porch Camera', type='macbook')
   added = add_camera(new_cam)
   assert added.id == 'porch_cam'
+  assert lifecycle['started'] == ['porch_cam']
 
   # Attempt duplicate add -> 409
   with pytest.raises(HTTPException) as exc_info:
     add_camera(new_cam)
   assert exc_info.value.status_code == 409
 
-  # 2. Update camera
+  # 2. Update camera: cosmetic change (name only) → no restart
   updated = CameraConfig(id='porch_cam', name='Porch Cam Renamed', type='macbook')
   res_updated = update_camera('porch_cam', updated)
   assert res_updated.name == 'Porch Cam Renamed'
+  assert lifecycle['stopped'] == []
+
+  # 2b. Update with a connection change (different camera_index) → restart
+  res_updated = update_camera(
+    'porch_cam', CameraConfig(id='porch_cam', name='Porch Cam Renamed', type='macbook', camera_index=1)
+  )
+  assert res_updated.camera_index == 1
+  assert lifecycle['stopped'] == ['porch_cam']
+  assert lifecycle['started'] == ['porch_cam', 'porch_cam']
 
   # Update non-existent -> 404
   with pytest.raises(HTTPException) as exc_info:
     update_camera('non_existent', updated)
   assert exc_info.value.status_code == 404
 
-  # 3. Delete camera
+  # 3. Delete camera → lifecycle stop invoked
   del_res = delete_camera('porch_cam')
   assert del_res['success'] is True
   assert del_res['id'] == 'porch_cam'
+  assert lifecycle['stopped'] == ['porch_cam', 'porch_cam']
 
   # Delete non-existent -> 404
   with pytest.raises(HTTPException) as exc_info:
     delete_camera('porch_cam')
   assert exc_info.value.status_code == 404
+
+
+def test_stop_camera_stream_clears_everything(monkeypatch):
+  """The real helper: stream.stop() called; pipeline, recorder, status, frames
+  and jpeg caches all cleaned up."""
+  from src.api import inference
+
+  stopped = []
+
+  class FakeStream:
+    def stop(self):
+      stopped.append(1)
+
+  class FakeRecorderMgr:
+    def __init__(self):
+      self.stopped = []
+
+    def stop_camera(self, cam_id):
+      self.stopped.append(cam_id)
+
+  mgr = FakeRecorderMgr()
+  monkeypatch.setattr(state, 'recording_manager', mgr)
+  monkeypatch.setattr(state, 'active_streams', {'camx': FakeStream()})
+  monkeypatch.setattr(state, 'pipelines', {'camx': object()})
+  monkeypatch.setattr(state, 'camera_status', {'camx': {'online': True}})
+  monkeypatch.setattr(state, 'latest_frames', {'camx': 'f'})
+  monkeypatch.setattr(state, 'latest_jpeg_bytes', {'camx': 'j'})
+  monkeypatch.setattr(inference, '_fps_counters', {'camx': object()})
+
+  inference.stop_camera_stream('camx')
+
+  assert stopped == [1]
+  assert mgr.stopped == ['camx']
+  assert 'camx' not in state.active_streams
+  assert 'camx' not in state.pipelines
+  assert 'camx' not in state.camera_status
+  assert 'camx' not in state.latest_frames
+  assert 'camx' not in state.latest_jpeg_bytes
+
+
+def test_system_health_counts_enabled_cameras_only(env, monkeypatch):
+  import src.config as config
+
+  cam1, cam2 = config.CAMERAS
+  monkeypatch.setattr(config, 'CAMERAS', [cam1, cam2.model_copy(update={'enabled': False})])
+  with state.camera_status_lock:
+    state.camera_status['cam1'] = {'online': True, 'fps': 15.0}
+  health = get_system_health()
+  assert health['cameras_total'] == 1  # disabled cam2 not counted
+  assert health['cameras_online'] == 1
 
 
 def test_test_camera_connection_file(tmp_path, monkeypatch):

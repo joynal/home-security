@@ -279,6 +279,10 @@ class RecordingManager:
     recordings_dir: Path | None = None,
     index: RecordingIndex | None = None,
   ):
+    # Remember ctor args so cameras added at runtime (Settings CRUD) can get
+    # recorders with the same output dir + index.
+    self._recordings_dir = recordings_dir
+    self._index = index
     self.recorders = {
       cam.id: CameraRecorder(cam, recordings_dir=recordings_dir, index=index)
       for cam in cameras
@@ -289,6 +293,20 @@ class RecordingManager:
     for recorder in self.recorders.values():
       recorder.start()
     print(f'[RecordingManager] Started {len(self.recorders)} recorders')
+
+  def start_camera(self, cam: CameraConfig) -> None:
+    """Start a recorder for a camera added at runtime (no-op if recording off)."""
+    if not (cam.enabled and cam.record.enabled) or cam.id in self.recorders:
+      return
+    recorder = CameraRecorder(cam, recordings_dir=self._recordings_dir, index=self._index)
+    self.recorders[cam.id] = recorder
+    recorder.start()
+
+  def stop_camera(self, camera_id: str) -> None:
+    """Stop one camera's recorder (live camera deletion/update)."""
+    recorder = self.recorders.pop(camera_id, None)
+    if recorder is not None:
+      recorder.stop()
 
   def stop_all(self):
     for recorder in self.recorders.values():

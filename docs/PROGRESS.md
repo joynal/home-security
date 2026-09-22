@@ -64,7 +64,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R6 | Mobile playback scroll fix (P0) | — | ✅ | (this commit) | flex:1 + minHeight:0 on the mobile shell |
 | R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ✅ | (this commit) | verified live via CDP both paths |
 | R8 | Alert settings: live rebuild + data/settings.json persistence | — | ✅ | (this commit) | 5 new tests; live-restart check deferred to next server restart |
-| R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ⬜ | | unify pipelines on state.pipelines |
+| R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ✅ | (this commit) | live add/delete check deferred to next server restart |
 | R10 | RegisterModal auto-capture retry after gate failure | — | ✅ | (this commit) | captureAttempt dep re-arms countdown; live face check deferred to user |
 | R11 | P2 grab-bag: FPS fabrication, hide-mobile, 3x3 btn, focus-tile swap, touch-live, time helpers | — | ⬜ | | see plan table |
 | R12 | Auto-enrichment per-track throttle (SQLite off hot path) | — | ✅ | (this commit) | `_enrich_due` guard: ≤1 store touch/min/track |
@@ -461,6 +461,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 148/148 pytest green (2 new: per-(cam,track) window semantics incl. other-track/other-camera isolation + window expiry; throttled branch never touches compute_pose or the person store — asserted with a trap object). ruff clean. `_enrich_due` sits inside the enrich condition before any SQLite/imwrite; stale-track pruning at >256 keys.
 - **Deviations**: throttle dict lives in `inference` module scope (loop-thread-only — no lock needed) instead of `state`, per the plan's "state.last_enrich_attempt" sketch; same behavior, less locking.
+
+### Task R9 — camera CRUD goes live
+- **Status**: ✅ (live add/delete against a restarted server deferred — dev :8000 process predates this code)
+- **Commit**: (this commit)
+- **Verified**: 150/150 pytest green (CRUD test now asserts lifecycle: add → `start_camera_stream`, connection-change update → stop+start, cosmetic update → no restart, delete → `stop_camera_stream`; NEW `test_stop_camera_stream_clears_everything` (real helper: stream.stop + recorder stop + pipeline/status/frames/jpeg/fps cleanup); NEW enabled-only `/settings/system` count test). ruff clean.
+- **Deviations**: (1) fps counters moved from loop-local to `inference._fps_counters` (loop + lifecycle helpers share; setdefault guards runtime-added cams). (2) Loop uses `state.pipelines` (the previously dead state slot) with lazy `ensure_pipeline` fallback. (3) `RecordingManager.start_camera/stop_camera` added (stores ctor dir/index for runtime starts). (4) CRUD test previously started the REAL macbook webcam — now lifecycle-patched. Fixture updated for the removed by-value `settings.CAMERAS` import.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

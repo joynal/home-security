@@ -236,6 +236,66 @@ def _log_detection_event(
 
 
 # ──────────────────────────────────────────────────────────
+# Live camera lifecycle (loop startup AND Settings camera CRUD — Task R9)
+# ──────────────────────────────────────────────────────────
+
+_fps_counters: dict[str, '_FpsCounter'] = {}  # inference thread + lifecycle helpers
+
+
+def ensure_pipeline(cam: CameraConfig) -> None:
+  """(Re)create the cascading pipeline for a camera on state.pipelines.
+
+  The registration camera bypasses the motion gate (see loop comment below).
+  """
+  is_reg_cam = cam.id == state.registration_camera_id
+  state.pipelines[cam.id] = DetectionPipeline(
+    recognizer=state.recognizer,
+    enable_motion_filter=not is_reg_cam,
+    zones=[z.model_dump() for z in cam.zones],
+  )
+
+
+def start_camera_stream(cam_config: CameraConfig) -> bool:
+  """Build, start, and register a camera stream + pipeline + fps counter."""
+  try:
+    stream = CameraStreamWrapper(camera=build_camera(cam_config), name=cam_config.name)
+    stream.start()
+  except Exception as exc:
+    print(f'  ✗ Camera failed to start ({cam_config.id}): {exc}')
+    with state.camera_status_lock:
+      state.camera_status[cam_config.id] = {'online': False, 'fps': 0, 'error': str(exc)}
+    state.active_streams.pop(cam_config.id, None)
+    return False
+  state.active_streams[cam_config.id] = stream
+  _fps_counters[cam_config.id] = _FpsCounter()
+  ensure_pipeline(cam_config)
+  with state.camera_status_lock:
+    state.camera_status[cam_config.id] = {'online': True, 'fps': 0, 'error': None}
+  print(f'  ✓ Camera started: {cam_config.name}')
+  return True
+
+
+def stop_camera_stream(cam_id: str) -> None:
+  """Tear down a camera's stream, pipeline, recorder, and cached frames."""
+  stream = state.active_streams.pop(cam_id, None)
+  if stream is not None:
+    try:
+      stream.stop()
+    except Exception as exc:
+      print(f'  ✗ Camera stop error ({cam_id}): {exc}')
+  state.pipelines.pop(cam_id, None)
+  _fps_counters.pop(cam_id, None)
+  if state.recording_manager is not None:
+    state.recording_manager.stop_camera(cam_id)
+  with state.camera_status_lock:
+    state.camera_status.pop(cam_id, None)
+  with state.frames_lock:
+    state.latest_frames.pop(cam_id, None)
+    state.latest_jpeg_bytes.pop(cam_id, None)
+  print(f'  · Camera stopped: {cam_id}')
+
+
+# ──────────────────────────────────────────────────────────
 # Main inference loop (runs in a daemon thread)
 # ──────────────────────────────────────────────────────────
 
@@ -256,40 +316,11 @@ def inference_loop() -> None:
   # The first enabled camera is the registration camera (pose wizard + capture)
   state.registration_camera_id = next((c.id for c in CAMERAS if c.enabled), None)
 
-  fps_counters: dict[str, _FpsCounter] = {}
-
   for cam_config in CAMERAS:
     if not cam_config.enabled:
       print(f'  · Camera disabled, skipping: {cam_config.id}')
       continue
-    try:
-      stream = CameraStreamWrapper(camera=build_camera(cam_config), name=cam_config.name)
-    except Exception as exc:
-      print(f'  ✗ Camera config invalid: {cam_config.id}: {exc}')
-      with state.camera_status_lock:
-        state.camera_status[cam_config.id] = {
-          'online': False,
-          'fps': 0,
-          'error': str(exc),
-        }
-      continue
-    state.active_streams[cam_config.id] = stream
-    fps_counters[cam_config.id] = _FpsCounter()
-
-  for cam_id, stream in state.active_streams.items():
-    try:
-      stream.start()
-      with state.camera_status_lock:
-        state.camera_status[cam_id] = {'online': True, 'fps': 0, 'error': None}
-      print(f'  ✓ Camera started: {stream.name}')
-    except Exception as exc:
-      print(f'  ✗ Camera failed to start ({cam_id}): {exc}')
-      with state.camera_status_lock:
-        state.camera_status[cam_id] = {
-          'online': False,
-          'fps': 0,
-          'error': str(exc),
-        }
+    start_camera_stream(cam_config)
 
   if not state.active_streams:
     print('No cameras running — inference loop exiting.')
@@ -297,21 +328,9 @@ def inference_loop() -> None:
 
   print('AI inference loop running…')
 
-  # One cascading pipeline per camera (motion → YOLO → ByteTrack → ArcFace).
-  # The registration camera MUST bypass the motion gate — someone holding
-  # still for the 5-pose wizard produces zero motion, so the pipeline would
-  # return [] and face_status would never update (modal hangs at step 1).
-  pipelines: dict[str, DetectionPipeline] = {}
-  for cam in CAMERAS:
-    if cam.id not in state.active_streams:
-      continue
-    is_reg_cam = cam.id == state.registration_camera_id
-    pipelines[cam.id] = DetectionPipeline(
-      recognizer=state.recognizer,
-      enable_motion_filter=not is_reg_cam,  # No motion gate for registration cam
-      zones=[z.model_dump() for z in cam.zones],
-    )
-  state.pipelines = pipelines
+  # Pipelines were created per-camera by start_camera_stream → ensure_pipeline
+  # (one cascading pipeline per camera: motion → YOLO → ByteTrack → ArcFace;
+  # the registration camera bypasses the motion gate — see ensure_pipeline).
 
   # Daily summary at 08:00 local — own cooldown bucket so a coincidental
   # alert right before 8am can't suppress it
@@ -347,14 +366,16 @@ def inference_loop() -> None:
           frame = stream.get_latest_frame()
           if frame is None:
             with state.camera_status_lock:
-              state.camera_status[cam_id]['fps'] = fps_counters[cam_id].stale_fps()
+              state.camera_status[cam_id]['fps'] = _fps_counters.setdefault(
+                cam_id, _FpsCounter()
+              ).stale_fps()
             continue
 
-          fps_counters[cam_id].tick()
+          _fps_counters.setdefault(cam_id, _FpsCounter()).tick()
           with state.camera_status_lock:
             state.camera_status[cam_id] = {
               'online': True,
-              'fps': round(fps_counters[cam_id].fps, 1),
+              'fps': round(_fps_counters.setdefault(cam_id, _FpsCounter()).fps, 1),
               'last_frame_at': time.time(),
               'error': None,
             }
@@ -364,7 +385,11 @@ def inference_loop() -> None:
             registration_raw = frame.copy()
 
           # ── Cascading pipeline: motion → YOLO → track → recognize ──
-          results = pipelines[cam_id].process_frame(frame)
+          pipeline = state.pipelines.get(cam_id)
+          if pipeline is None:  # camera added at runtime without a pipeline
+            ensure_pipeline(next(c for c in CAMERAS if c.id == cam_id))
+            pipeline = state.pipelines[cam_id]
+          results = pipeline.process_frame(frame)
 
           # ── Registration camera carve-out ──────────────────────
           # The registration flow needs:

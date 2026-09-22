@@ -182,8 +182,6 @@ def test_enrich_throttle_skips_store_calls_between_windows(monkeypatch):
   )
 
   det = {'similarity': 0.9, 'landmarks': [[1, 2]] * 5, 'bbox': [0, 0, 200, 200], 'track_id': 3}
-  frame = None  # never reached while throttled
-  name = 'Joynal'
 
   clock = {'now': 100_000.0}
   monkeypatch.setattr(inference.time, 'monotonic', lambda: clock['now'])
