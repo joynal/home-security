@@ -4,7 +4,7 @@
  * snapshot-idle with hover-to-live stream, and quick action buttons
  * (Playback, Snapshot capture, Expand).
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Camera as CameraIcon, Maximize2, VideoOff } from 'lucide-react';
 import useVisible from '@/hooks/useVisible';
@@ -153,8 +153,26 @@ export default function CameraCard({ camera, onSelect, onSnapshot }: CameraCardP
   const [hovering, setHovering] = useState(false);
   const [snapBust, setSnapBust] = useState(() => Date.now());
   const [ref, visible] = useVisible<HTMLDivElement>();
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isLive = hovering;
+
+  // Touch devices have no hover — a tap-and-hold (or first touch) gives a
+  // 30s live window so mobile users can see motion, then it falls back to
+  // snapshot-idle (bandwidth-friendly).
+  const onTouchStart = () => {
+    setHovering(true);
+    setHasError(false);
+    if (touchTimer.current) clearTimeout(touchTimer.current);
+    touchTimer.current = setTimeout(() => setHovering(false), 30_000);
+  };
+
+  useEffect(
+    () => () => {
+      if (touchTimer.current) clearTimeout(touchTimer.current);
+    },
+    [],
+  );
 
   // Snapshot refresh while idle
   useEffect(() => {
@@ -225,6 +243,7 @@ export default function CameraCard({ camera, onSelect, onSnapshot }: CameraCardP
       onClick={handleCardClick}
       onMouseEnter={handleHoverStart}
       onMouseLeave={handleHoverEnd}
+      onTouchStart={onTouchStart}
       role="region"
       aria-label={`Camera ${camera.name}`}
     >
@@ -258,11 +277,11 @@ export default function CameraCard({ camera, onSelect, onSnapshot }: CameraCardP
         </div>
 
         <div css={badgeGroupStyles}>
-          {camera.online && !hasError && (
+          {camera.online && !hasError && camera.fps ? (
             <span css={pillBadgeStyles} className="tnum">
-              {camera.fps ? `${Math.round(camera.fps)} FPS` : '15 FPS'}
+              {Math.round(camera.fps)} FPS
             </span>
-          )}
+          ) : null}
           <span
             css={{
               ...pillBadgeStyles,

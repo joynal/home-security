@@ -559,7 +559,15 @@ export default function PlaybackPage() {
 
   const jumpSeconds = (delta: number) => {
     if (typeof mode !== 'object' || !videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime + delta);
+    const target = videoRef.current.currentTime + delta;
+    // Within this segment → plain seek; across a boundary → resolve the
+    // covering segment (or the neighboring one) so ±10s works at edges.
+    const seg = segs.find((s) => s.name === mode.filename);
+    if (seg && (target < 0 || target > (videoRef.current.duration || Infinity))) {
+      onSeek(mode.startEpoch + target);
+      return;
+    }
+    videoRef.current.currentTime = Math.max(0, target);
   };
 
   const jumpEvent = (direction: 'prev' | 'next') => {
@@ -630,9 +638,13 @@ export default function PlaybackPage() {
     navigate(`/playback?cam=${encodeURIComponent(newCamId)}&date=${date}`, { replace: true });
   };
 
-  // Keyboard controls (Space, J, K, L, [, ], F)
+  // Keyboard controls (Space, J, K, L, [, ], F) — bind the listener ONCE and
+  // route through a ref so the latest render's handlers are used (the previous
+  // no-dep effect re-registered the listener on every render).
+  const keyHandlerRef = useRef<(e: globalThis.KeyboardEvent) => void>(() => {});
+
   useEffect(() => {
-    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+    keyHandlerRef.current = (e: globalThis.KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
 
@@ -665,6 +677,10 @@ export default function PlaybackPage() {
         }
       }
     };
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => keyHandlerRef.current(e);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   });

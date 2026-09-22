@@ -248,6 +248,13 @@ img {
   padding: 12px 14px;
 }
 
+/* Toolbar labels collapse to icons on phone widths (CameraGridPage etc.) */
+@media (max-width: 640px) {
+  .hide-mobile {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

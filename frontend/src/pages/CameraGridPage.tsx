@@ -218,6 +218,14 @@ export default function CameraGridPage() {
             <span>2×2</span>
           </button>
           <button
+            css={toolbarBtnStyles(layout === '3x3')}
+            onClick={() => setLayout('3x3')}
+            title="3x3 Grid"
+            aria-label="3x3 Grid"
+          >
+            <span>3×3</span>
+          </button>
+          <button
             css={toolbarBtnStyles(layout === 'focus')}
             onClick={() => setLayout('focus')}
             title="1+Focus Layout"
@@ -282,15 +290,14 @@ export default function CameraGridPage() {
               {sideCameras.map((cam) => {
                 const actualIdx = cameras.findIndex((c) => c.id === cam.id);
                 return (
-                  <div
-                    key={cam.id}
-                    onClick={() => setFocusIndex(actualIdx)}
-                    style={{ cursor: 'pointer', height: '140px', flexShrink: 0 }}
-                  >
+                  <div key={cam.id} style={{ height: '140px', flexShrink: 0 }}>
+                    {/* Clicking a side tile SWAPS it into the hero (plan: without
+                        reloading streams) — navigation stays on the tile's expand
+                        affordance rather than hijacking the whole click. */}
                     <CameraTile
                       camera={cam}
                       forceLive={false}
-                      onSelect={() => navigate(`/playback/${cam.id}`)}
+                      onSelect={() => setFocusIndex(actualIdx)}
                     />
                   </div>
                 );

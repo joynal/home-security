@@ -28,6 +28,7 @@ import { eventService } from '@/services/events';
 import { cameraService } from '@/services/cameras';
 import { faceService } from '@/services/faces';
 import { tokens } from '@/theme/designTokens';
+import { exactTime, relTime } from '@/lib/time';
 import type { Camera, EventSummary, FacePerson, SecurityEvent, AddFaceResponse } from '@/types';
 
 const drawerSlideIn = keyframes`
@@ -281,22 +282,6 @@ const TYPE_META: Record<string, { label: string; tone: string }> = {
   person_detected: { label: 'Person Detected', tone: 'ok' },
   motion: { label: 'Motion', tone: 'ok' },
 };
-
-function relTime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  const mins = Math.round((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const h = Math.floor(mins / 60);
-  return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
-}
-
-function exactTime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
 
 export default function DetectionsPage() {
   const { token } = useAuth();

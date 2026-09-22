@@ -66,7 +66,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R8 | Alert settings: live rebuild + data/settings.json persistence | — | ✅ | (this commit) | 5 new tests; live-restart check deferred to next server restart |
 | R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ✅ | (this commit) | live add/delete check deferred to next server restart |
 | R10 | RegisterModal auto-capture retry after gate failure | — | ✅ | (this commit) | captureAttempt dep re-arms countdown; live face check deferred to user |
-| R11 | P2 grab-bag: FPS fabrication, hide-mobile, 3x3 btn, focus-tile swap, touch-live, time helpers | — | ⬜ | | see plan table |
+| R11 | P2 grab-bag: FPS fabrication, hide-mobile, 3x3 btn, focus-tile swap, touch-live, time helpers | — | ✅ | (this commit) | 8 items; harness pass clean |
 | R12 | Auto-enrichment per-track throttle (SQLite off hot path) | — | ✅ | (this commit) | `_enrich_due` guard: ≤1 store touch/min/track |
 | R14–R18 | Optional: landing reorder, tile/card unify, B7.2 clips (ffmpeg now installed!), CPU profile, doc sweep | R2..R12 | ⬜ | | see plan §RO |
 
@@ -467,6 +467,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 150/150 pytest green (CRUD test now asserts lifecycle: add → `start_camera_stream`, connection-change update → stop+start, cosmetic update → no restart, delete → `stop_camera_stream`; NEW `test_stop_camera_stream_clears_everything` (real helper: stream.stop + recorder stop + pipeline/status/frames/jpeg/fps cleanup); NEW enabled-only `/settings/system` count test). ruff clean.
 - **Deviations**: (1) fps counters moved from loop-local to `inference._fps_counters` (loop + lifecycle helpers share; setdefault guards runtime-added cams). (2) Loop uses `state.pipelines` (the previously dead state slot) with lazy `ensure_pipeline` fallback. (3) `RecordingManager.start_camera/stop_camera` added (stores ctor dir/index for runtime starts). (4) CRUD test previously started the REAL macbook webcam — now lifecycle-patched. Fixture updated for the removed by-value `settings.CAMERAS` import.
+
+### Task R11 — P2 grab-bag
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: lint + build clean; harness 9/9 shots (grid toolbar shows Auto/1x1/2×2/**3×3**/1+F/Live/fullscreen). Items: (1) fabricated "15 FPS" → badge only when fps is truthy; (2) `.hide-mobile` defined in index.css (≤640px); (3) 3×3 toolbar button (mode existed, was unreachable); (4) focus-layout side tiles swap into hero on click (navigation no longer hijacks — hero tile still navigates); (5) dashboard cards go live for 30s on first touch (mobile has no hover); (6) playback keyboard effect binds once via ref (was re-registering every render); (7) `relTime`/`exactTime` deduped into `lib/time.ts` (DetectionsPage + RecentEvents); (8) `jumpSeconds` resolves across segment boundaries via `onSeek`.
+- **Deviations**: (a) time helpers unified on DetectionsPage's signature (with-seconds default); RecentEvents' one tooltip now includes seconds. (b) While fixing the countdown effect for the compiler lint, the pose-lost clear became a derived render (`isCorrectPose && countdown != null`) — no state cascade, stale ring can't show when pose breaks.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

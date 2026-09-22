@@ -776,9 +776,6 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
           setCountdown(tick);
         }
       }, 1000);
-    } else if (!isCorrectPose) {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      setCountdown(null);
     }
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
@@ -917,8 +914,9 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
               {/* Directional arrow */}
               {!isCorrectPose && <DirectionArrow dir={currentStep.arrowDir} />}
 
-              {/* Countdown ring */}
-              {countdown != null && (
+              {/* Countdown ring (only while the pose is actually held — a stale
+                  value must not ring when the user looks away mid-count) */}
+              {isCorrectPose && countdown != null && (
                 <div className="rm-countdown-ring">
                   <div className="rm-countdown-num">{countdown}</div>
                   <div className="rm-countdown-sub">Hold Still</div>

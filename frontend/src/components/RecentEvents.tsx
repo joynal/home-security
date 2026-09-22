@@ -9,6 +9,7 @@ import { Activity, ChevronRight, UserCheck, UserX, Clock, AlertTriangle, User } 
 import { useAuth } from '@/contexts/useAuth';
 import { eventService } from '@/services/events';
 import { tokens } from '@/theme/designTokens';
+import { exactTime, relTime } from '@/lib/time';
 import type { SecurityEvent } from '@/types';
 
 export interface RecentEventsProps {
@@ -167,22 +168,6 @@ const camPillStyles = {
   whiteSpace: 'nowrap' as const,
 };
 
-function formatRelTime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const mins = Math.round((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m ago`;
-  const h = Math.floor(mins / 60);
-  return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
-}
-
-function formatExactTime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
 export default function RecentEvents({ limit = 12, showHeader = true }: RecentEventsProps) {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -261,7 +246,7 @@ export default function RecentEvents({ limit = 12, showHeader = true }: RecentEv
                   handleCardClick(ev);
                 }
               }}
-              title={`${label} · ${ev.camera_id} · ${formatExactTime(ev.timestamp)}`}
+              title={`${label} · ${ev.camera_id} · ${exactTime(ev.timestamp)}`}
             >
               {ev.thumbnail_path ? (
                 <img
@@ -294,7 +279,7 @@ export default function RecentEvents({ limit = 12, showHeader = true }: RecentEv
 
                 <div css={bottomRowStyles}>
                   <span css={camPillStyles}>{ev.camera_id}</span>
-                  <span className="tnum">{formatRelTime(ev.timestamp)}</span>
+                  <span className="tnum">{relTime(ev.timestamp)}</span>
                 </div>
               </div>
             </div>
