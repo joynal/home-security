@@ -77,7 +77,20 @@ registration_camera_id: str | None = None  # Set to CAMERAS[0].id at startup
 # from synchronous threads (like the inference thread).
 main_loop: asyncio.AbstractEventLoop | None = None
 
+# ── Alert manager (shared so PATCH /settings/config can swap it live) ──
+# Typed loosely (like `pipelines`) to avoid importing the alerts stack here.
+alert_manager: 'object | None' = None  # set by inference/rebuild_alert
+alert_lock = threading.Lock()
+
 # ── AI & Detection parameters (configurable via Settings) ──
-face_similarity_threshold: float = 0.40
-loitering_seconds: float = 30.0
-auto_enrichment_enabled: bool = True
+# Persisted overrides (data/settings.json 'ai') win over these defaults.
+_ai_persisted: dict = {}
+try:  # pragma: no cover — import-time resilience; corrupt store must not crash
+  from src.settings_store import load_settings as _load_persisted_settings
+
+  _ai_persisted = _load_persisted_settings().get('ai') or {}
+except Exception:
+  _ai_persisted = {}
+face_similarity_threshold: float = float(_ai_persisted.get('similarity_threshold', 0.40))
+loitering_seconds: float = float(_ai_persisted.get('loitering_seconds', 30.0))
+auto_enrichment_enabled: bool = bool(_ai_persisted.get('auto_enrichment', True))

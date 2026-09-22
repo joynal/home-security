@@ -238,7 +238,8 @@ def get_config(_: str = Depends(get_current_user)):
 
 @router.patch('/config')
 def update_config(req: ConfigUpdateRequest, _: str = Depends(get_current_user)):
-  """Update runtime application settings and persist retention across cameras."""
+  """Update runtime settings, persist them (data/settings.json), and rebuild
+  the live alert manager — changes take effect without a restart."""
   import src.config as config
 
   if req.active_alert is not None:
@@ -253,6 +254,7 @@ def update_config(req: ConfigUpdateRequest, _: str = Depends(get_current_user)):
   if req.ntfy_topic is not None:
     config.NTFY_TOPIC = req.ntfy_topic
 
+  ai_snapshot = {}
   if req.ai is not None:
     if req.ai.similarity_threshold is not None:
       state.face_similarity_threshold = float(req.ai.similarity_threshold)
@@ -262,6 +264,11 @@ def update_config(req: ConfigUpdateRequest, _: str = Depends(get_current_user)):
       state.loitering_seconds = float(req.ai.loitering_seconds)
     if req.ai.auto_enrichment is not None:
       state.auto_enrichment_enabled = bool(req.ai.auto_enrichment)
+    ai_snapshot = {
+      'similarity_threshold': state.face_similarity_threshold,
+      'loitering_seconds': state.loitering_seconds,
+      'auto_enrichment': state.auto_enrichment_enabled,
+    }
 
   if req.retention is not None and config.CAMERAS:
     for cam in config.CAMERAS:
@@ -273,7 +280,30 @@ def update_config(req: ConfigUpdateRequest, _: str = Depends(get_current_user)):
         cam.record.delete_only_if_disk_full = req.retention.delete_only_if_disk_full
     save_cameras(config.CAMERAS)
 
-  return {'success': True, 'message': 'Configuration updated'}
+  # Persist the effective snapshot (Task R8) — survives restarts; boot overlay
+  # in src/config.py applies it over .env defaults.
+  from src.settings_store import save_settings
+
+  save_settings(
+    {
+      'active_alert': config.ACTIVE_ALERT,
+      'telegram_bot_token': config.TELEGRAM_BOT_TOKEN or '',
+      'telegram_chat_id': config.TELEGRAM_CHAT_ID or '',
+      'ntfy_topic': config.NTFY_TOPIC or '',
+      'ai': ai_snapshot,
+    }
+  )
+
+  # Rebuild the live alert manager so the new provider/credentials apply now
+  from src.api.inference import rebuild_alert
+
+  rebuilt = rebuild_alert()
+
+  return {
+    'success': True,
+    'message': 'Configuration updated',
+    'alert_manager': type(rebuilt).__name__ if rebuilt is not None else None,
+  }
 
 
 # ── Camera CRUD Endpoints ─────────────────────────────────────────────────────

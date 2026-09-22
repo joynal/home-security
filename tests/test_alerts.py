@@ -63,11 +63,11 @@ def test_ntfy_per_person_cooldown():
 
 
 def test_build_alert_ntfy_requires_topic(monkeypatch):
-  import src.api.inference as inf
+  # Task R8: build_alert reads live src.config attrs (not by-value imports)
   import src.config as config
   from src.api.inference import build_alert
 
-  monkeypatch.setattr(inf, 'ACTIVE_ALERT', 'ntfy')
+  monkeypatch.setattr(config, 'ACTIVE_ALERT', 'ntfy')
   monkeypatch.setattr(config, 'NTFY_TOPIC', '')
   try:
     build_alert()

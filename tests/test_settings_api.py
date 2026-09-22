@@ -217,3 +217,89 @@ def test_change_password(env):
       PasswordChangeRequest(current_password='InitialPass123', new_password='AnotherPass123')
     )
   assert exc.value.status_code == 400
+
+
+# ── Task R8: alert settings go live + persist ─────────────────────────────
+
+
+@pytest.fixture
+def settings_store(tmp_path, monkeypatch):
+  """Isolate data/settings.json + config alert attrs; restore state.alert_manager."""
+  import src.settings_store
+
+  store_file = tmp_path / 'data' / 'settings.json'
+  monkeypatch.setattr(src.settings_store, 'SETTINGS_FILE', store_file)
+
+  import src.config as config
+
+  monkeypatch.setattr(config, 'ACTIVE_ALERT', 'console')
+  monkeypatch.setattr(config, 'TELEGRAM_BOT_TOKEN', '')
+  monkeypatch.setattr(config, 'TELEGRAM_CHAT_ID', '')
+  monkeypatch.setattr(config, 'NTFY_TOPIC', '')
+
+  old_manager = state.alert_manager
+  state.alert_manager = None
+  yield store_file, config
+  state.alert_manager = old_manager
+
+
+def test_patch_rebuilds_live_alert_manager(settings_store):
+  store_file, config = settings_store
+  config.ACTIVE_ALERT = 'telegram'
+  config.TELEGRAM_BOT_TOKEN = 'tok'
+  config.TELEGRAM_CHAT_ID = 'chat'
+
+  res = update_config(ConfigUpdateRequest(active_alert='console'))
+
+  from src.alerts.console import ConsoleAlert
+
+  assert res['success'] is True
+  assert isinstance(state.alert_manager, ConsoleAlert)
+
+
+def test_patch_persists_alert_settings(settings_store):
+  store_file, config = settings_store
+  update_config(
+    ConfigUpdateRequest(active_alert='telegram', telegram_bot_token='t1', telegram_chat_id='c1')
+  )
+  saved = json.loads(store_file.read_text())
+  assert saved['active_alert'] == 'telegram'
+  assert saved['telegram_bot_token'] == 't1'
+  assert saved['telegram_chat_id'] == 'c1'
+
+
+def test_persisted_settings_win_over_env_at_boot(settings_store, monkeypatch):
+  store_file, _ = settings_store
+  store_file.parent.mkdir(parents=True, exist_ok=True)
+  store_file.write_text(json.dumps({'active_alert': 'ntfy', 'ntfy_topic': 'aegis-test'}))
+
+  import src.config as config
+
+  monkeypatch.setattr(config, 'ACTIVE_ALERT', 'console')  # env default loses
+  config._overlay_persisted_settings()
+
+  assert config.ACTIVE_ALERT == 'ntfy'
+  assert config.NTFY_TOPIC == 'aegis-test'
+
+
+def test_invalid_alert_config_keeps_previous_manager(settings_store):
+  store_file, config = settings_store
+  sentinel = object()
+  state.alert_manager = sentinel
+
+  config.ACTIVE_ALERT = 'ntfy'
+  config.NTFY_TOPIC = ''  # invalid: ntfy without topic
+
+  from src.api.inference import rebuild_alert
+
+  assert rebuild_alert() is sentinel
+
+
+def test_settings_store_tolerates_corrupt_file(tmp_path, monkeypatch):
+  import src.settings_store
+
+  store_file = tmp_path / 'data' / 'settings.json'
+  store_file.parent.mkdir(parents=True, exist_ok=True)
+  store_file.write_text('{not json')
+  monkeypatch.setattr(src.settings_store, 'SETTINGS_FILE', store_file)
+  assert src.settings_store.load_settings() == {}

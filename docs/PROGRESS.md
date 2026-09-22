@@ -63,7 +63,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ✅ | (this commit) | drag shows frame preview; video loads once on release |
 | R6 | Mobile playback scroll fix (P0) | — | ✅ | (this commit) | flex:1 + minHeight:0 on the mobile shell |
 | R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ✅ | (this commit) | verified live via CDP both paths |
-| R8 | Alert settings: live rebuild + data/settings.json persistence | — | ⬜ | | inference.py imports by value today |
+| R8 | Alert settings: live rebuild + data/settings.json persistence | — | ✅ | (this commit) | 5 new tests; live-restart check deferred to next server restart |
 | R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ⬜ | | unify pipelines on state.pipelines |
 | R10 | RegisterModal auto-capture retry after gate failure | — | ⬜ | | effect deps stall |
 | R11 | P2 grab-bag: FPS fabrication, hide-mobile, 3x3 btn, focus-tile swap, touch-live, time helpers | — | ⬜ | | see plan table |
@@ -443,6 +443,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: lint + build clean. Live CDP (Input.dispatchMouseEvent press/hold/release on the rail): during drag the `frame.jpg` preview overlay renders (debounced 120ms credentialed fetch, blob URL, stale-response guard) and NO video element re-loads; on release the overlay dismisses and the video loads the covering segment at t=297s for a 14:05Z target (3s = sub-pixel rounding at 400px/h). Playhead badge follows the drag (data-dragging state). Endpoint sanity: frame.jpg 200/7.6KB within a segment's real duration.
 - **Deviations**: none vs plan. Note for future test data: the index glues the newest segment's end to its mtime, so a seeded "15-min" file reads as covering until its mtime — frame.jpg past the file's true EOF correctly 404s ("Could not decode"); verification must target timestamps within the real file duration.
+
+### Task R8 — alert settings live + persisted
+- **Status**: ✅ (live-restart verification deferred: the dev server on :8000 predates this code — on next restart, PATCH'd alert settings must survive via data/settings.json)
+- **Commit**: (this commit)
+- **Verified**: 146/146 pytest green (5 new: PATCH rebuilds `state.alert_manager` to the new provider class, PATCH persists provider+credentials to data/settings.json, boot overlay wins over env, invalid ntfy config keeps the previous manager, corrupt store tolerated). ruff clean. Loop + daily-summary now send via `state.alert_manager` (rebuilt by `rebuild_alert()` on PATCH — reading live `src.config` attrs, not by-value imports); `ai` tuning values persist and seed `state` defaults at boot.
+- **Deviations**: one pre-existing test updated (`test_build_alert_ntfy_requires_topic` patched the removed by-value import — now patches `src.config`, the new seam). PATCH now also snapshots env-sourced alert values into the store on any save (store = effective config snapshot).
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

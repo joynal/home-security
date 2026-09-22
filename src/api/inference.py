@@ -26,11 +26,8 @@ from src.camera.stream import CameraStreamWrapper
 from src.camera.tapo import TapoCamera
 from src.camera.video_file import VideoFileCamera
 from src.camera.webcam import MacbookWebcam
-from src.config import ACTIVE_ALERT
 from src.config import BASE_DIR
 from src.config import CAMERAS
-from src.config import TELEGRAM_BOT_TOKEN
-from src.config import TELEGRAM_CHAT_ID
 from src.config import THUMBNAILS_DIR
 from src.detection.pipeline import DetectionPipeline
 from src.events.database import EventDatabase
@@ -62,19 +59,38 @@ def build_camera(config: CameraConfig):
 
 
 def build_alert():
-  """Instantiate the configured alert manager."""
-  if ACTIVE_ALERT == 'console':
-    return ConsoleAlert(cooldown_seconds=10)
-  if ACTIVE_ALERT == 'telegram':
-    return TelegramAlert(bot_token=TELEGRAM_BOT_TOKEN, chat_id=TELEGRAM_CHAT_ID)
-  if ACTIVE_ALERT == 'ntfy':
-    from src.alerts.ntfy import NtfyAlert
-    from src.config import NTFY_TOPIC
+  """Instantiate the alert manager from CURRENT config values (live module
+  attrs — PATCH /settings/config takes effect via rebuild_alert)."""
+  import src.config as config
 
-    if not NTFY_TOPIC:
-      raise ValueError('ACTIVE_ALERT=ntfy requires NTFY_TOPIC in .env')
-    return NtfyAlert(topic=NTFY_TOPIC)
-  raise ValueError(f'Unknown alert: {ACTIVE_ALERT}')
+  if config.ACTIVE_ALERT == 'console':
+    return ConsoleAlert(cooldown_seconds=10)
+  if config.ACTIVE_ALERT == 'telegram':
+    return TelegramAlert(bot_token=config.TELEGRAM_BOT_TOKEN, chat_id=config.TELEGRAM_CHAT_ID)
+  if config.ACTIVE_ALERT == 'ntfy':
+    from src.alerts.ntfy import NtfyAlert
+
+    if not config.NTFY_TOPIC:
+      raise ValueError('ACTIVE_ALERT=ntfy requires NTFY_TOPIC (settings or .env)')
+    return NtfyAlert(topic=config.NTFY_TOPIC)
+  raise ValueError(f'Unknown alert: {config.ACTIVE_ALERT}')
+
+
+def rebuild_alert():
+  """Swap in a fresh alert manager from current config (thread-safe).
+
+  Called at inference-loop start and by PATCH /settings/config so alert changes
+  apply without a restart. On invalid config (e.g. ntfy without a topic) the
+  previous manager is kept — alerts never silently stop.
+  """
+  try:
+    mgr = build_alert()
+  except ValueError as exc:
+    print(f'[Alert] keeping previous manager: {exc}')
+    return state.alert_manager
+  with state.alert_lock:
+    state.alert_manager = mgr
+  return mgr
 
 
 # ──────────────────────────────────────────────────────────
@@ -215,7 +231,7 @@ def inference_loop() -> None:
   state.recognizer = FaceRecognizer()
   if state.event_db is None:  # normally created by lifespan before this thread
     state.event_db = EventDatabase()
-  alert_manager = build_alert()
+  alert_manager = rebuild_alert()
 
   # The first enabled camera is the registration camera (pose wizard + capture)
   state.registration_camera_id = next((c.id for c in CAMERAS if c.enabled), None)
@@ -284,7 +300,11 @@ def inference_loop() -> None:
 
     start_daily_summary_scheduler(
       state.event_db,
-      lambda text: alert_manager.send_alert(text, person_key='daily-summary'),
+      # Read via state at call time so a live rebuild (PATCH /settings/config)
+      # is honored; fall back to the loop-start manager.
+      lambda text: (state.alert_manager or alert_manager).send_alert(
+        text, person_key='daily-summary'
+      ),
     )
 
   last_event_at: dict[str, float] = {}
@@ -472,7 +492,7 @@ def inference_loop() -> None:
             }
 
       if unknown_detected:
-        alert_manager.send_alert(
+        (state.alert_manager or alert_manager).send_alert(
           'Unknown person detected!',
           image_frame=trigger_frame,
           person_key=f'unknown#{event_track_id}' if event_track_id is not None else None,

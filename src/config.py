@@ -53,6 +53,31 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
 NTFY_TOPIC = os.getenv('NTFY_TOPIC', '')  # e.g., "aegis-vision-alerts"
 
 
+def _overlay_persisted_settings() -> None:
+  """UI-persisted settings (data/settings.json) win over .env defaults at boot.
+
+  Deferred import: settings_store imports DATA_DIR from this module.
+  """
+  global ACTIVE_ALERT, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, NTFY_TOPIC
+  try:
+    from src.settings_store import load_settings
+
+    s = load_settings()
+  except Exception:
+    return
+  if s.get('active_alert'):
+    ACTIVE_ALERT = s['active_alert']
+  if s.get('telegram_bot_token'):
+    TELEGRAM_BOT_TOKEN = s['telegram_bot_token']
+  if s.get('telegram_chat_id'):
+    TELEGRAM_CHAT_ID = s['telegram_chat_id']
+  if s.get('ntfy_topic'):
+    NTFY_TOPIC = s['ntfy_topic']
+
+
+_overlay_persisted_settings()
+
+
 def load_cameras() -> list[CameraConfig]:
   """Load camera configs from data/cameras.json, or fall back to legacy format."""
   if CAMERAS_FILE.exists():
