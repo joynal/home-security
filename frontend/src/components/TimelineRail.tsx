@@ -21,6 +21,11 @@ export interface TimelineRailProps {
   events: SecurityEvent[];
   playTs: number | null;
   onSeek: (epochS: number) => void;
+  /**
+   * Live scrub feedback: fires with the dragged-to timestamp during a drag
+   * (for frame preview), and with null on release (before onSeek runs).
+   */
+  onScrub?: (ts: number | null) => void;
   /** Vertical scale — px per hour. Zoom presets live in the parent. */
   pxPerHour: number;
   cameraId?: string;
@@ -301,12 +306,14 @@ export default function TimelineRail({
   events,
   playTs,
   onSeek,
+  onScrub,
   pxPerHour,
 }: TimelineRailProps) {
   const day0 = dayStartEpoch(date);
   const totalPx = 24 * pxPerHour;
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragTs, setDragTs] = useState<number | null>(null);
 
   const toY = (ts: number) => tsToY(ts, day0, pxPerHour);
   const fromY = (y: number) => yToTs(y, day0, pxPerHour);
@@ -334,32 +341,37 @@ export default function TimelineRail({
       )
     : [];
 
+  // Drag = scrub feedback only (badge + preview); the video seeks once on
+  // release — re-keying the <video> element on every pointermove was janky
+  // and re-buffered continuously.
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const epochS = fromY(y);
-    onSeek(epochS);
+    const epochS = fromY(e.clientY - rect.top);
+    setDragTs(epochS);
+    onScrub?.(epochS);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const epochS = fromY(y);
-    onSeek(epochS);
+    const epochS = fromY(e.clientY - rect.top);
+    setDragTs(epochS);
+    onScrub?.(epochS);
   };
 
   const handlePointerUp = (e: PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      setIsDragging(false);
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {
-        // Pointer capture may have already been released
-      }
+    if (!isDragging) return;
+    setIsDragging(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Pointer capture may have already been released
     }
+    if (dragTs != null) onSeek(dragTs);
+    setDragTs(null);
+    onScrub?.(null);
   };
 
   return (
@@ -496,15 +508,22 @@ export default function TimelineRail({
           );
         })}
 
-        {/* Draggable playhead line + badge */}
-        {playTs !== null && playTs >= day0 && playTs <= day0 + 86400 && (
-          <div css={playheadStyles(toY(playTs))} data-dragging={isDragging || undefined}>
-            <div css={playheadHandleStyles} aria-label="Draggable playhead handle" />
-            <span css={playheadBadgeStyles} className="tnum">
-              {fmtTime(playTs)}
-            </span>
-          </div>
-        )}
+        {/* Draggable playhead line + badge (follows the drag while scrubbing) */}
+        {(() => {
+          const headTs = dragTs ?? playTs;
+          return (
+            headTs !== null &&
+            headTs >= day0 &&
+            headTs <= day0 + 86400 && (
+              <div css={playheadStyles(toY(headTs))} data-dragging={isDragging || undefined}>
+                <div css={playheadHandleStyles} aria-label="Draggable playhead handle" />
+                <span css={playheadBadgeStyles} className="tnum">
+                  {fmtTime(headTs)}
+                </span>
+              </div>
+            )
+          );
+        })()}
       </div>
     </div>
   );

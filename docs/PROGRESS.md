@@ -60,7 +60,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R2 | Timeline v2: local-time axis + segment-derived coverage (+ shiftDate/deep-link fixes) | R13 | ✅ | (this commit) | found+fixed P0: segment type mismatch made ALL seeks no-ops |
 | R3 | Timeline v2: zoom levels (1h/2h/6h/24h), 15-min ticks, scroll-to-now | R2 | ✅ | (this commit) | default 2h (400px/h); pure helpers in lib/timeline.ts |
 | R4 | Timeline v2: true-position pins + clustering + de-chrome (0 gradients/glows) | R3 | ✅ | (this commit) | 132 events → 27 clustered pins; scrollHeight = rail height |
-| R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ⬜ | | uses existing B3.2 frame endpoint |
+| R5 | Timeline v2: drag scrub w/ frame.jpg preview, seek on release | R4 | ✅ | (this commit) | drag shows frame preview; video loads once on release |
 | R6 | Mobile playback scroll fix (P0) | — | ✅ | (this commit) | flex:1 + minHeight:0 on the mobile shell |
 | R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ✅ | (this commit) | verified live via CDP both paths |
 | R8 | Alert settings: live rebuild + data/settings.json persistence | — | ⬜ | | inference.py imports by value today |
@@ -437,6 +437,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: lint + build clean. Live CDP: `/camera/test_camera` → `/playback/test_camera` with the camera select holding `test_camera` (was: literal `:cameraId` broken page). Switching cameras from a `/playback/:id` URL → URL `/playback?cam=macbook_webcam&date=…` and the select keeps the new value (was: silent snap-back to the path camera).
 - **Deviations**: handleCameraChange navigates to the query-param form (replace) instead of setSearchParams — the path segment would keep shadowing `activeCameraId = pathCamId || camParam` otherwise.
+
+### Task R5 — drag scrub with frame preview, seek on release
+- **Status**: ✅
+- **Commit**: (this commit)
+- **Verified**: lint + build clean. Live CDP (Input.dispatchMouseEvent press/hold/release on the rail): during drag the `frame.jpg` preview overlay renders (debounced 120ms credentialed fetch, blob URL, stale-response guard) and NO video element re-loads; on release the overlay dismisses and the video loads the covering segment at t=297s for a 14:05Z target (3s = sub-pixel rounding at 400px/h). Playhead badge follows the drag (data-dragging state). Endpoint sanity: frame.jpg 200/7.6KB within a segment's real duration.
+- **Deviations**: none vs plan. Note for future test data: the index glues the newest segment's end to its mtime, so a seeded "15-min" file reads as covering until its mtime — frame.jpg past the file's true EOF correctly 404s ("Could not decode"); verification must target timestamps within the real file duration.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

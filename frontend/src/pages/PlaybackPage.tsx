@@ -200,6 +200,30 @@ const mediaViewStyles = {
   },
 };
 
+const scrubOverlayStyles = {
+  position: 'absolute' as const,
+  inset: 0,
+  background: '#000',
+  zIndex: 5,
+  '& img': {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain' as const,
+  },
+};
+
+const scrubBadgeStyles = {
+  position: 'absolute' as const,
+  bottom: '10px',
+  left: '12px',
+  background: 'rgba(9, 9, 11, 0.85)',
+  border: `1px solid ${tokens.colors.border.subtle}`,
+  borderRadius: tokens.radii.sm,
+  padding: '3px 8px',
+  fontSize: '12px',
+  color: tokens.colors.text.primary,
+};
+
 const controlsBarStyles = {
   display: 'flex',
   alignItems: 'center',
@@ -376,6 +400,48 @@ export default function PlaybackPage() {
   const playerRef = useRef<HTMLDivElement>(null);
   const pendingTs = useRef<number | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
+
+  // Scrub preview: debounced frame.jpg fetch while dragging the playhead
+  const [scrubPreview, setScrubPreview] = useState<{ url: string; ts: number } | null>(null);
+  const scrubTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrubSeq = useRef(0);
+  const previewUrlRef = useRef<string | null>(null);
+
+  const handleScrub = useCallback(
+    (ts: number | null) => {
+      if (ts == null) {
+        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+        setScrubPreview(null);
+        return;
+      }
+      if (scrubTimer.current) clearTimeout(scrubTimer.current);
+      const seq = ++scrubSeq.current;
+      const camId = activeCameraId;
+      if (!camId) return;
+      scrubTimer.current = setTimeout(() => {
+        fetch(recordingService.getFrameUrl(camId, Math.round(ts)), { credentials: 'include' })
+          .then((r) => (r.ok ? r.blob() : null))
+          .then((blob) => {
+            if (!blob || seq !== scrubSeq.current) return; // stale response
+            if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+            const url = URL.createObjectURL(blob);
+            previewUrlRef.current = url;
+            setScrubPreview({ url, ts });
+          })
+          .catch(() => {});
+      }, 120);
+    },
+    [activeCameraId],
+  );
+
+  // Revoke the last preview object URL on unmount
+  useEffect(
+    () => () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    },
+    [],
+  );
 
   // Keep the rail viewport anchored around "now" (or day end) on date/zoom changes
   const scrollToNow = useCallback(() => {
@@ -738,6 +804,19 @@ export default function PlaybackPage() {
         {/* Left Pane: Video Player */}
         <div ref={playerRef} css={playerContainerStyles}>
           <div css={mediaViewStyles}>
+            {/* Scrub preview overlay (Task R5) — frame.jpg at the dragged time */}
+            {scrubPreview && (
+              <div css={scrubOverlayStyles}>
+                <img src={scrubPreview.url} alt="Scrub preview" />
+                <span css={scrubBadgeStyles} className="tnum">
+                  {new Date(scrubPreview.ts * 1000).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
             {mode === 'live' ? (
               liveFeedUrl ? (
                 <img
@@ -901,6 +980,7 @@ export default function PlaybackPage() {
               events={events}
               playTs={playTs}
               onSeek={onSeek}
+              onScrub={handleScrub}
               pxPerHour={pxPerHour}
               cameraId={activeCameraId}
               token={token}
