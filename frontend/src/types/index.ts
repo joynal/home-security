@@ -8,7 +8,6 @@ export interface Camera {
   type?: string;
   rtsp_url?: string;
   online: boolean;
-  fps?: number;
 }
 
 export interface CamerasResponse {

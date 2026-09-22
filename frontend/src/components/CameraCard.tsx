@@ -1,6 +1,6 @@
 /**
  * CameraCard — Task S2.2
- * Clean 16:9 surveillance card with status dot, live FPS counter,
+ * Clean 16:9 surveillance card with status dot,
  * snapshot-idle with hover-to-live stream, and quick action buttons
  * (Playback, Snapshot capture, Expand).
  */
@@ -277,26 +277,18 @@ export default function CameraCard({ camera, onSelect, onSnapshot }: CameraCardP
           <span css={nameTextStyles}>{camera.name}</span>
         </div>
 
-        <div css={badgeGroupStyles}>
-          {camera.online && !hasError && camera.fps ? (
-            <span css={pillBadgeStyles} className="tnum">
-              {Math.round(camera.fps)} FPS
+        {(!camera.online || hasError) && (
+          <div css={badgeGroupStyles}>
+            <span
+              css={{
+                ...pillBadgeStyles,
+                color: tokens.colors.status.danger,
+              }}
+            >
+              OFFLINE
             </span>
-          ) : null}
-          <span
-            css={{
-              ...pillBadgeStyles,
-              color:
-                camera.online && !hasError
-                  ? showLive
-                    ? tokens.colors.status.live
-                    : tokens.colors.text.secondary
-                  : tokens.colors.status.danger,
-            }}
-          >
-            {camera.online && !hasError ? (showLive ? 'LIVE' : 'ECO') : 'OFFLINE'}
-          </span>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Action Bar */}

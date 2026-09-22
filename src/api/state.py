@@ -65,7 +65,7 @@ recording_manager: RecordingManager | None = None  # set by lifespan
 # detection stack at state-import time; the inference loop populates it)
 pipelines: dict[str, 'object'] = {}
 
-# Per-camera health: camera_id → {online, fps, last_frame_at, error}
+# Per-camera health: camera_id → {online, last_frame_at, error}
 camera_status: dict[str, dict] = {}
 camera_status_lock = threading.Lock()
 

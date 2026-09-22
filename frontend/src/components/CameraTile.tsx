@@ -147,7 +147,7 @@ export default function CameraTile({ camera, onSelect, forceLive }: CameraTilePr
         <span
           className={`status-dot ${camera.online && !hasError ? 'status-dot--live' : 'status-dot--offline'}`}
         />
-        <span>{camera.online && !hasError ? (showLive ? 'LIVE' : 'IDLE') : 'OFFLINE'}</span>
+        {(!camera.online || hasError) && <span>OFFLINE</span>}
       </div>
     </button>
   );

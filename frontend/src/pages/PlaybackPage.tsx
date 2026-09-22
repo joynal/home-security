@@ -791,9 +791,6 @@ export default function PlaybackPage() {
         {mode === 'live' ? (
           <span css={liveIndicatorBtn(true)}>
             <span className="status-dot status-dot--live" /> Live
-            {activeCamera?.fps && (
-              <span className="tnum">· {Math.round(activeCamera.fps)} fps</span>
-            )}
           </span>
         ) : (
           <button type="button" css={liveIndicatorBtn(false)} onClick={goLive}>

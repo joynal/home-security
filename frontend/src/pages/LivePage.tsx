@@ -16,7 +16,7 @@ export default function LivePage() {
   const navigate = useNavigate();
   const [cameras, setCameras] = useState<Camera[]>([]);
 
-  // Poll /cameras every 10s for live status (online/offline, FPS)
+  // Poll /cameras every 10s for live status (online/offline)
   useEffect(() => {
     if (!token) return;
     let cancelled = false;

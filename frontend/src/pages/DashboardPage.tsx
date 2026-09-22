@@ -2,7 +2,7 @@
  * DashboardPage — Phase 2 (Tasks S2.1, S2.2, S2.3)
  * Executive command center:
  * - S2.1: Recent events horizontal carousel with touch snap, 16:9 crops, severity accents, and playback deep link
- * - S2.2: Camera cards wall with live status dot, live FPS counter, hover-to-live stream, and quick actions
+ * - S2.2: Camera cards wall with live status dot, hover-to-live stream, and quick actions
  * - S2.3: System health mini-bar with disk volume usage, CPU load, memory, and events today
  */
 import { useState, useEffect } from 'react';

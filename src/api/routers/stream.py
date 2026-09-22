@@ -66,7 +66,6 @@ def list_cameras(_: str = Depends(get_current_user)):
         'type': cam.type,
         'enabled': cam.enabled,
         'online': status.get('online', False),
-        'fps': status.get('fps', 0),
         'last_frame_at': status.get('last_frame_at'),
         'detect': {
           'width': cam.detect.width,
@@ -96,7 +95,6 @@ def camera_status(camera_id: str, _: str = Depends(get_current_user)):
     'type': cam.type,
     'enabled': cam.enabled,
     'online': status.get('online', False),
-    'fps': status.get('fps', 0),
     'last_frame_at': status.get('last_frame_at'),
     'error': status.get('error'),
   }

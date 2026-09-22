@@ -70,8 +70,8 @@ def env(tmp_path, monkeypatch):
   monkeypatch.setattr('src.api.auth._creds', creds_data)
 
   with state.camera_status_lock:
-    state.camera_status['cam1'] = {'online': True, 'fps': 15.0}
-    state.camera_status['cam2'] = {'online': False, 'fps': 0.0}
+    state.camera_status['cam1'] = {'online': True}
+    state.camera_status['cam2'] = {'online': False}
 
   yield db, rec_dir, thumb_dir
   db.close()
@@ -225,7 +225,6 @@ def test_stop_camera_stream_clears_everything(monkeypatch):
   monkeypatch.setattr(state, 'camera_status', {'camx': {'online': True}})
   monkeypatch.setattr(state, 'latest_frames', {'camx': 'f'})
   monkeypatch.setattr(state, 'latest_jpeg_bytes', {'camx': 'j'})
-  monkeypatch.setattr(inference, '_fps_counters', {'camx': object()})
 
   inference.stop_camera_stream('camx')
 
@@ -244,7 +243,7 @@ def test_system_health_counts_enabled_cameras_only(env, monkeypatch):
   cam1, cam2 = config.CAMERAS
   monkeypatch.setattr(config, 'CAMERAS', [cam1, cam2.model_copy(update={'enabled': False})])
   with state.camera_status_lock:
-    state.camera_status['cam1'] = {'online': True, 'fps': 15.0}
+    state.camera_status['cam1'] = {'online': True}
   health = get_system_health()
   assert health['cameras_total'] == 1  # disabled cam2 not counted
   assert health['cameras_online'] == 1

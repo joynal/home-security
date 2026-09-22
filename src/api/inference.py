@@ -112,33 +112,6 @@ def stack_frames(frames: list[np.ndarray]) -> np.ndarray:
   return np.hstack(resized)
 
 
-class _FpsCounter:
-  """Simple rolling FPS counter — frames counted over a sliding window."""
-
-  def __init__(self, window_seconds: float = 2.0):
-    self.window = window_seconds
-    self._frames = 0
-    self._window_start = time.monotonic()
-    self.fps = 0.0
-
-  def tick(self) -> float:
-    """Record a frame; returns current FPS estimate."""
-    self._frames += 1
-    elapsed = time.monotonic() - self._window_start
-    if elapsed >= self.window:
-      self.fps = self._frames / elapsed
-      self._frames = 0
-      self._window_start = time.monotonic()
-    return self.fps
-
-  def stale_fps(self) -> float:
-    """FPS estimate even when no frame arrived this tick (decays toward 0)."""
-    elapsed = time.monotonic() - self._window_start
-    if elapsed >= self.window:
-      self.fps = 0.0
-    return self.fps
-
-
 # ──────────────────────────────────────────────────────────
 # Event logging
 # ──────────────────────────────────────────────────────────
@@ -240,8 +213,6 @@ def _log_detection_event(
 # Live camera lifecycle (loop startup AND Settings camera CRUD — Task R9)
 # ──────────────────────────────────────────────────────────
 
-_fps_counters: dict[str, '_FpsCounter'] = {}  # inference thread + lifecycle helpers
-
 
 def ensure_pipeline(cam: CameraConfig) -> None:
   """(Re)create the cascading pipeline for a camera on state.pipelines.
@@ -257,21 +228,20 @@ def ensure_pipeline(cam: CameraConfig) -> None:
 
 
 def start_camera_stream(cam_config: CameraConfig) -> bool:
-  """Build, start, and register a camera stream + pipeline + fps counter."""
+  """Build, start, and register a camera stream + pipeline."""
   try:
     stream = CameraStreamWrapper(camera=build_camera(cam_config), name=cam_config.name)
     stream.start()
   except Exception as exc:
     print(f'  ✗ Camera failed to start ({cam_config.id}): {exc}')
     with state.camera_status_lock:
-      state.camera_status[cam_config.id] = {'online': False, 'fps': 0, 'error': str(exc)}
+      state.camera_status[cam_config.id] = {'online': False, 'error': str(exc)}
     state.active_streams.pop(cam_config.id, None)
     return False
   state.active_streams[cam_config.id] = stream
-  _fps_counters[cam_config.id] = _FpsCounter()
   ensure_pipeline(cam_config)
   with state.camera_status_lock:
-    state.camera_status[cam_config.id] = {'online': True, 'fps': 0, 'error': None}
+    state.camera_status[cam_config.id] = {'online': True, 'error': None}
   print(f'  ✓ Camera started: {cam_config.name}')
   return True
 
@@ -285,7 +255,6 @@ def stop_camera_stream(cam_id: str) -> None:
     except Exception as exc:
       print(f'  ✗ Camera stop error ({cam_id}): {exc}')
   state.pipelines.pop(cam_id, None)
-  _fps_counters.pop(cam_id, None)
   if state.recording_manager is not None:
     state.recording_manager.stop_camera(cam_id)
   with state.camera_status_lock:
@@ -366,17 +335,11 @@ def inference_loop() -> None:
         try:
           frame = stream.get_latest_frame()
           if frame is None:
-            with state.camera_status_lock:
-              state.camera_status[cam_id]['fps'] = _fps_counters.setdefault(
-                cam_id, _FpsCounter()
-              ).stale_fps()
             continue
 
-          _fps_counters.setdefault(cam_id, _FpsCounter()).tick()
           with state.camera_status_lock:
             state.camera_status[cam_id] = {
               'online': True,
-              'fps': round(_fps_counters.setdefault(cam_id, _FpsCounter()).fps, 1),
               'last_frame_at': time.time(),
               'error': None,
             }
@@ -534,7 +497,6 @@ def inference_loop() -> None:
           with state.camera_status_lock:
             state.camera_status[cam_id] = {
               'online': False,
-              'fps': 0,
               'error': str(exc),
             }
 
