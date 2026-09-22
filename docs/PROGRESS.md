@@ -394,91 +394,13 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 
 > One entry per agent session: what was worked on, where things stopped, anything the next session needs to know.
 
-### Session 11 — 2026-09-21 (full review of 0a761fe..HEAD + fix plan)
+### Session 11 — 2026-09-21 → 2026-09-22 (full review of 0a761fe..HEAD + fix plan + Phase R execution)
 - Reviewed all 7 commits since 0a761fe (~8.5k lines): background code-review pass + personal verification of every finding + **live UI review** (running backend on :8000, fresh Vite on :5174, headless-Chrome CDP login + screenshots of all pages; seeded 3 clock-aligned test segments via OpenCV into data/recordings/test_camera/ + today's events).
-- **Why it doesn't feel like Scrypted** (measured, not opinion): HOUR_PX=58 fits the whole day in one screen; anti-collision stagger cascades 132 events into a 5,483px stack (position ≠ time, most rows below the scale); UTC rail ticks vs local badges on the same axis; gradient/glow chrome violates our own guardrails; hourly coverage bars instead of exact segments. Detections/Settings/AppRail are on-target.
-- Verified bugs: root cameras.json (committed in 949e688) overrides data/cameras.json and save_cameras overwrites it + can commit RTSP creds (P0); mobile playback unscrollable (P0, scrollBy no-op); /camera/:id literal-param redirect; camera select dead on /playback/:id; alert PATCH not live + not persisted; camera CRUD persistence-only; RegisterModal auto-capture stall; "15 FPS" fabrication; auto-enrich SQLite on hot path (61.5% CPU measured).
-- Environment updates: **ffmpeg is now installed** (/opt/homebrew/bin — B7.2/R16 unblocked); CLAUDE.md test count stale (136 now).
-- **Wrote [review-fix-plan.md](./review-fix-plan.md) + Phase R task rows above. NO implementation started.** Execution order: R13 → R19 → R2→R3→R4→R5 (timeline spine), R6/R7/R8/R9/R10/R11/R12 independent.
-- Review artifacts: screenshots in /tmp/aegis-shots/ (ephemeral), CDP driver scripts /tmp/aegis-shots.mjs + /tmp/aegis-debug*.mjs (to be committed as R19).
-
-### Task R13 — data/cameras.json is the only camera store
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: `uv run pytest tests/` → 140 passed (4 new tests in `tests/test_camera_store.py`: stray root file ignored, legacy fallback, save writes only data/, atomic write leaves no .tmp). `ruff check .` clean. Live smoke: `CAMERAS_FILE` resolves to `data/cameras.json`, loads the same 2 cameras as before (macbook disabled + test_camera); root `cameras.json` untracked (`git rm`) + `/cameras.json` added to `.gitignore`; `cameras.json.example` gained the `"file"` dev type.
-- **Deviations**: none — root and data files were identical, so the plan's migration-guard step was a no-op.
-
-### Task R2 — timeline local-time axis + exact segment coverage
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: 141 pytest green (new `test_timeline_tz_window_matches_client_local_day`), ruff clean, `npm run lint` + `tsc -b && vite build` clean. **Live CDP deep-link test**: `/playback?cam=test_camera&ts=<14:30Z>` → `<video>` loads `20260921_140000.mp4` with `currentTime=1800` (exact offset); playhead badge "4:30:12 PM" sits on the 4:30 PM tick (CEST — badge/tick agreement, was 2h off before); coverage renders the 3 seeded segments contiguously 3:00–5:55 PM local (shot: /tmp/aegis-shots/11-r2-seek-verify.png).
-- **Deviations**: (1) **found a P0 the review missed**: frontend `TimelineSegment` declared `start_epoch/duration_seconds/filename` but the API returns `{start,end,file}` — every seek path compared against `undefined`, so the new PlaybackPage had never loaded any video (rail clicks, deep-links, auto-advance all no-ops). Fixed via a client-side normalization (`NormalizedSegment`) used by onSeek/auto-advance/rail. (2) Plan said "backend change: none" — added a small `tz` query param to `GET /recordings/{cam}/timeline` (Annotated style) so the server returns the client-LOCAL day window (otherwise local-day edges lose segments at UTC boundaries); +1 test. (3) Coverage bars de-chromed (flat accent color) — pulled forward from R4 while touching the block.
-
-### Task R3 — timeline zoom, ticks, scroll-to-now
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: lint + tsc/vite clean. Live CDP: zoom presets render (4 buttons + Now); 2h default shows hourly labels + 15-min minor ticks with ~2h visible; scroll-to-now anchors present-time ~26% from top; 24h preset drops minor ticks and thins labels to every 3h (hidden-label probe artifact noted: DOM contains visibility:hidden placeholders — visual confirms thinning). Shots: /tmp/aegis-shots/12-r3-zoom-2h.png, 13 (24h), 14 (1h). Pin badges align with the scale (5:26 PM pin under the 5:00 PM tick).
-- **Deviations**: (1) Created `frontend/src/lib/timeline.ts` with the pure geometry helpers one task early (R4 needs it too). (2) `positionedEvents` useMemo → plain IIFE — React Compiler couldn't preserve the manual memo (mutating stagger loop); block is replaced by R4 anyway.
-
-### Task R4 — true-position pins, clustering, de-chrome
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: lint + tsc/vite clean; `grep linear-gradient|glow|halo src/components/TimelineRail.tsx` → 0. Live CDP with the 132-event test day: **27 pins, 24 with cluster badges** (+32/+6/+21… — bursts collapse instead of cascading); `scrollHeight` 9640 = the zoomed rail itself (24h × 400px + padding) — no content beyond the scale, position = time everywhere; pin badges sit against matching ticks (5:35 PM pin between 5:00/6:00; 3:38 PM just under 3:30). Zero-interaction control run: no video, no playhead — nothing auto-seeks (a playhead seen in one headless shot was a synthetic-input artifact). Shots: /tmp/aegis-shots/15-r4-pins-2h.png, 16 (6h).
-- **Deviations**: beyond plan — every event now also renders a flat 6px severity dot ON the rail at its true y (density view survives thumbnail clustering, Scrypted-style); thumbnails 120px (pane-fit) instead of 128; pin thumbnails hidden below 240px/hour (`THUMBS_AT_PXH`), dots remain at all zooms.
-
-### Task R6 — mobile playback scroll
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: harness `--mobile` pass (/tmp/r6-verify): scrolled shot 08 now shows rail content moving under the docked sticky 16:9 player (hour ticks 9:00/8:30/8:00 PM pass beneath) where the pre-fix shot was pixel-identical to unscrolled. Harness mobile scroll retargeted to the real scroller (shell div, with fallback). lint + build clean.
-- **Deviations**: none.
-
-### Task R7 — legacy redirect + camera selector
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: lint + build clean. Live CDP: `/camera/test_camera` → `/playback/test_camera` with the camera select holding `test_camera` (was: literal `:cameraId` broken page). Switching cameras from a `/playback/:id` URL → URL `/playback?cam=macbook_webcam&date=…` and the select keeps the new value (was: silent snap-back to the path camera).
-- **Deviations**: handleCameraChange navigates to the query-param form (replace) instead of setSearchParams — the path segment would keep shadowing `activeCameraId = pathCamId || camParam` otherwise.
-
-### Task R5 — drag scrub with frame preview, seek on release
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: lint + build clean. Live CDP (Input.dispatchMouseEvent press/hold/release on the rail): during drag the `frame.jpg` preview overlay renders (debounced 120ms credentialed fetch, blob URL, stale-response guard) and NO video element re-loads; on release the overlay dismisses and the video loads the covering segment at t=297s for a 14:05Z target (3s = sub-pixel rounding at 400px/h). Playhead badge follows the drag (data-dragging state). Endpoint sanity: frame.jpg 200/7.6KB within a segment's real duration.
-- **Deviations**: none vs plan. Note for future test data: the index glues the newest segment's end to its mtime, so a seeded "15-min" file reads as covering until its mtime — frame.jpg past the file's true EOF correctly 404s ("Could not decode"); verification must target timestamps within the real file duration.
-
-### Task R8 — alert settings live + persisted
-- **Status**: ✅ (live-restart verification deferred: the dev server on :8000 predates this code — on next restart, PATCH'd alert settings must survive via data/settings.json)
-- **Commit**: (this commit)
-- **Verified**: 146/146 pytest green (5 new: PATCH rebuilds `state.alert_manager` to the new provider class, PATCH persists provider+credentials to data/settings.json, boot overlay wins over env, invalid ntfy config keeps the previous manager, corrupt store tolerated). ruff clean. Loop + daily-summary now send via `state.alert_manager` (rebuilt by `rebuild_alert()` on PATCH — reading live `src.config` attrs, not by-value imports); `ai` tuning values persist and seed `state` defaults at boot.
-- **Deviations**: one pre-existing test updated (`test_build_alert_ntfy_requires_topic` patched the removed by-value import — now patches `src.config`, the new seam). PATCH now also snapshots env-sourced alert values into the store on any save (store = effective config snapshot).
-
-### Task R10 — wizard auto-capture retry
-- **Status**: ✅ (live face-session check deferred to user — failure path needs a real too-small/blurry face)
-- **Commit**: (this commit)
-- **Verified**: lint + build clean. Code-level: `captureAttempt` state bumped in `doCapture`'s catch and added to the countdown effect deps — after a 422 quality-gate failure with the pose still "correct", the effect re-runs and re-arms the 2s countdown (previously: no dep changed → no new interval → stall until the user left frame). Also dropped the odd `setTimeout(setCountdown(null), 0)`.
-- **Deviations**: none.
-
-### Task R12 — auto-enrichment throttle
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: 148/148 pytest green (2 new: per-(cam,track) window semantics incl. other-track/other-camera isolation + window expiry; throttled branch never touches compute_pose or the person store — asserted with a trap object). ruff clean. `_enrich_due` sits inside the enrich condition before any SQLite/imwrite; stale-track pruning at >256 keys.
-- **Deviations**: throttle dict lives in `inference` module scope (loop-thread-only — no lock needed) instead of `state`, per the plan's "state.last_enrich_attempt" sketch; same behavior, less locking.
-
-### Task R9 — camera CRUD goes live
-- **Status**: ✅ (live add/delete against a restarted server deferred — dev :8000 process predates this code)
-- **Commit**: (this commit)
-- **Verified**: 150/150 pytest green (CRUD test now asserts lifecycle: add → `start_camera_stream`, connection-change update → stop+start, cosmetic update → no restart, delete → `stop_camera_stream`; NEW `test_stop_camera_stream_clears_everything` (real helper: stream.stop + recorder stop + pipeline/status/frames/jpeg/fps cleanup); NEW enabled-only `/settings/system` count test). ruff clean.
-- **Deviations**: (1) fps counters moved from loop-local to `inference._fps_counters` (loop + lifecycle helpers share; setdefault guards runtime-added cams). (2) Loop uses `state.pipelines` (the previously dead state slot) with lazy `ensure_pipeline` fallback. (3) `RecordingManager.start_camera/stop_camera` added (stores ctor dir/index for runtime starts). (4) CRUD test previously started the REAL macbook webcam — now lifecycle-patched. Fixture updated for the removed by-value `settings.CAMERAS` import.
-
-### Task R11 — P2 grab-bag
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: lint + build clean; harness 9/9 shots (grid toolbar shows Auto/1x1/2×2/**3×3**/1+F/Live/fullscreen). Items: (1) fabricated "15 FPS" → badge only when fps is truthy; (2) `.hide-mobile` defined in index.css (≤640px); (3) 3×3 toolbar button (mode existed, was unreachable); (4) focus-layout side tiles swap into hero on click (navigation no longer hijacks — hero tile still navigates); (5) dashboard cards go live for 30s on first touch (mobile has no hover); (6) playback keyboard effect binds once via ref (was re-registering every render); (7) `relTime`/`exactTime` deduped into `lib/time.ts` (DetectionsPage + RecentEvents); (8) `jumpSeconds` resolves across segment boundaries via `onSeek`.
-- **Deviations**: (a) time helpers unified on DetectionsPage's signature (with-seconds default); RecentEvents' one tooltip now includes seconds. (b) While fixing the countdown effect for the compiler lint, the pose-lost clear became a derived render (`isCorrectPose && countdown != null`) — no state cascade, stale ring can't show when pose breaks.
-
-### Task R19 — UI screenshot harness
-- **Status**: ✅
-- **Commit**: (this commit)
-- **Verified**: `node scripts/ui_screenshot.mjs --base http://localhost:5174 --out /tmp/r19-verify --mobile` → 9/9 PNGs (6 desktop + 3 mobile), real login through the UI, exit 0. `ui-shots/` gitignored. Zero npm deps (Node ≥21 global WebSocket); options: `--base --api --out --user --pass --mobile`.
-- **Deviations**: none.
+- **Why it didn't feel like Scrypted** (measured, not opinion): HOUR_PX=58 fit the whole day in one screen; anti-collision stagger cascaded 132 events into a 5,483px stack (position ≠ time, most rows below the scale); UTC rail ticks vs local badges on the same axis; gradient/glow chrome violated our own guardrails; hourly coverage bars instead of exact segments. Detections/Settings/AppRail were on-target.
+- Additional P0 found during R2: frontend `TimelineSegment` type never matched the API (`start_epoch/duration_seconds/filename` vs `{start,end,file}`) — **every seek on the new PlaybackPage was a silent no-op**; the page had never actually played a video.
+- **Wrote [review-fix-plan.md](./review-fix-plan.md), then EXECUTED all of Phase RT + Phase RC** (13 tasks, per-task commits): R13 config safety, R19 screenshot harness (scripts/ui_screenshot.mjs), R2–R5 timeline v2 (local-time axis + tz-aware API window, exact segment coverage, zoom presets + 15-min ticks + scroll-to-now, true-position clustered pins + flat dots + zero-chrome, drag-scrub with frame.jpg preview), R6 mobile scroll, R7 redirect + camera select, R8 alert liveness + data/settings.json persistence, R9 live camera CRUD, R10 wizard retry, R11 P2 grab-bag, R12 enrich throttle. Suite: 136 → 150 tests green; frontend lint + build clean at every step.
+- **Remaining**: Phase RO optional tasks (R14 landing choice, R15 tile/card unify, R16 clip export — ffmpeg now installed, R17 CPU profiling, R18 doc sweep). Live checks pending on the NEXT server restart (dev :8000 process predates R8/R9): PATCH'd alert provider survives restart; camera add/delete via Settings takes effect without restart.
+- Environment updates: **ffmpeg is now installed** (/opt/homebrew/bin — B7.2/R16 unblocked); CLAUDE.md test count stale (150 now).
 
 ### Session 10 — 2026-09-21 (Phase 5: Scrypted Settings Suite, Camera CRUD, Diagnostics, Auth)
 - Completed Phase 5:
