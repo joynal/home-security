@@ -65,7 +65,7 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 | R7 | Fix /camera/:id literal-param redirect + dead camera select on /playback/:id | — | ✅ | (this commit) | verified live via CDP both paths |
 | R8 | Alert settings: live rebuild + data/settings.json persistence | — | ✅ | (this commit) | 5 new tests; live-restart check deferred to next server restart |
 | R9 | Camera CRUD starts/stops streams; /settings/system fresh counts | — | ⬜ | | unify pipelines on state.pipelines |
-| R10 | RegisterModal auto-capture retry after gate failure | — | ⬜ | | effect deps stall |
+| R10 | RegisterModal auto-capture retry after gate failure | — | ✅ | (this commit) | captureAttempt dep re-arms countdown; live face check deferred to user |
 | R11 | P2 grab-bag: FPS fabrication, hide-mobile, 3x3 btn, focus-tile swap, touch-live, time helpers | — | ⬜ | | see plan table |
 | R12 | Auto-enrichment per-track throttle (SQLite off hot path) | — | ⬜ | | inference.py:411 |
 | R14–R18 | Optional: landing reorder, tile/card unify, B7.2 clips (ffmpeg now installed!), CPU profile, doc sweep | R2..R12 | ⬜ | | see plan §RO |
@@ -449,6 +449,12 @@ Re-check with `which ffmpeg go2rtc` when resuming.
 - **Commit**: (this commit)
 - **Verified**: 146/146 pytest green (5 new: PATCH rebuilds `state.alert_manager` to the new provider class, PATCH persists provider+credentials to data/settings.json, boot overlay wins over env, invalid ntfy config keeps the previous manager, corrupt store tolerated). ruff clean. Loop + daily-summary now send via `state.alert_manager` (rebuilt by `rebuild_alert()` on PATCH — reading live `src.config` attrs, not by-value imports); `ai` tuning values persist and seed `state` defaults at boot.
 - **Deviations**: one pre-existing test updated (`test_build_alert_ntfy_requires_topic` patched the removed by-value import — now patches `src.config`, the new seam). PATCH now also snapshots env-sourced alert values into the store on any save (store = effective config snapshot).
+
+### Task R10 — wizard auto-capture retry
+- **Status**: ✅ (live face-session check deferred to user — failure path needs a real too-small/blurry face)
+- **Commit**: (this commit)
+- **Verified**: lint + build clean. Code-level: `captureAttempt` state bumped in `doCapture`'s catch and added to the countdown effect deps — after a 422 quality-gate failure with the pose still "correct", the effect re-runs and re-arms the 2s countdown (previously: no dep changed → no new interval → stall until the user left frame). Also dropped the odd `setTimeout(setCountdown(null), 0)`.
+- **Deviations**: none.
 
 ### Task R19 — UI screenshot harness
 - **Status**: ✅

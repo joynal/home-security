@@ -706,6 +706,12 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
   const isCorrectPose = faceStatus.face_found && faceStatus.pose === currentStep?.id;
 
   /* ── Stable doCapture ───────────────────────────────── */
+  // captureAttempt re-triggers the auto-capture countdown after a FAILED
+  // capture: a 422 from the backend quality gates (too_small/blurry/too_dark)
+  // doesn't change isCorrectPose, so without this bump the countdown effect
+  // never re-runs and the wizard silently stalls until the user breaks pose.
+  const [captureAttempt, setCaptureAttempt] = useState(0);
+
   const doCapture = useCallback(async () => {
     if (isCapturing.current) return;
     isCapturing.current = true;
@@ -735,6 +741,7 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
       setCaptureError((err as Error).message || String(err));
       isCapturing.current = false;
       setCapturing(false);
+      setCaptureAttempt((n) => n + 1);
     }
   }, []);
 
@@ -771,12 +778,12 @@ export default function RegisterModal({ initialName, onClose, onSuccess }: Regis
       }, 1000);
     } else if (!isCorrectPose) {
       if (countdownRef.current) clearInterval(countdownRef.current);
-      setTimeout(() => setCountdown(null), 0);
+      setCountdown(null);
     }
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [isCorrectPose, phase, doCapture]);
+  }, [isCorrectPose, phase, doCapture, captureAttempt]);
 
   /* ── Name form ──────────────────────────────────────── */
   const handleStart = () => {
