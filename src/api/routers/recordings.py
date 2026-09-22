@@ -91,7 +91,12 @@ def recordings_summary(_: str = Depends(get_current_user)):
 def camera_timeline(
   camera_id: str,
   date: Annotated[str, Query(description='Local calendar date, YYYY-MM-DD')],
-  tz: Annotated[int, Query(description='Client UTC offset in minutes, as JS getTimezoneOffset() reports it (UTC+2 → -120). Shifts the day window to cover the client-local day.')] = 0,
+  tz: Annotated[
+    int,
+    Query(
+      description='Client UTC offset in minutes, as JS getTimezoneOffset() reports it (UTC+2 → -120). Shifts the day window to cover the client-local day.'
+    ),
+  ] = 0,
   _: str = Depends(get_current_user),
 ):
   """

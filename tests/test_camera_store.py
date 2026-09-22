@@ -13,21 +13,21 @@ import src.config as config
 from src.models import CameraConfig
 
 ROOT_STRAY = [
-    {
-        'id': 'stray',
-        'name': 'Stray Root Camera',
-        'type': 'file',
-        'rtsp_url': 'data/stray.mp4',
-    }
+  {
+    'id': 'stray',
+    'name': 'Stray Root Camera',
+    'type': 'file',
+    'rtsp_url': 'data/stray.mp4',
+  }
 ]
 
 DATA_REAL = [
-    {
-        'id': 'real',
-        'name': 'Real Data Camera',
-        'type': 'file',
-        'rtsp_url': 'data/real.mp4',
-    }
+  {
+    'id': 'real',
+    'name': 'Real Data Camera',
+    'type': 'file',
+    'rtsp_url': 'data/real.mp4',
+  }
 ]
 
 

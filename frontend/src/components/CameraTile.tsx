@@ -56,19 +56,6 @@ const offlineStyles = (paused: boolean) => ({
   '& span': { fontSize: tokens.fontSizes.sm },
 });
 
-const nameStyles = {
-  position: 'absolute' as const,
-  left: 0,
-  bottom: 0,
-  right: 0,
-  padding: '28px 12px 10px',
-  background: 'linear-gradient(transparent, rgba(0, 0, 0, 0.65))', // legibility scrim over video
-  color: tokens.colors.text.primary,
-  fontSize: tokens.fontSizes.base,
-  fontWeight: tokens.fontWeights.medium,
-  textAlign: 'left' as const,
-  pointerEvents: 'none' as const,
-};
 
 const statusStyles = {
   position: 'absolute' as const,
@@ -153,9 +140,10 @@ export default function CameraTile({ camera, onSelect, forceLive }: CameraTilePr
         </div>
       )}
 
-      <div css={nameStyles}>{camera.name}</div>
-
       <div css={statusStyles}>
+        <span css={{ color: tokens.colors.text.primary, fontWeight: tokens.fontWeights.medium }}>
+          {camera.name}
+        </span>
         <span
           className={`status-dot ${camera.online && !hasError ? 'status-dot--live' : 'status-dot--offline'}`}
         />

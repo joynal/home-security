@@ -56,10 +56,11 @@ const topHudStyles = {
   left: 0,
   right: 0,
   padding: '8px 10px',
-  background: 'linear-gradient(to bottom, rgba(9, 9, 11, 0.85) 0%, transparent 100%)',
+  background: 'linear-gradient(to bottom, rgba(9, 9, 11, 0.75) 0%, transparent 100%)',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
+  justifyContent: 'flex-end',
+  gap: '8px',
   zIndex: 2,
   pointerEvents: 'none' as const,
 };
@@ -267,7 +268,7 @@ export default function CameraCard({ camera, onSelect, onSnapshot }: CameraCardP
         </div>
       )}
 
-      {/* Top HUD */}
+      {/* Top HUD - Right-aligned Live Icon and Camera Name */}
       <div css={topHudStyles}>
         <div css={nameGroupStyles}>
           <span

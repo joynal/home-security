@@ -150,8 +150,12 @@ def test_camera_crud(env, monkeypatch):
   import src.api.inference as inference
 
   lifecycle = {'started': [], 'stopped': []}
-  monkeypatch.setattr(inference, 'start_camera_stream', lambda cfg: lifecycle['started'].append(cfg.id) or True)
-  monkeypatch.setattr(inference, 'stop_camera_stream', lambda cam_id: lifecycle['stopped'].append(cam_id))
+  monkeypatch.setattr(
+    inference, 'start_camera_stream', lambda cfg: lifecycle['started'].append(cfg.id) or True
+  )
+  monkeypatch.setattr(
+    inference, 'stop_camera_stream', lambda cam_id: lifecycle['stopped'].append(cam_id)
+  )
 
   # 1. Add camera → stream started
   new_cam = CameraConfig(id='porch_cam', name='Porch Camera', type='macbook')
@@ -172,7 +176,8 @@ def test_camera_crud(env, monkeypatch):
 
   # 2b. Update with a connection change (different camera_index) → restart
   res_updated = update_camera(
-    'porch_cam', CameraConfig(id='porch_cam', name='Porch Cam Renamed', type='macbook', camera_index=1)
+    'porch_cam',
+    CameraConfig(id='porch_cam', name='Porch Cam Renamed', type='macbook', camera_index=1),
   )
   assert res_updated.camera_index == 1
   assert lifecycle['stopped'] == ['porch_cam']

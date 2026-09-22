@@ -171,6 +171,7 @@ def _enrich_due(cam_id: str, track_id) -> bool:
       del _last_enrich_attempt[stale]
   return True
 
+
 # Event/thumbnail retention sweep cadence (disk-aware — only prunes when low).
 EVENT_RETENTION_SWEEP_SECONDS = 900.0
 
@@ -520,7 +521,7 @@ def inference_loop() -> None:
 
           # Encode each camera's JPEG once per loop — MJPEG generators
           # serve these cached bytes instead of re-encoding per client.
-          ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+          ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
           with state.frames_lock:
             state.latest_frames[cam_id] = frame
             if ret:

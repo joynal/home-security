@@ -36,7 +36,7 @@ def _frame_generator():
   while True:
     with state.frame_lock:
       frame = state.latest_grid_frame.copy()
-    ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+    ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
     if ret:
       yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
     time.sleep(0.05)  # ~20 FPS cap to reduce network load
@@ -142,7 +142,7 @@ def camera_snapshot(
     frame = state.latest_frames.get(camera_id)
   if frame is None:
     raise HTTPException(status_code=503, detail='No frame yet')
-  ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+  ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
   if not ret:
     raise HTTPException(status_code=500, detail='Encode failed')
   from fastapi.responses import Response
